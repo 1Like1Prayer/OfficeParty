@@ -1,5 +1,10 @@
-function App() {
-  return <div>Office Party</div>
-}
+import { Arena } from './components/Arena/index.ts'
+import { SocketProvider } from './socket/index.ts'
 
-export default App
+export default function App() {
+  return (
+    <SocketProvider>
+      <Arena />
+    </SocketProvider>
+  )
+}
