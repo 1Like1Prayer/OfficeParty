@@ -1,33 +1,86 @@
+import { GAME_CATALOG } from '../shared/games/catalog.ts'
+import type { RoomStatePayload, RoundView } from '../shared/protocol.ts'
 import { color } from '../theme/index.ts'
-import type { Player, RoomState, ScoreboardRowView } from '../types/index.ts'
+import type { PlaylistRowView, ScoreboardRowView } from '../types/index.ts'
+import { initialOf, playerColor, selectHumanPlayers } from './players.ts'
 
-/** Players sorted by points, highest first. */
-export function selectRankedPlayers(room: RoomState): Player[] {
-  return [...room.players].sort((a, b) => b.points - a.points)
-}
+/** Standings, highest first, with lobby readiness folded into the status. */
+export function selectScoreboardRows(
+  room: RoomStatePayload,
+  round: RoundView,
+): ScoreboardRowView[] {
+  const ranked = [...selectHumanPlayers(room)].sort(
+    (a, b) => b.points - a.points || a.name.localeCompare(b.name),
+  )
 
-export function selectScoreboardRows(room: RoomState): ScoreboardRowView[] {
-  return selectRankedPlayers(room).map((player, index) => {
+  return ranked.map((player, index) => {
     const isLeader = index === 0 && player.points > 0
     return {
-      id: player.id,
+      id: player.playerId,
       rank: index + 1,
       name: player.name,
-      initial: player.name.charAt(0),
-      color: player.color,
+      initial: initialOf(player.name),
+      color: playerColor(player.playerId),
       points: player.points,
-      status: statusFor(player, room),
+      status: statusFor(player, room, round),
       background: isLeader ? color.leaderBg : color.white,
       pointsColor: isLeader ? color.red : color.ink,
+      dimmed: !player.connected || player.isSpectator,
     }
   })
 }
 
-function statusFor(player: Player, room: RoomState): string {
-  if (player.lastGain > 0) return `+${player.lastGain} LAST GAME`
-  return room.phase === 'lobby' ? 'READY' : 'NO POINTS'
+function statusFor(
+  player: RoomStatePayload['players'][number],
+  room: RoomStatePayload,
+  round: RoundView,
+): string {
+  if (!player.connected) return 'DISCONNECTED'
+  if (player.isSpectator) return 'WATCHING'
+  if (room.phase === 'lobby') return player.ready ? 'READY' : 'NOT READY'
+  if (room.phase === 'competition') {
+    if (round.waitingFor.includes(player.playerId)) return 'WAITING'
+    if (round.participants.includes(player.playerId)) return 'IN THIS ROUND'
+  }
+  return player.points === 1 ? '1 POINT' : `${player.points} POINTS`
 }
 
-export function selectPlayerCountLabel(room: RoomState): string {
-  return `${room.players.length} PLAYERS`
+export function selectPlayerCountLabel(room: RoomStatePayload): string {
+  const players = selectHumanPlayers(room).filter((p) => !p.isSpectator)
+  return players.length === 1 ? '1 PLAYER' : `${players.length} PLAYERS`
+}
+
+const PLAYLIST_COLORS = {
+  current: { text: '#FFC400', dot: '#FF4D2E' },
+  played: { text: '#5E5747', dot: '#3A3225' },
+  upcoming: { text: '#B9AF98', dot: '#7C7361' },
+} as const
+
+/**
+ * The set list. `round.gameIndex` is 1-based and is 0 before the competition
+ * starts, so nothing is marked current in the lobby.
+ */
+export function selectPlaylistRows(
+  room: RoomStatePayload,
+  round: RoundView,
+): PlaylistRowView[] {
+  const currentIndex = room.phase === 'competition' ? round.gameIndex : 0
+
+  return room.playlist.map((gameId, index) => {
+    const position =
+      index + 1 === currentIndex
+        ? 'current'
+        : index + 1 < currentIndex
+          ? 'played'
+          : 'upcoming'
+    const palette = PLAYLIST_COLORS[position]
+    const meta = GAME_CATALOG[gameId]
+    return {
+      id: `${gameId}-${index}`,
+      name: `${index + 1}. ${meta.title}`,
+      kind: meta.kind.toUpperCase(),
+      color: palette.text,
+      dotColor: palette.dot,
+    }
+  })
 }

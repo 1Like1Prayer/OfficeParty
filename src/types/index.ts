@@ -1,5 +1,1 @@
-export type { Game, GameKind } from './game.ts'
-export type { Player } from './player.ts'
-export type { RoomPhase, RoomState } from './room.ts'
-export type { ClientToServerEvents, ServerToClientEvents } from './socket.ts'
 export type { PlaylistRowView, ResultRowView, ScoreboardRowView } from './viewModels.ts'

@@ -1,17 +1,19 @@
-import type { ReactNode } from 'react'
-import { color, sharedStyles } from '../../theme/index.ts'
-import { PushButton } from '../ui/index.ts'
+import { color, font, sharedStyles } from '../../theme/index.ts'
+import { Countdown } from './Countdown.tsx'
 import { MinigameCanvas } from './MinigameCanvas.tsx'
+import { PlayerLights } from './PlayerLights.tsx'
 
 interface GamePlayProps {
   gameName: string
-  onFinishGame: () => void
-  /** Playfield for the running minigame. */
-  children?: ReactNode
+  statusLine: string
+  /** Milliseconds until the clock runs, or null once it is running. */
+  countdownMs: number | null
+  /** One light per participant, lit while their clock is running. */
+  lights: { id: string; initial: string; color: string; active: boolean }[]
 }
 
-/** The live round: title, playfield and the manual finish escape hatch. */
-export function GamePlay({ gameName, onFinishGame, children }: GamePlayProps) {
+/** The live round. Phones do the playing; this screen narrates it. */
+export function GamePlay({ gameName, statusLine, countdownMs, lights }: GamePlayProps) {
   return (
     <section
       style={{ ...sharedStyles.phasePane, alignItems: 'center', gap: 24, textAlign: 'center' }}
@@ -28,10 +30,23 @@ export function GamePlay({ gameName, onFinishGame, children }: GamePlayProps) {
       >
         {gameName}
       </h1>
-      <MinigameCanvas>{children}</MinigameCanvas>
-      <PushButton variant="success" size="sm" onClick={onFinishGame}>
-        Simulate result
-      </PushButton>
+      <MinigameCanvas>
+        {countdownMs === null ? (
+          <PlayerLights lights={lights} />
+        ) : (
+          <Countdown msLeft={countdownMs} />
+        )}
+      </MinigameCanvas>
+      <div
+        style={{
+          fontFamily: font.body,
+          fontWeight: 700,
+          fontSize: 17,
+          color: color.mutedStrong,
+        }}
+      >
+        {statusLine}
+      </div>
     </section>
   )
 }

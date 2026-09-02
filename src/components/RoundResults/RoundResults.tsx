@@ -4,27 +4,28 @@ import { PushButton } from '../ui/index.ts'
 import { ResultRow } from './ResultRow.tsx'
 
 interface RoundResultsProps {
-  gameName: string
-  winnerLine: string
+  eyebrow: string
+  headline: string
   rows: ResultRowView[]
-  nextLabel: string
-  onNextGame: () => void
+  /** Null when the server is not holding on a timer, e.g. mid-tiebreak. */
+  skipLabel: string | null
+  onSkip: () => void
 }
 
-/** Placement table for the game that just ended. */
+/** Placement table for the round that just resolved. */
 export function RoundResults({
-  gameName,
-  winnerLine,
+  eyebrow,
+  headline,
   rows,
-  nextLabel,
-  onNextGame,
+  skipLabel,
+  onSkip,
 }: RoundResultsProps) {
   return (
     <section style={{ ...sharedStyles.phasePane, padding: '36px 52px', gap: 22 }}>
       <div>
-        <div style={{ ...sharedStyles.eyebrow, marginBottom: 8 }}>{gameName} · RESULT</div>
+        <div style={{ ...sharedStyles.eyebrow, marginBottom: 8 }}>{eyebrow}</div>
         <h1 style={{ ...sharedStyles.displayHeading, margin: 0, fontSize: 62, lineHeight: 1 }}>
-          {winnerLine}
+          {headline}
         </h1>
       </div>
       <ol
@@ -44,9 +45,11 @@ export function RoundResults({
           </li>
         ))}
       </ol>
-      <div style={{ alignSelf: 'flex-start' }}>
-        <PushButton onClick={onNextGame}>{nextLabel}</PushButton>
-      </div>
+      {skipLabel && (
+        <div style={{ alignSelf: 'flex-start' }}>
+          <PushButton onClick={onSkip}>{skipLabel}</PushButton>
+        </div>
+      )}
     </section>
   )
 }

@@ -1,22 +1,41 @@
+import { gameCopy } from '../../content/gameCopy.ts'
 import { selectFormatLabel } from '../../selectors/index.ts'
+import type { GameMeta } from '../../shared/games/catalog.ts'
 import { color, sharedStyles } from '../../theme/index.ts'
-import type { Game } from '../../types/index.ts'
-import { Pill, PushButton } from '../ui/index.ts'
+import { Pill } from '../ui/index.ts'
+import { ReadyCheck } from './ReadyCheck.tsx'
 import { RulesCard } from './RulesCard.tsx'
 
 interface GameRevealProps {
-  game: Game
-  gameNumber: number
+  game: GameMeta
+  gameIndex: number
   totalGames: number
-  onBeginGame: () => void
+  isTiebreak: boolean
+  /** Names still to press ready on their phones. */
+  waitingFor: string[]
+  readyCount: number
+  participantCount: number
 }
 
-/** Announces the next minigame and its rules before play starts. */
-export function GameReveal({ game, gameNumber, totalGames, onBeginGame }: GameRevealProps) {
+/**
+ * Announces the next game while the server runs its ready check. There is no
+ * button here — the round advances when the phones say so.
+ */
+export function GameReveal({
+  game,
+  gameIndex,
+  totalGames,
+  isTiebreak,
+  waitingFor,
+  readyCount,
+  participantCount,
+}: GameRevealProps) {
+  const copy = gameCopy(game.id)
+
   return (
     <section style={{ ...sharedStyles.phasePane, gap: 24 }}>
       <div style={sharedStyles.eyebrow}>
-        NEXT UP · GAME {gameNumber} OF {totalGames}
+        {isTiebreak ? 'TIEBREAK' : `NEXT UP · GAME ${gameIndex} OF ${totalGames}`}
       </div>
       <h1
         style={{
@@ -30,20 +49,19 @@ export function GameReveal({ game, gameNumber, totalGames, onBeginGame }: GameRe
           animation: 'pa-rise .35s ease-out',
         }}
       >
-        {game.name}
+        {game.title}
       </h1>
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
         <Pill>{selectFormatLabel(game.kind)}</Pill>
-        <Pill>{game.input.toUpperCase()}</Pill>
-        <Pill>~{game.length}</Pill>
+        <Pill>{copy.input.toUpperCase()}</Pill>
+        <Pill>~{copy.length}</Pill>
       </div>
-      <RulesCard rules={game.rules} />
-      <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
-        <PushButton onClick={onBeginGame}>Everyone ready</PushButton>
-        <div style={{ fontWeight: 700, fontSize: 15, color: color.mutedStrong }}>
-          Check your phone — controls change every game.
-        </div>
-      </div>
+      <RulesCard rules={copy.rules} />
+      <ReadyCheck
+        waitingFor={waitingFor}
+        readyCount={readyCount}
+        participantCount={participantCount}
+      />
     </section>
   )
 }

@@ -1,13 +1,22 @@
-export { selectCurrentGame, selectFormatLabel, selectIsLastGame, selectRoundLabel } from './game.ts'
-export { selectPlaylistRows } from './playlist.ts'
+export { initialOf, playerColor, selectHumanPlayers, selectNames, selectPlayer } from './players.ts'
+export {
+  formatList,
+  selectCurrentGame,
+  selectFormatLabel,
+  selectPlayStatusLine,
+  selectRoundLabel,
+  selectStartBlockedLine,
+} from './round.ts'
 export {
   selectChampionLine,
   selectChampionNote,
+  selectResultEyebrow,
+  selectResultHeadline,
   selectResultRows,
-  selectWinnerLine,
+  selectStandingRows,
 } from './results.ts'
 export {
   selectPlayerCountLabel,
-  selectRankedPlayers,
+  selectPlaylistRows,
   selectScoreboardRows,
 } from './scoreboard.ts'

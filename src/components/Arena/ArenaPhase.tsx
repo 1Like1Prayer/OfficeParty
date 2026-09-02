@@ -1,13 +1,21 @@
+import { useMemo } from 'react'
+import { useCountdown } from '../../hooks/index.ts'
 import {
+  initialOf,
+  playerColor,
   selectChampionLine,
   selectChampionNote,
   selectCurrentGame,
-  selectIsLastGame,
+  selectNames,
+  selectPlayStatusLine,
+  selectResultEyebrow,
+  selectResultHeadline,
   selectResultRows,
-  selectWinnerLine,
+  selectStandingRows,
+  selectStartBlockedLine,
 } from '../../selectors/index.ts'
-import type { RoomActions } from '../../socket/index.ts'
-import type { RoomState } from '../../types/index.ts'
+import { JOIN_URL } from '../../socket/config.ts'
+import type { RoomActions, UseRoomResult } from '../../socket/index.ts'
 import { FinalStandings } from '../FinalStandings/index.ts'
 import { GamePlay } from '../GamePlay/index.ts'
 import { GameReveal } from '../GameReveal/index.ts'
@@ -15,55 +23,118 @@ import { Lobby } from '../Lobby/index.ts'
 import { RoundResults } from '../RoundResults/index.ts'
 
 interface ArenaPhaseProps {
-  room: RoomState
+  room: NonNullable<UseRoomResult['state']>
+  round: UseRoomResult['round']
+  results: UseRoomResult['results']
+  leaderboard: UseRoomResult['leaderboard']
+  progress: UseRoomResult['progress']
   actions: RoomActions
 }
 
-/** Maps the server's phase onto the screen that owns it. */
-export function ArenaPhase({ room, actions }: ArenaPhaseProps) {
-  const game = selectCurrentGame(room)
+/**
+ * Maps the room's phase — and inside a competition, the round's — onto the
+ * screen that owns it.
+ */
+export function ArenaPhase({
+  room,
+  round,
+  results,
+  leaderboard,
+  progress,
+  actions,
+}: ArenaPhaseProps) {
+  const { timingStartsAtLocalMs } = round
+  const msLeft = useMemo(
+    () =>
+      timingStartsAtLocalMs === null
+        ? null
+        : () => timingStartsAtLocalMs - performance.now(),
+    [timingStartsAtLocalMs],
+  )
+  const countdownMs = useCountdown(round.phase === 'countdown' ? msLeft : null)
 
-  switch (room.phase) {
-    case 'lobby':
-      return (
-        <Lobby
-          roomCode={room.code}
-          gameCount={room.playlist.length}
-          onStartRun={actions.startRun}
-        />
-      )
+  const lights = useMemo(
+    () =>
+      round.participants.map((playerId) => {
+        const name = room.players.find((p) => p.playerId === playerId)?.name ?? '?'
+        return {
+          id: playerId,
+          initial: initialOf(name),
+          color: playerColor(playerId),
+          active: progress[playerId]?.['running'] === 1,
+        }
+      }),
+    [round.participants, room.players, progress],
+  )
 
-    case 'reveal':
-      return game ? (
-        <GameReveal
-          game={game}
-          gameNumber={room.currentIndex + 1}
-          totalGames={room.playlist.length}
-          onBeginGame={actions.beginGame}
+  if (room.phase === 'lobby') {
+    return (
+      <Lobby
+        roomCode={room.roomCode}
+        joinUrl={JOIN_URL}
+        roundsPerGame={room.lobby.roundsPerGame}
+        roundsOptions={room.lobby.roundsPerGameOptions}
+        minPlayers={room.minPlayers}
+        maxPlayers={room.maxPlayers}
+        canStart={room.lobby.canStart}
+        startNote={selectStartBlockedLine(room)}
+        onStart={actions.start}
+        onSetRounds={actions.setRoundsPerGame}
+      />
+    )
+  }
+
+  if (room.phase === 'leaderboard') {
+    return (
+      <FinalStandings
+        championLine={leaderboard ? selectChampionLine(room, leaderboard) : 'That’s the run.'}
+        championNote={
+          leaderboard ? selectChampionNote(room, leaderboard) : 'Counting the last round…'
+        }
+        rows={leaderboard ? selectStandingRows(room, leaderboard) : []}
+        onBackToLobby={actions.skip}
+      />
+    )
+  }
+
+  const game = selectCurrentGame(round)
+
+  switch (round.phase) {
+    case 'results':
+      return results ? (
+        <RoundResults
+          eyebrow={selectResultEyebrow(results)}
+          headline={selectResultHeadline(room, results)}
+          rows={selectResultRows(room, results)}
+          // Only a resolved scoring round sits on a timer worth skipping; a
+          // tiebreak rolls straight into its next attempt.
+          skipLabel={results.isFinal ? 'Skip ahead' : null}
+          onSkip={actions.skip}
         />
       ) : null
 
+    case 'countdown':
     case 'playing':
-      return game ? <GamePlay gameName={game.name} onFinishGame={actions.finishGame} /> : null
-
-    case 'results':
-      return (
-        <RoundResults
-          gameName={game?.name ?? ''}
-          winnerLine={selectWinnerLine(room)}
-          rows={selectResultRows(room)}
-          nextLabel={selectIsLastGame(room) ? 'Final standings' : 'Next game'}
-          onNextGame={actions.nextGame}
+      return game ? (
+        <GamePlay
+          gameName={game.title}
+          statusLine={selectPlayStatusLine(room, round)}
+          countdownMs={round.phase === 'countdown' ? (countdownMs ?? 0) : null}
+          lights={lights}
         />
-      )
+      ) : null
 
-    case 'final':
-      return (
-        <FinalStandings
-          championLine={selectChampionLine(room)}
-          championNote={selectChampionNote(room)}
-          onResetRun={actions.resetRun}
+    default:
+      return game ? (
+        <GameReveal
+          game={game}
+          gameIndex={round.gameIndex}
+          totalGames={round.totalGames}
+          isTiebreak={round.isTiebreak}
+          waitingFor={selectNames(room, round.waitingFor)}
+          readyCount={round.ready.length}
+          participantCount={round.participants.length}
         />
-      )
+      ) : null
   }
 }

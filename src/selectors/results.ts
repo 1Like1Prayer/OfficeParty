@@ -1,44 +1,135 @@
-import type { ResultRowView, RoomState } from '../types/index.ts'
-import { selectRankedPlayers } from './scoreboard.ts'
+import { GAME_CATALOG } from '../shared/games/catalog.ts'
+import type {
+  LeaderboardPayload,
+  RoomStatePayload,
+  RoundResultsPayload,
+} from '../shared/protocol.ts'
+import type { ResultRowView } from '../types/index.ts'
+import { formatList } from './round.ts'
+import { initialOf, playerColor, selectPlayer } from './players.ts'
 
-/** Last game's finishing order, first place first. */
-export function selectResultRows(room: RoomState): ResultRowView[] {
-  return [...room.players]
-    .sort((a, b) => a.place - b.place)
-    .map((player) => ({
-      id: player.id,
-      place: `${player.place}.`,
-      name: player.name,
-      initial: player.name.charAt(0),
-      color: player.color,
-      note: player.note,
-      gain: player.lastGain > 0 ? `+${player.lastGain}` : '—',
-    }))
+/**
+ * The reveal for the round that just ended. `ranked` already holds everyone
+ * who reported, in order; the no-shows are appended below them.
+ */
+export function selectResultRows(
+  room: RoomStatePayload,
+  results: RoundResultsPayload,
+): ResultRowView[] {
+  const rows: ResultRowView[] = results.ranked.map((entry) => ({
+    id: entry.playerId,
+    place: `${entry.rank}.`,
+    name: nameOf(room, entry.playerId),
+    initial: initialOf(nameOf(room, entry.playerId)),
+    color: playerColor(entry.playerId),
+    note: describeDetail(entry.detail),
+    gain: results.isFinal && entry.playerId === results.winnerId ? '+1' : '—',
+  }))
+
+  return rows.concat(
+    results.noShow.map((playerId) => ({
+      id: playerId,
+      place: '—',
+      name: nameOf(room, playerId),
+      initial: initialOf(nameOf(room, playerId)),
+      color: playerColor(playerId),
+      note: 'never reported',
+      gain: '—',
+    })),
+  )
 }
 
-export function selectWinnerLine(room: RoomState): string {
-  const [winner] = selectResultRows(room)
-  return `${winner?.name ?? 'Nobody'} takes it.`
+function nameOf(room: RoomStatePayload, playerId: string): string {
+  return selectPlayer(room, playerId)?.name ?? 'Someone'
 }
 
-function selectIsTied(room: RoomState): boolean {
-  const ranked = selectRankedPlayers(room)
-  const leader = ranked[0]
-  if (!leader) return false
-  return ranked.filter((player) => player.points === leader.points).length > 1
-}
+/**
+ * Games describe their own results, so this formats the keys it knows and
+ * falls back to printing whatever else a game chose to send.
+ */
+function describeDetail(detail: Record<string, number | string | boolean>): string {
+  const parts: string[] = []
 
-export function selectChampionLine(room: RoomState): string {
-  if (selectIsTied(room)) return 'Dead heat.'
-  const leader = selectRankedPlayers(room)[0]
-  return leader ? `${leader.name} wins the night.` : 'Nobody wins the night.'
-}
-
-export function selectChampionNote(room: RoomState): string {
-  if (selectIsTied(room)) {
-    return 'Two people finished level on points. Sudden death is Stop the Clock, and it is not negotiable.'
+  if (typeof detail['elapsedMs'] === 'number') {
+    parts.push(`${seconds(detail['elapsedMs'])}s`)
   }
-  const leader = selectRankedPlayers(room)[0]
-  const points = leader?.points ?? 0
-  return `${points} points across ${room.playlist.length} games. Everyone else can take it up with HR.`
+  if (typeof detail['errorMs'] === 'number') {
+    parts.push(
+      detail['errorMs'] === 0 ? 'exact' : `off by ${seconds(detail['errorMs'])}s`,
+    )
+  }
+  if (detail['timingSuspect'] === true) parts.push('timing suspect')
+
+  if (parts.length > 0) return parts.join(' · ')
+
+  return Object.entries(detail)
+    .map(([key, value]) => `${key}: ${String(value)}`)
+    .join(' · ')
+}
+
+const seconds = (ms: number): string => (ms / 1000).toFixed(2)
+
+export function selectResultHeadline(
+  room: RoomStatePayload,
+  results: RoundResultsPayload,
+): string {
+  if (results.winnerId === null) return 'Nobody took it.'
+  const name = nameOf(room, results.winnerId)
+  if (results.decidedByCoinFlip) return `${name} wins the coin flip.`
+  if (!results.isFinal) return `${name} leads. Tiebreak.`
+  return `${name} takes it.`
+}
+
+export function selectResultEyebrow(results: RoundResultsPayload): string {
+  const title = results.gameId ? GAME_CATALOG[results.gameId].title : 'ROUND'
+  return results.isFinal
+    ? `${title.toUpperCase()} · RESULT`
+    : `${title.toUpperCase()} · TIEBREAK ${results.attempt}`
+}
+
+/* ---------------------------------------------------------------- */
+/* Final standings                                                    */
+/* ---------------------------------------------------------------- */
+
+export function selectChampionLine(
+  room: RoomStatePayload,
+  leaderboard: LeaderboardPayload,
+): string {
+  if (leaderboard.rows.length === 0) return 'Nobody wins the night.'
+  if (leaderboard.tied) return 'Dead heat.'
+  return `${nameOf(room, leaderboard.rows[0].playerId)} wins the night.`
+}
+
+export function selectChampionNote(
+  room: RoomStatePayload,
+  leaderboard: LeaderboardPayload,
+): string {
+  const top = leaderboard.rows.filter((row) => row.rank === 1)
+  if (top.length === 0) return 'The room emptied before anyone scored.'
+
+  if (leaderboard.tied) {
+    const names = formatList(top.map((row) => nameOf(room, row.playerId)))
+    return `${names} finished level on ${top[0].points}. There is no overall tiebreaker, so argue about it yourselves.`
+  }
+
+  const points = top[0].points
+  const games = room.playlist.length
+  return `${points} ${points === 1 ? 'point' : 'points'} across ${games} ${
+    games === 1 ? 'game' : 'games'
+  }. Everyone else can take it up with HR.`
+}
+
+export function selectStandingRows(
+  room: RoomStatePayload,
+  leaderboard: LeaderboardPayload,
+): ResultRowView[] {
+  return leaderboard.rows.map((row) => ({
+    id: row.playerId,
+    place: `${row.rank}.`,
+    name: nameOf(room, row.playerId),
+    initial: initialOf(nameOf(room, row.playerId)),
+    color: playerColor(row.playerId),
+    note: '',
+    gain: `${row.points}`,
+  }))
 }

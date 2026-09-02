@@ -5,7 +5,7 @@ import { StripeBar } from '../ui/index.ts'
 
 interface ConnectionGateProps {
   status: ConnectionStatus
-  /** True once the first room snapshot has arrived. */
+  /** True once the room has been joined and its first snapshot has arrived. */
   hasState: boolean
   error: string | null
   children: ReactNode
@@ -14,7 +14,7 @@ interface ConnectionGateProps {
 const MESSAGES: Record<ConnectionStatus, { eyebrow: string; line: string }> = {
   connecting: { eyebrow: 'CONNECTING', line: 'Finding the arena server…' },
   disconnected: { eyebrow: 'OFFLINE', line: 'Lost the arena server. Retrying…' },
-  connected: { eyebrow: 'SYNCING', line: 'Waiting for the room state…' },
+  connected: { eyebrow: 'SYNCING', line: 'Opening the room…' },
 }
 
 /** Holds back the arena until the server has told us what the room looks like. */

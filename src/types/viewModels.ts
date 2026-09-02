@@ -7,10 +7,11 @@ export interface ScoreboardRowView {
   initial: string
   color: string
   points: number
-  /** e.g. "+7 LAST GAME", "READY", "NO POINTS". */
+  /** e.g. "READY", "WAITING", "DISCONNECTED", "WATCHING". */
   status: string
   background: string
   pointsColor: string
+  dimmed: boolean
 }
 
 export interface ResultRowView {
@@ -20,8 +21,9 @@ export interface ResultRowView {
   name: string
   initial: string
   color: string
+  /** Whatever the game reported, e.g. "stopped at 9.98s". */
   note: string
-  /** "+10" when points were won, "—" otherwise. */
+  /** "+1" when the round awarded a point, "—" otherwise. */
   gain: string
 }
 
@@ -29,6 +31,7 @@ export interface PlaylistRowView {
   id: string
   /** e.g. "3. Blade Arena". */
   name: string
+  /** Uppercased game kind, e.g. "SELF-TIMED". */
   kind: string
   color: string
   dotColor: string

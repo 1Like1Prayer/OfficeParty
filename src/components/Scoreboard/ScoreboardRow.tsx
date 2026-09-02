@@ -17,6 +17,7 @@ export function ScoreboardRow({ row }: ScoreboardRowProps) {
         borderRadius: 14,
         background: row.background,
         border: `2px solid ${color.ink}`,
+        opacity: row.dimmed ? 0.5 : 1,
       }}
     >
       <div
