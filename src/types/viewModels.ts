@@ -6,6 +6,8 @@ export interface ScoreboardRowView {
   name: string
   initial: string
   color: string
+  /** DiceBear seed the player picked. */
+  avatar: string
   points: number
   /** e.g. "READY", "WAITING", "DISCONNECTED", "WATCHING". */
   status: string
@@ -23,6 +25,7 @@ export interface ResultRowView {
   name: string
   initial: string
   color: string
+  avatar: string
   /** Whatever the game reported, e.g. "stopped at 9.98s". */
   note: string
   /** "+1" when the round awarded a point, "—" otherwise. */

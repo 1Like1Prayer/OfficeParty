@@ -31,7 +31,7 @@ export function ScoreboardRow({ row }: ScoreboardRowProps) {
       >
         {row.rank}
       </div>
-      <Avatar initial={row.initial} background={row.color} />
+      <Avatar initial={row.initial} background={row.color} seed={row.avatar} />
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontWeight: 700, fontSize: 19, ...sharedStyles.ellipsis }}>
           {row.name}

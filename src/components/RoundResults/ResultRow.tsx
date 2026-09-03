@@ -33,7 +33,7 @@ export function ResultRow({ row, delay }: ResultRowProps) {
       >
         {row.place}
       </div>
-      <Avatar initial={row.initial} background={row.color} size={34} />
+      <Avatar initial={row.initial} background={row.color} seed={row.avatar} size={34} />
       <div style={{ flex: 1, fontWeight: 700, fontSize: 21 }}>
         {row.name}
         {row.isYou && <span style={{ color: color.mutedStrong }}> (you)</span>}

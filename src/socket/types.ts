@@ -44,11 +44,11 @@ export interface ServerToClientEvents {
 
 export interface ClientToServerEvents {
   'room:create': (
-    payload: { name?: string },
+    payload: { name?: string; avatar?: string },
     ack: (response: Ack<JoinAckData>) => void,
   ) => void
   'room:join': (
-    payload: { roomCode: string; name?: string; playerId?: string },
+    payload: { roomCode: string; name?: string; avatar?: string; playerId?: string },
     ack: (response: Ack<JoinAckData>) => void,
   ) => void
   'room:leave': (payload: null, ack: (response: Ack<null>) => void) => void
@@ -99,4 +99,5 @@ export interface ArenaSession {
   roomCode: string
   playerId: string
   name: string
+  avatar: string
 }

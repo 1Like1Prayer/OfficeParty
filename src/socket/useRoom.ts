@@ -25,10 +25,10 @@ export interface RoomActions {
   goToJoin: () => void
   /** Leave the room and go back to the title. */
   goToTitle: () => void
-  /** Open a room under this name and own it. */
-  host: (name: string) => void
-  /** Join an existing room under this name. */
-  join: (name: string, code: string) => void
+  /** Open a room under this name and avatar, and own it. */
+  host: (name: string, avatar: string) => void
+  /** Join an existing room under this name and avatar. */
+  join: (name: string, avatar: string, code: string) => void
 
   /* Lobby */
   setReady: (ready: boolean) => void
@@ -86,29 +86,29 @@ export function useRoom(): UseRoomResult {
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
-  const accept = useCallback((joined: JoinAckData, name: string) => {
+  const accept = useCallback((joined: JoinAckData, name: string, avatar: string) => {
     setPlayerId(joined.playerId)
     setState(joined.state)
     setError(null)
     setBusy(false)
     setScores({})
     setStage('room')
-    writeSession({ roomCode: joined.roomCode, playerId: joined.playerId, name })
+    writeSession({ roomCode: joined.roomCode, playerId: joined.playerId, name, avatar })
   }, [])
 
   const attach = useCallback(
-    (name: string, roomCode: string | null) => {
+    (name: string, avatar: string, roomCode: string | null) => {
       setBusy(true)
       setError(null)
 
       const settle = (ack: Ack<JoinAckData>) => {
         setBusy(false)
-        if (ack.ok) accept(ack.data, name)
+        if (ack.ok) accept(ack.data, name, avatar)
         else setError(ack.message)
       }
 
       if (roomCode === null) {
-        socket.emit('room:create', { name }, settle)
+        socket.emit('room:create', { name, avatar }, settle)
         return
       }
 
@@ -120,6 +120,7 @@ export function useRoom(): UseRoomResult {
         {
           roomCode,
           name,
+          avatar,
           ...(session?.roomCode === roomCode ? { playerId: session.playerId } : {}),
         },
         settle,
@@ -172,7 +173,7 @@ export function useRoom(): UseRoomResult {
     const onConnect = () => {
       const session = readSession()
       const roomCode = ROOM_CODE || session?.roomCode
-      if (roomCode && session) attach(session.name, roomCode)
+      if (roomCode && session) attach(session.name, session.avatar, roomCode)
     }
 
     socket.on('room:state', onState)
@@ -226,8 +227,8 @@ export function useRoom(): UseRoomResult {
         setError(null)
         setStage('title')
       },
-      host: (name: string) => { attach(name, null) },
-      join: (name: string, code: string) => { attach(name, code) },
+      host: (name: string, avatar: string) => { attach(name, avatar, null) },
+      join: (name: string, avatar: string, code: string) => { attach(name, avatar, code) },
 
       setReady: (ready: boolean) => { socket.emit('lobby:ready', { ready }, report) },
       start: () => { socket.emit('lobby:start', null, report) },

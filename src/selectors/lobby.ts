@@ -30,6 +30,7 @@ export function selectFloaters(room: RoomStatePayload): Floater[] {
     name: player.name,
     initial: initialOf(player.name),
     color: playerColor(player.playerId),
+    avatar: player.avatar,
     ...spot(index, players.length),
   }))
 }

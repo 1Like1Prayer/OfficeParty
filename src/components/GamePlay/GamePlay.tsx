@@ -9,7 +9,13 @@ interface GamePlayProps {
   /** Milliseconds until the clock runs, or null once it is running. */
   countdownMs: number | null
   /** One light per opponent, lit while their clock is running. */
-  lights: { id: string; initial: string; color: string; active: boolean }[]
+  lights: {
+    id: string
+    initial: string
+    color: string
+    avatar: string
+    active: boolean
+  }[]
   /** The game itself, from the moment the round is being set up. */
   children?: ReactNode
 }

@@ -2,7 +2,13 @@ import { color, font } from '../../theme/index.ts'
 import { Avatar } from '../ui/index.ts'
 
 interface PlayerLightsProps {
-  lights: { id: string; initial: string; color: string; active: boolean }[]
+  lights: {
+    id: string
+    initial: string
+    color: string
+    avatar: string
+    active: boolean
+  }[]
 }
 
 /**
@@ -24,7 +30,7 @@ export function PlayerLights({ lights }: PlayerLightsProps) {
             transition: 'opacity .2s ease',
           }}
         >
-          <Avatar initial={light.initial} background={light.color} size={54} />
+          <Avatar initial={light.initial} background={light.color} seed={light.avatar} size={54} />
           <div
             style={{
               fontFamily: font.mono,

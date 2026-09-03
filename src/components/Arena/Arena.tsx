@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { randomSeed } from '../../content/avatars.ts'
 import { useCodeEntry } from '../../hooks/index.ts'
 import {
   selectPlayerCountLabel,
@@ -34,6 +35,8 @@ export function Arena() {
     actions,
   } = useRoom()
   const [name, setName] = useState('')
+  // Seeded at random so nobody is forced to choose before they can play.
+  const [avatar, setAvatar] = useState<string>(randomSeed)
   const [nameDone, setNameDone] = useState(false)
   const code = useCodeEntry(ROOM.CODE_LENGTH, ROOM.CODE_ALPHABET)
 
@@ -82,10 +85,12 @@ export function Arena() {
         {stage === 'host' && (
           <HostScreen
             name={name}
+            avatar={avatar}
             error={error}
             busy={busy}
             onName={setName}
-            onHost={() => { actions.host(name.trim()) }}
+            onAvatar={setAvatar}
+            onHost={() => { actions.host(name.trim(), avatar) }}
             onBack={actions.goToTitle}
           />
         )}
@@ -93,14 +98,16 @@ export function Arena() {
         {stage === 'join' && (
           <JoinScreen
             name={name}
+            avatar={avatar}
             code={code.entry}
             nameDone={nameDone}
             error={error}
             busy={busy}
             onName={setName}
+            onAvatar={setAvatar}
             onNameDone={() => { setNameDone(true) }}
             onCode={code.set}
-            onJoin={() => { actions.join(name.trim(), code.entry) }}
+            onJoin={() => { actions.join(name.trim(), avatar, code.entry) }}
             onBack={actions.goToTitle}
           />
         )}

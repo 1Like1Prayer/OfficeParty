@@ -1,10 +1,13 @@
-import { border, color, font, pegboard, sharedStyles } from '../../theme/index.ts'
+import { color, pegboard, sharedStyles } from '../../theme/index.ts'
+import { Avatar } from '../ui/index.ts'
 
 export interface Floater {
   id: string
   name: string
   initial: string
   color: string
+  /** DiceBear seed the player picked. */
+  avatar: string
   /** Percentage offsets and animation timings, precomputed by the layout. */
   left: string
   top: string
@@ -71,28 +74,17 @@ export function ConnectedCard({ floaters, emptyLine }: ConnectedCardProps) {
               animationDelay: floater.delay,
             }}
           >
-            <div
-              style={{
-                width: 54,
-                height: 54,
-                borderRadius: 999,
-                background: floater.color,
-                border: border.heavy,
-                color: color.ink,
-                fontFamily: font.display,
-                fontWeight: 700,
-                fontSize: 24,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              {floater.initial}
-            </div>
+            <Avatar
+              initial={floater.initial}
+              background={floater.color}
+              seed={floater.avatar}
+              size={54}
+              outlined
+            />
             <div
               style={{
                 background: color.white,
-                border: border.thin,
+                border: `2px solid ${color.ink}`,
                 borderRadius: 999,
                 padding: '1px 9px',
                 fontWeight: 900,

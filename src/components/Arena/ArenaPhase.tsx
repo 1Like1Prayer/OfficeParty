@@ -76,11 +76,12 @@ export function ArenaPhase({
       round.participants
         .filter((id) => id !== playerId)
         .map((id) => {
-          const name = room.players.find((p) => p.playerId === id)?.name ?? '?'
+          const player = room.players.find((p) => p.playerId === id)
           return {
             id,
-            initial: initialOf(name),
+            initial: initialOf(player?.name ?? '?'),
             color: playerColor(id),
+            avatar: player?.avatar ?? '',
             active: progress[id]?.['running'] === 1,
           }
         }),

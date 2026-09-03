@@ -46,7 +46,7 @@ src/
   shared/       COPY of OfficePartyBE/src/shared — the wire contract
   types/        client-only view models
   theme/        design tokens + reusable style fragments
-  content/      per-game copy for the reveal screen
+  content/      per-game copy, and the avatar catalogue
   socket/       connection, session, useRoom / useLiveRound / useConnectionStatus
   selectors/    RoomStatePayload -> view models
   games/        the playable surfaces, one folder per game
@@ -116,6 +116,21 @@ nor when a round awards a point. Both would otherwise sit a round behind:
 - `useRoom` folds `round:results` and `competition:scores` into a live score
   map the scoreboard prefers over the snapshot. Awards only ever go up inside a
   competition, so this can never show less than the snapshot does.
+
+### Avatars
+
+Players pick a face on the way in, and it has to reach everyone else, so it
+travels through `room:state` like everything else: `PlayerView.avatar`.
+
+What travels is a **seed, never a URL**. The client turns the seed into a
+DiceBear image in `src/content/avatars.ts`; the server stores an opaque token
+and validates it against `AVATAR.SEED_PATTERN`, so nobody can make the rest of
+the room's browsers fetch an address of their choosing. An unrecognised seed
+falls back to the player's id, which always renders something.
+
+DiceBear is a third party, so `Avatar` draws the player's initial underneath
+the artwork rather than instead of it: an offline room, a blocked request or a
+slow response degrades to the letter instead of an empty square.
 
 ### Who can do what
 

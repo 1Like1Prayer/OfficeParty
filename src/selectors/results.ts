@@ -23,6 +23,7 @@ export function selectResultRows(
     name: nameOf(room, entry.playerId),
     initial: initialOf(nameOf(room, entry.playerId)),
     color: playerColor(entry.playerId),
+    avatar: avatarOf(room, entry.playerId),
     note: describeDetail(entry.detail),
     gain: results.isFinal && entry.playerId === results.winnerId ? '+1' : '—',
     isYou: entry.playerId === playerId,
@@ -35,6 +36,7 @@ export function selectResultRows(
       name: nameOf(room, absentId),
       initial: initialOf(nameOf(room, absentId)),
       color: playerColor(absentId),
+      avatar: avatarOf(room, absentId),
       note: 'never reported',
       gain: '—',
       isYou: absentId === playerId,
@@ -44,6 +46,10 @@ export function selectResultRows(
 
 function nameOf(room: RoomStatePayload, playerId: string): string {
   return selectPlayer(room, playerId)?.name ?? 'Someone'
+}
+
+function avatarOf(room: RoomStatePayload, playerId: string): string {
+  return selectPlayer(room, playerId)?.avatar ?? ''
 }
 
 /**

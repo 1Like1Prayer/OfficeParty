@@ -1,17 +1,20 @@
 import { ROOM } from '../../shared/constants.ts'
 import { color, sharedStyles } from '../../theme/index.ts'
 import { PushButton, TextField } from '../ui/index.ts'
+import { AvatarPicker } from './AvatarPicker.tsx'
 import { CodeBoxes } from './CodeBoxes.tsx'
 import { EntryCard } from './EntryCard.tsx'
 
 interface JoinScreenProps {
   name: string
+  avatar: string
   code: string
   /** True once the name has been confirmed, which hands the code the keyboard. */
   nameDone: boolean
   error: string | null
   busy: boolean
   onName: (name: string) => void
+  onAvatar: (seed: string) => void
   onNameDone: () => void
   onCode: (text: string) => void
   onJoin: () => void
@@ -21,11 +24,13 @@ interface JoinScreenProps {
 /** Name yourself and type the room code someone read out. */
 export function JoinScreen({
   name,
+  avatar,
   code,
   nameDone,
   error,
   busy,
   onName,
+  onAvatar,
   onNameDone,
   onCode,
   onJoin,
@@ -47,6 +52,7 @@ export function JoinScreen({
         onChange={onName}
         onSubmit={onNameDone}
       />
+      <AvatarPicker value={avatar} onChange={onAvatar} />
       <CodeBoxes
         entry={code}
         length={ROOM.CODE_LENGTH}

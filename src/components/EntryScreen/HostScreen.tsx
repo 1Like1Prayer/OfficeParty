@@ -1,13 +1,16 @@
 import { ROOM } from '../../shared/constants.ts'
 import { color, sharedStyles } from '../../theme/index.ts'
 import { PushButton, TextField } from '../ui/index.ts'
+import { AvatarPicker } from './AvatarPicker.tsx'
 import { EntryCard } from './EntryCard.tsx'
 
 interface HostScreenProps {
   name: string
+  avatar: string
   error: string | null
   busy: boolean
   onName: (name: string) => void
+  onAvatar: (seed: string) => void
   onHost: () => void
   onBack: () => void
 }
@@ -15,9 +18,11 @@ interface HostScreenProps {
 /** Name yourself, then open a room for everyone else to join. */
 export function HostScreen({
   name,
+  avatar,
   error,
   busy,
   onName,
+  onAvatar,
   onHost,
   onBack,
 }: HostScreenProps) {
@@ -36,6 +41,7 @@ export function HostScreen({
         onChange={onName}
         onSubmit={() => { if (ready) onHost() }}
       />
+      <AvatarPicker value={avatar} onChange={onAvatar} />
       {error && (
         <div style={{ fontWeight: 900, fontSize: 13, letterSpacing: '0.12em', color: color.red }}>
           {error.toUpperCase()}

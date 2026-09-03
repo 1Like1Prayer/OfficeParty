@@ -30,6 +30,7 @@ export function selectScoreboardRows(
       name: player.name,
       initial: initialOf(player.name),
       color: playerColor(player.playerId),
+      avatar: player.avatar,
       points,
       status: statusFor(player, room, round, points),
       isYou: player.playerId === playerId,
