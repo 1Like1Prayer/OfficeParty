@@ -23,7 +23,10 @@ export function Panel({
       style={{
         background,
         border: border.medium,
-        borderLeft: accent ? `12px solid ${accent}` : undefined,
+        // Only emit the longhand when there is an accent: React writes an
+        // `undefined` style value as '', which would clear the left border the
+        // shorthand just set and leave the panel open on that side.
+        ...(accent ? { borderLeft: `12px solid ${accent}` } : {}),
         borderRadius: radius,
         ...style,
       }}
