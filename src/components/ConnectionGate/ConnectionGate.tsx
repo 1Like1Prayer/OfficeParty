@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react'
 import { color, font, sharedStyles } from '../../theme/index.ts'
 import type { ConnectionStatus } from '../../socket/index.ts'
-import { StripeBar } from '../ui/index.ts'
 
 interface ConnectionGateProps {
   status: ConnectionStatus
@@ -33,7 +32,6 @@ export function ConnectionGate({ status, error, children }: ConnectionGateProps)
         flexDirection: 'column',
       }}
     >
-      <StripeBar />
       <div
         style={{
           flex: 1,

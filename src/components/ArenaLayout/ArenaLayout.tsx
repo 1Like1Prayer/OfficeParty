@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react'
 import { color, font } from '../../theme/index.ts'
-import { StripeBar } from '../ui/index.ts'
 import { ArenaHeader } from './ArenaHeader.tsx'
 import { ArenaNotice } from './ArenaNotice.tsx'
 
@@ -36,7 +35,6 @@ export function ArenaLayout({
         flexDirection: 'column',
       }}
     >
-      <StripeBar />
       {showHeader && <ArenaHeader roundLabel={roundLabel} />}
       <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
