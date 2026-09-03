@@ -1,16 +1,14 @@
 import { border, color, font, sharedStyles } from '../../theme/index.ts'
-import type { PlaylistRowView, ScoreboardRowView } from '../../types/index.ts'
-import { Playlist } from './Playlist.tsx'
+import type { ScoreboardRowView } from '../../types/index.ts'
 import { ScoreboardRow } from './ScoreboardRow.tsx'
 
 interface ScoreboardProps {
   rows: ScoreboardRowView[]
   playerCountLabel: string
-  playlist: PlaylistRowView[]
 }
 
-/** Persistent right rail: live standings above, run playlist below. */
-export function Scoreboard({ rows, playerCountLabel, playlist }: ScoreboardProps) {
+/** Persistent right rail: live standings for the run in progress. */
+export function Scoreboard({ rows, playerCountLabel }: ScoreboardProps) {
   return (
     <aside
       style={{
@@ -20,6 +18,7 @@ export function Scoreboard({ rows, playerCountLabel, playlist }: ScoreboardProps
         background: color.panel,
         display: 'flex',
         flexDirection: 'column',
+        animation: 'pa-slide-in .4s ease-out',
       }}
     >
       <div
@@ -47,7 +46,6 @@ export function Scoreboard({ rows, playerCountLabel, playlist }: ScoreboardProps
           <ScoreboardRow key={row.id} row={row} />
         ))}
       </div>
-      <Playlist rows={playlist} />
     </aside>
   )
 }

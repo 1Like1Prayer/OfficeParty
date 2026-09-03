@@ -115,11 +115,6 @@ export interface PlayerView {
     /** Joined after the competition started, so they watch rather than play. */
     isSpectator: boolean;
     /**
-     * A shared screen rather than a person. It joins to render the room and is
-     * never a participant, so it is not counted, ranked or waited on.
-     */
-    isDisplay: boolean;
-    /**
      * Pressed ready in the lobby. The owner is always ready — they start the
      * match, so there is nothing for them to signal.
      */

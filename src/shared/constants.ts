@@ -6,7 +6,7 @@
  */
 
 /** Bumped whenever a message shape changes. Mismatched clients are asked to reload. */
-export const PROTOCOL_VERSION = 4;
+export const PROTOCOL_VERSION = 3;
 
 export const ROOM = {
     /** Room codes are 4 characters from an unambiguous alphabet. */

@@ -17,30 +17,18 @@ export function ArenaHeader({ roundLabel }: ArenaHeaderProps) {
         flexShrink: 0,
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 16 }}>
-        <div
-          style={{
-            fontFamily: font.display,
-            fontWeight: 700,
-            fontSize: 32,
-            letterSpacing: '-0.02em',
-            color: color.red,
-          }}
-        >
-          SEVERANCE PACKAGE
-        </div>
-        <div
-          style={{
-            fontWeight: 900,
-            fontSize: 12,
-            letterSpacing: '0.22em',
-            color: color.mutedStrong,
-          }}
-        >
-          OFFICE PARTY ARENA
-        </div>
+      <div
+        style={{
+          fontFamily: font.display,
+          fontWeight: 700,
+          fontSize: 32,
+          letterSpacing: '-0.02em',
+          color: color.red,
+        }}
+      >
+        Office Party
       </div>
-      <Pill variant="round">{roundLabel}</Pill>
+      {roundLabel && <Pill variant="round">{roundLabel}</Pill>}
     </header>
   )
 }

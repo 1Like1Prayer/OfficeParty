@@ -12,6 +12,8 @@ export interface ScoreboardRowView {
   background: string
   pointsColor: string
   dimmed: boolean
+  /** The reader's own row, so it can be picked out at a glance. */
+  isYou: boolean
 }
 
 export interface ResultRowView {
@@ -25,6 +27,7 @@ export interface ResultRowView {
   note: string
   /** "+1" when the round awarded a point, "—" otherwise. */
   gain: string
+  isYou: boolean
 }
 
 export interface PlaylistRowView {

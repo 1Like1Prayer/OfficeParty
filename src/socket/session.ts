@@ -2,12 +2,14 @@ import { SESSION_KEY } from './config.ts'
 import type { ArenaSession } from './types.ts'
 
 /**
- * The arena's slot, persisted so a reload reclaims the same player id. Without
- * it every refresh would take a new slot and hand ownership to a phone.
+ * This tab's slot, so a reload rejoins as the same player rather than taking a
+ * second one. It lives in `sessionStorage`, not `localStorage`, because one
+ * player is one tab: two tabs on the same machine are two people sitting at
+ * two desks, and they must not share an identity.
  */
 export function readSession(): ArenaSession | null {
   try {
-    const raw = localStorage.getItem(SESSION_KEY)
+    const raw = sessionStorage.getItem(SESSION_KEY)
     if (!raw) return null
     const parsed: unknown = JSON.parse(raw)
     if (
@@ -26,7 +28,7 @@ export function readSession(): ArenaSession | null {
 
 export function writeSession(session: ArenaSession): void {
   try {
-    localStorage.setItem(SESSION_KEY, JSON.stringify(session))
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify(session))
   } catch {
     // Storage is a convenience here; a lost session just means a new slot.
   }
@@ -34,7 +36,7 @@ export function writeSession(session: ArenaSession): void {
 
 export function clearSession(): void {
   try {
-    localStorage.removeItem(SESSION_KEY)
+    sessionStorage.removeItem(SESSION_KEY)
   } catch {
     // As above.
   }

@@ -16,7 +16,7 @@ export function ScoreboardRow({ row }: ScoreboardRowProps) {
         padding: '10px 14px',
         borderRadius: 14,
         background: row.background,
-        border: `2px solid ${color.ink}`,
+        border: `${row.isYou ? 3 : 2}px solid ${color.ink}`,
         opacity: row.dimmed ? 0.5 : 1,
       }}
     >
@@ -33,7 +33,10 @@ export function ScoreboardRow({ row }: ScoreboardRowProps) {
       </div>
       <Avatar initial={row.initial} background={row.color} />
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontWeight: 700, fontSize: 19, ...sharedStyles.ellipsis }}>{row.name}</div>
+        <div style={{ fontWeight: 700, fontSize: 19, ...sharedStyles.ellipsis }}>
+          {row.name}
+          {row.isYou && <span style={{ color: color.mutedStrong }}> (you)</span>}
+        </div>
         <div
           style={{
             fontSize: 12,

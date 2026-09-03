@@ -5,21 +5,20 @@ import { StripeBar } from '../ui/index.ts'
 
 interface ConnectionGateProps {
   status: ConnectionStatus
-  /** True once the room has been joined and its first snapshot has arrived. */
-  hasState: boolean
+  /** A refused handshake, e.g. a protocol mismatch. Fatal; nothing retries. */
   error: string | null
   children: ReactNode
 }
 
 const MESSAGES: Record<ConnectionStatus, { eyebrow: string; line: string }> = {
-  connecting: { eyebrow: 'CONNECTING', line: 'Finding the arena server…' },
-  disconnected: { eyebrow: 'OFFLINE', line: 'Lost the arena server. Retrying…' },
-  connected: { eyebrow: 'SYNCING', line: 'Opening the room…' },
+  connecting: { eyebrow: 'CONNECTING', line: 'Finding the party server…' },
+  disconnected: { eyebrow: 'OFFLINE', line: 'Lost the party server. Retrying…' },
+  connected: { eyebrow: '', line: '' },
 }
 
-/** Holds back the arena until the server has told us what the room looks like. */
-export function ConnectionGate({ status, hasState, error, children }: ConnectionGateProps) {
-  if (status === 'connected' && hasState && !error) return <>{children}</>
+/** Holds back the arena until there is a server to talk to. */
+export function ConnectionGate({ status, error, children }: ConnectionGateProps) {
+  if (status === 'connected' && !error) return <>{children}</>
 
   const message = MESSAGES[status]
 

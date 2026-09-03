@@ -1,6 +1,6 @@
 import { GAME_CATALOG, type GameMeta } from '../shared/games/catalog.ts'
 import type { RoomStatePayload, RoundView, StartBlockedReason } from '../shared/protocol.ts'
-import { selectNames } from './players.ts'
+import { selectNames, selectOwnerName } from './players.ts'
 
 /** Metadata for the game being revealed, played or scored. */
 export function selectCurrentGame(round: RoundView): GameMeta | null {
@@ -28,8 +28,11 @@ export function selectRoundLabel(room: RoomStatePayload, round: RoundView): stri
   return `GAME ${gameIndex}/${totalGames} · ROUND ${roundInGame}/${roundsPerGame}`
 }
 
-/** Why the owner cannot press start yet, in the room's own words. */
-export function selectStartBlockedLine(room: RoomStatePayload): string {
+/** Why start is unavailable, in the room's own words. */
+export function selectStartBlockedLine(room: RoomStatePayload, isOwner: boolean): string {
+  // A screen that only shows the room cannot drive it — say whose call it is.
+  if (!isOwner) return `${selectOwnerName(room)} is running this one.`
+
   const reasons: Record<StartBlockedReason, () => string> = {
     not_enough_players: () =>
       `Need ${room.minPlayers} players. ${describeCount(room)} so far.`,
@@ -53,7 +56,17 @@ export function formatList(names: string[]): string {
 }
 
 /** What the play screen says while the round moves through its phases. */
-export function selectPlayStatusLine(room: RoomStatePayload, round: RoundView): string {
+export function selectPlayStatusLine(
+  room: RoomStatePayload,
+  round: RoundView,
+  isParticipant: boolean,
+): string {
+  if (
+    !isParticipant &&
+    ['starting', 'countdown', 'playing'].includes(round.phase)
+  ) {
+    return 'Watching this one out.'
+  }
   switch (round.phase) {
     case 'loading':
       return 'Dealing the round…'
@@ -62,11 +75,11 @@ export function selectPlayStatusLine(room: RoomStatePayload, round: RoundView): 
         ? `Waiting on ${formatList(selectNames(room, round.waitingFor))}.`
         : 'Everyone is in.'
     case 'starting':
-      return 'Get ready…'
+      return 'Locking in the target…'
     case 'countdown':
       return 'Here we go.'
     case 'playing':
-      return 'Phones are live. This screen is the shared truth.'
+      return 'Go.'
     default:
       return ''
   }

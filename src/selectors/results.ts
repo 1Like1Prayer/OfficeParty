@@ -15,6 +15,7 @@ import { initialOf, playerColor, selectPlayer } from './players.ts'
 export function selectResultRows(
   room: RoomStatePayload,
   results: RoundResultsPayload,
+  playerId: string | null,
 ): ResultRowView[] {
   const rows: ResultRowView[] = results.ranked.map((entry) => ({
     id: entry.playerId,
@@ -24,17 +25,19 @@ export function selectResultRows(
     color: playerColor(entry.playerId),
     note: describeDetail(entry.detail),
     gain: results.isFinal && entry.playerId === results.winnerId ? '+1' : '—',
+    isYou: entry.playerId === playerId,
   }))
 
   return rows.concat(
-    results.noShow.map((playerId) => ({
-      id: playerId,
+    results.noShow.map((absentId) => ({
+      id: absentId,
       place: '—',
-      name: nameOf(room, playerId),
-      initial: initialOf(nameOf(room, playerId)),
-      color: playerColor(playerId),
+      name: nameOf(room, absentId),
+      initial: initialOf(nameOf(room, absentId)),
+      color: playerColor(absentId),
       note: 'never reported',
       gain: '—',
+      isYou: absentId === playerId,
     })),
   )
 }
@@ -117,19 +120,4 @@ export function selectChampionNote(
   return `${points} ${points === 1 ? 'point' : 'points'} across ${games} ${
     games === 1 ? 'game' : 'games'
   }. Everyone else can take it up with HR.`
-}
-
-export function selectStandingRows(
-  room: RoomStatePayload,
-  leaderboard: LeaderboardPayload,
-): ResultRowView[] {
-  return leaderboard.rows.map((row) => ({
-    id: row.playerId,
-    place: `${row.rank}.`,
-    name: nameOf(room, row.playerId),
-    initial: initialOf(nameOf(room, row.playerId)),
-    color: playerColor(row.playerId),
-    note: '',
-    gain: `${row.points}`,
-  }))
 }

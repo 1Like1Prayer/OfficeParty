@@ -2,27 +2,37 @@ import { GAME_CATALOG } from '../shared/games/catalog.ts'
 import type { RoomStatePayload, RoundView } from '../shared/protocol.ts'
 import { color } from '../theme/index.ts'
 import type { PlaylistRowView, ScoreboardRowView } from '../types/index.ts'
-import { initialOf, playerColor, selectHumanPlayers } from './players.ts'
+import { initialOf, playerColor, selectPlayers } from './players.ts'
 
 /** Standings, highest first, with lobby readiness folded into the status. */
 export function selectScoreboardRows(
   room: RoomStatePayload,
   round: RoundView,
+  /** Points from the round events, which run ahead of the last snapshot. */
+  scores: Record<string, number>,
+  /** The reader, so their own row can be marked. */
+  playerId: string | null,
 ): ScoreboardRowView[] {
-  const ranked = [...selectHumanPlayers(room)].sort(
-    (a, b) => b.points - a.points || a.name.localeCompare(b.name),
+  const pointsOf = (playerId: string, fallback: number) => scores[playerId] ?? fallback
+
+  const ranked = [...selectPlayers(room)].sort(
+    (a, b) =>
+      pointsOf(b.playerId, b.points) - pointsOf(a.playerId, a.points) ||
+      a.name.localeCompare(b.name),
   )
 
   return ranked.map((player, index) => {
-    const isLeader = index === 0 && player.points > 0
+    const points = pointsOf(player.playerId, player.points)
+    const isLeader = index === 0 && points > 0
     return {
       id: player.playerId,
       rank: index + 1,
       name: player.name,
       initial: initialOf(player.name),
       color: playerColor(player.playerId),
-      points: player.points,
-      status: statusFor(player, room, round),
+      points,
+      status: statusFor(player, room, round, points),
+      isYou: player.playerId === playerId,
       background: isLeader ? color.leaderBg : color.white,
       pointsColor: isLeader ? color.red : color.ink,
       dimmed: !player.connected || player.isSpectator,
@@ -34,6 +44,7 @@ function statusFor(
   player: RoomStatePayload['players'][number],
   room: RoomStatePayload,
   round: RoundView,
+  points: number,
 ): string {
   if (!player.connected) return 'DISCONNECTED'
   if (player.isSpectator) return 'WATCHING'
@@ -42,11 +53,11 @@ function statusFor(
     if (round.waitingFor.includes(player.playerId)) return 'WAITING'
     if (round.participants.includes(player.playerId)) return 'IN THIS ROUND'
   }
-  return player.points === 1 ? '1 POINT' : `${player.points} POINTS`
+  return points === 1 ? '1 POINT' : `${points} POINTS`
 }
 
 export function selectPlayerCountLabel(room: RoomStatePayload): string {
-  const players = selectHumanPlayers(room).filter((p) => !p.isSpectator)
+  const players = selectPlayers(room).filter((p) => !p.isSpectator)
   return players.length === 1 ? '1 PLAYER' : `${players.length} PLAYERS`
 }
 

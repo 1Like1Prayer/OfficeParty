@@ -6,16 +6,24 @@ import { ArenaNotice } from './ArenaNotice.tsx'
 
 interface ArenaLayoutProps {
   roundLabel: string
+  /** The title, join and play screens run without the header. */
+  showHeader: boolean
   /** A rejected action, shown without tearing the arena down. */
   notice?: string | null
-  /** The active phase screen. */
+  /** The active screen. */
   children: ReactNode
   /** Persistent right-hand rail, normally the scoreboard. */
-  aside?: ReactNode
+  aside?: ReactNode | false
 }
 
 /** Full-screen chrome: stripe, header, phase pane and the scoreboard rail. */
-export function ArenaLayout({ roundLabel, notice, children, aside }: ArenaLayoutProps) {
+export function ArenaLayout({
+  roundLabel,
+  showHeader,
+  notice,
+  children,
+  aside,
+}: ArenaLayoutProps) {
   return (
     <div
       style={{
@@ -29,7 +37,7 @@ export function ArenaLayout({ roundLabel, notice, children, aside }: ArenaLayout
       }}
     >
       <StripeBar />
-      <ArenaHeader roundLabel={roundLabel} />
+      {showHeader && <ArenaHeader roundLabel={roundLabel} />}
       <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
           {notice && <ArenaNotice message={notice} />}

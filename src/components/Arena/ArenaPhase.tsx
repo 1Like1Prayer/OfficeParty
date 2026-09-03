@@ -1,4 +1,6 @@
-import { useMemo } from 'react'
+import { useCallback, useMemo } from 'react'
+import { GameSurface } from '../../games/index.tsx'
+import { hasSurface } from '../../games/playable.ts'
 import { useCountdown } from '../../hooks/index.ts'
 import {
   initialOf,
@@ -6,15 +8,20 @@ import {
   selectChampionLine,
   selectChampionNote,
   selectCurrentGame,
+  selectFloaters,
+  selectLobbyEmptyLine,
   selectNames,
   selectPlayStatusLine,
+  selectPoolChips,
   selectResultEyebrow,
   selectResultHeadline,
   selectResultRows,
-  selectStandingRows,
+  selectSelectedGames,
+  selectSetupSummary,
   selectStartBlockedLine,
+  selectToggleAllLabel,
 } from '../../selectors/index.ts'
-import { JOIN_URL } from '../../socket/config.ts'
+import type { GameId } from '../../shared/games/catalog.ts'
 import type { RoomActions, UseRoomResult } from '../../socket/index.ts'
 import { FinalStandings } from '../FinalStandings/index.ts'
 import { GamePlay } from '../GamePlay/index.ts'
@@ -24,6 +31,8 @@ import { RoundResults } from '../RoundResults/index.ts'
 
 interface ArenaPhaseProps {
   room: NonNullable<UseRoomResult['state']>
+  /** This player's id — the whole screen is shaped by which player it is. */
+  playerId: string | null
   round: UseRoomResult['round']
   results: UseRoomResult['results']
   leaderboard: UseRoomResult['leaderboard']
@@ -33,16 +42,24 @@ interface ArenaPhaseProps {
 
 /**
  * Maps the room's phase — and inside a competition, the round's — onto the
- * screen that owns it.
+ * screen that owns it, from this player's point of view.
  */
 export function ArenaPhase({
   room,
+  playerId,
   round,
   results,
   leaderboard,
   progress,
   actions,
 }: ArenaPhaseProps) {
+  const me = room.players.find((player) => player.playerId === playerId)
+  // Every owner-only intent is refused server-side; this stops the screen
+  // offering buttons that would only come back as an error.
+  const isOwner = playerId !== null && room.ownerId === playerId
+  const isParticipant = playerId !== null && round.participants.includes(playerId)
+  const hasReadied = playerId !== null && round.ready.includes(playerId)
+
   const { timingStartsAtLocalMs } = round
   const msLeft = useMemo(
     () =>
@@ -53,33 +70,71 @@ export function ArenaPhase({
   )
   const countdownMs = useCountdown(round.phase === 'countdown' ? msLeft : null)
 
+  // Everyone else's lights; this player's own state is the game surface.
   const lights = useMemo(
     () =>
-      round.participants.map((playerId) => {
-        const name = room.players.find((p) => p.playerId === playerId)?.name ?? '?'
-        return {
-          id: playerId,
-          initial: initialOf(name),
-          color: playerColor(playerId),
-          active: progress[playerId]?.['running'] === 1,
-        }
-      }),
-    [round.participants, room.players, progress],
+      round.participants
+        .filter((id) => id !== playerId)
+        .map((id) => {
+          const name = room.players.find((p) => p.playerId === id)?.name ?? '?'
+          return {
+            id,
+            initial: initialOf(name),
+            color: playerColor(id),
+            active: progress[id]?.['running'] === 1,
+          }
+        }),
+    [round.participants, room.players, progress, playerId],
+  )
+
+  const selected = selectSelectedGames(room)
+  const playable = room.lobby.playableGames
+
+  const setPool = (ids: GameId[]) => {
+    // Everything playable is exactly what random mode draws from, so say so
+    // rather than pinning a custom playlist that means the same thing.
+    if (ids.length === playable.length) actions.setPlaylist('random')
+    else actions.setPlaylist('custom', ids)
+  }
+
+  const toggleGame = (id: string) => {
+    const gameId = id as GameId
+    if (!playable.includes(gameId)) return
+    setPool(
+      selected.includes(gameId)
+        ? selected.filter((value) => value !== gameId)
+        : playable.filter((value) => selected.includes(value) || value === gameId),
+    )
+  }
+
+  const { submitResult, reportProgress } = actions
+  const onSubmit = useCallback((result: unknown) => { submitResult(result) }, [submitResult])
+  const onProgress = useCallback(
+    (value: unknown) => { reportProgress(value) },
+    [reportProgress],
   )
 
   if (room.phase === 'lobby') {
     return (
       <Lobby
         roomCode={room.roomCode}
-        joinUrl={JOIN_URL}
+        floaters={selectFloaters(room)}
+        emptyLine={selectLobbyEmptyLine(room)}
+        setupSummary={selectSetupSummary(room)}
         roundsPerGame={room.lobby.roundsPerGame}
         roundsOptions={room.lobby.roundsPerGameOptions}
-        minPlayers={room.minPlayers}
-        maxPlayers={room.maxPlayers}
-        canStart={room.lobby.canStart}
-        startNote={selectStartBlockedLine(room)}
+        chips={selectPoolChips(room)}
+        toggleAllLabel={selectToggleAllLabel(room)}
+        canStart={room.lobby.canStart && isOwner}
+        isOwner={isOwner}
+        isReady={me?.ready === true}
+        startNote={selectStartBlockedLine(room, isOwner)}
         onStart={actions.start}
+        onSetReady={actions.setReady}
         onSetRounds={actions.setRoundsPerGame}
+        onToggleGame={toggleGame}
+        onToggleAll={() => { setPool(selected.length >= playable.length ? [] : playable) }}
+        onBack={actions.goToTitle}
       />
     )
   }
@@ -91,8 +146,8 @@ export function ArenaPhase({
         championNote={
           leaderboard ? selectChampionNote(room, leaderboard) : 'Counting the last round…'
         }
-        rows={leaderboard ? selectStandingRows(room, leaderboard) : []}
-        onBackToLobby={actions.skip}
+        // The server returns the room to the lobby on its own timer anyway.
+        onBackToLobby={isOwner ? actions.skip : null}
       />
     )
   }
@@ -105,35 +160,56 @@ export function ArenaPhase({
         <RoundResults
           eyebrow={selectResultEyebrow(results)}
           headline={selectResultHeadline(room, results)}
-          rows={selectResultRows(room, results)}
+          rows={selectResultRows(room, results, playerId)}
           // Only a resolved scoring round sits on a timer worth skipping; a
           // tiebreak rolls straight into its next attempt.
-          skipLabel={results.isFinal ? 'Skip ahead' : null}
+          skipLabel={results.isFinal && isOwner ? 'Skip ahead' : null}
           onSkip={actions.skip}
         />
       ) : null
 
+    // The surface is up from `starting` so the round can be built up to —
+    // Stop the Clock spins its target here — and only takes input at `playing`.
+    case 'starting':
     case 'countdown':
-    case 'playing':
-      return game ? (
+    case 'playing': {
+      if (!game) return null
+      const showSurface =
+        isParticipant && hasSurface(game.id) && timingStartsAtLocalMs !== null
+
+      return (
         <GamePlay
           gameName={game.title}
-          statusLine={selectPlayStatusLine(room, round)}
+          statusLine={selectPlayStatusLine(room, round, isParticipant)}
           countdownMs={round.phase === 'countdown' ? (countdownMs ?? 0) : null}
           lights={lights}
-        />
-      ) : null
+        >
+          {showSurface && (
+            <GameSurface
+              gameId={game.id}
+              phase={round.phase}
+              data={round.data}
+              timingStartsAtLocalMs={timingStartsAtLocalMs}
+              submitted={false}
+              onSubmit={onSubmit}
+              onProgress={onProgress}
+            />
+          )}
+        </GamePlay>
+      )
+    }
 
     default:
       return game ? (
         <GameReveal
           game={game}
-          gameIndex={round.gameIndex}
-          totalGames={round.totalGames}
           isTiebreak={round.isTiebreak}
           waitingFor={selectNames(room, round.waitingFor)}
           readyCount={round.ready.length}
           participantCount={round.participants.length}
+          onReady={isParticipant && !hasReadied ? actions.readyForRound : null}
+          isReady={hasReadied}
+          isSpectator={!isParticipant}
         />
       ) : null
   }

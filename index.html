@@ -47,6 +47,57 @@
           background-position: 80px 0;
         }
       }
+      @keyframes pa-float {
+        0%,
+        100% {
+          transform: translate(0, 0) rotate(-4deg);
+        }
+        33% {
+          transform: translate(14px, -18px) rotate(5deg);
+        }
+        66% {
+          transform: translate(-10px, 12px) rotate(-2deg);
+        }
+      }
+      @keyframes pa-swoop {
+        from {
+          transform: translateY(26px) scale(0.985);
+          opacity: 0;
+        }
+        to {
+          transform: none;
+          opacity: 1;
+        }
+      }
+      @keyframes pa-slide-in {
+        from {
+          transform: translateX(60px);
+          opacity: 0;
+        }
+        to {
+          transform: none;
+          opacity: 1;
+        }
+      }
+      @keyframes pa-pop {
+        from {
+          transform: scale(0.6) rotate(-8deg);
+          opacity: 0;
+        }
+        to {
+          transform: none;
+          opacity: 1;
+        }
+      }
+      @keyframes pa-bob {
+        0%,
+        100% {
+          transform: rotate(-2deg);
+        }
+        50% {
+          transform: rotate(2deg);
+        }
+      }
     </style>
   </head>
   <body>

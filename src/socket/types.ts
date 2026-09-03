@@ -44,11 +44,11 @@ export interface ServerToClientEvents {
 
 export interface ClientToServerEvents {
   'room:create': (
-    payload: { name?: string; display?: boolean },
+    payload: { name?: string },
     ack: (response: Ack<JoinAckData>) => void,
   ) => void
   'room:join': (
-    payload: { roomCode: string; name?: string; playerId?: string; display?: boolean },
+    payload: { roomCode: string; name?: string; playerId?: string },
     ack: (response: Ack<JoinAckData>) => void,
   ) => void
   'room:leave': (payload: null, ack: (response: Ack<null>) => void) => void
@@ -94,8 +94,9 @@ export type ArenaSocket = Socket<ServerToClientEvents, ClientToServerEvents>
 
 export type ConnectionStatus = 'connecting' | 'connected' | 'disconnected'
 
-/** The arena's slot in the room it displays. */
+/** This tab's slot in the room it is playing. */
 export interface ArenaSession {
   roomCode: string
   playerId: string
+  name: string
 }
