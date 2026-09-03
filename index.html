@@ -59,9 +59,14 @@
           transform: translate(-10px, 12px) rotate(-2deg);
         }
       }
+      /*
+       * Rise only, no scale: scaling a full-width pane pulls its left and
+       * right edges inward while it plays, which reads as the content being
+       * clipped rather than arriving.
+       */
       @keyframes pa-swoop {
         from {
-          transform: translateY(26px) scale(0.985);
+          transform: translateY(26px);
           opacity: 0;
         }
         to {

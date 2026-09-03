@@ -2,40 +2,32 @@ import { useCallback, useState } from 'react'
 
 export interface CodeEntry {
   entry: string
-  press: (char: string) => void
-  /** Take a whole code at once, from a paste or a share link. */
-  fill: (text: string) => void
-  remove: () => void
+  /** Accept typed or pasted text, keeping only what a room code can contain. */
+  set: (text: string) => void
   reset: () => void
 }
 
-/** The room code being typed, pasted or tapped in. */
+/**
+ * The room code being entered. Typed and pasted text arrive the same way and
+ * are cleaned the same way: pasted codes turn up with spaces, quotes, a
+ * trailing newline, or a whole sentence wrapped around them.
+ */
 export function useCodeEntry(length: number, alphabet: string): CodeEntry {
   const [entry, setEntry] = useState('')
 
-  const press = useCallback(
-    (char: string) => {
-      if (!alphabet.includes(char)) return
-      setEntry((current) => (current.length >= length ? current : current + char))
-    },
-    [length, alphabet],
-  )
-
-  // Pasted text is rarely clean: it arrives with spaces, quotes, a trailing
-  // newline, or as a whole sentence someone copied out of a chat.
-  const fill = useCallback(
+  const set = useCallback(
     (text: string) => {
-      const code = [...text.toUpperCase()]
-        .filter((char) => alphabet.includes(char))
-        .slice(0, length)
-        .join('')
-      if (code.length > 0) setEntry(code)
+      setEntry(
+        [...text.toUpperCase()]
+          .filter((char) => alphabet.includes(char))
+          .slice(0, length)
+          .join(''),
+      )
     },
     [length, alphabet],
   )
 
-  const remove = useCallback(() => { setEntry((current) => current.slice(0, -1)) }, [])
   const reset = useCallback(() => { setEntry('') }, [])
 
-  return { entry, press, fill, remove, reset }
+  return { entry, set, reset }
 }

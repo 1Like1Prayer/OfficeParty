@@ -25,7 +25,7 @@ const COPY: Partial<Record<GameId, GameCopy>> = {
     input: 'One tap',
     length: '10s',
     rules:
-      'A target time appears. Start the clock, then stop it as close to the target as you can. Closest wins — and no, you cannot see the clock while it runs.',
+      'A target lands, then the clock runs. Stop it as close to the target as you can — closest wins, and hundredths are the margin.',
   },
   'type-racer-roulette': {
     input: 'Keyboard',

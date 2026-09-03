@@ -34,6 +34,7 @@ export function Arena() {
     actions,
   } = useRoom()
   const [name, setName] = useState('')
+  const [nameDone, setNameDone] = useState(false)
   const code = useCodeEntry(ROOM.CODE_LENGTH, ROOM.CODE_ALPHABET)
 
   const inRoom = stage === 'room' && room !== null
@@ -72,6 +73,7 @@ export function Arena() {
             onHost={actions.goToHost}
             onJoin={() => {
               code.reset()
+              setNameDone(false)
               actions.goToJoin()
             }}
           />
@@ -92,12 +94,12 @@ export function Arena() {
           <JoinScreen
             name={name}
             code={code.entry}
+            nameDone={nameDone}
             error={error}
             busy={busy}
             onName={setName}
-            onPressKey={code.press}
-            onPasteCode={code.fill}
-            onDeleteKey={code.remove}
+            onNameDone={() => { setNameDone(true) }}
+            onCode={code.set}
             onJoin={() => { actions.join(name.trim(), code.entry) }}
             onBack={actions.goToTitle}
           />

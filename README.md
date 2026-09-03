@@ -78,10 +78,10 @@ input at `playing`. It never scores anything: it measures its own player and
 reports, and the server ranks.
 
 `StopTheClock` is the worked example. During `starting` it spins decoy targets
-drawn from the same picker the server uses, so the real one lands rather than
-appearing; then the countdown runs against the settled number; then the clock
-runs, invisibly, until the player stops it. It measures with `performance.now()`
-and flags itself `timingSuspect` if the tab was hidden mid-round.
+so the real one lands rather than appearing; then the countdown runs against
+the settled number; then the clock runs, visible, until the player stops it. It
+measures with `performance.now()` — so the number on screen is the number
+reported — and flags itself `timingSuspect` if the tab was hidden mid-round.
 
 ## Server contract
 

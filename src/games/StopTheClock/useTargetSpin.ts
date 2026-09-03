@@ -1,13 +1,23 @@
 import { useEffect, useState } from 'react'
-import { pickTargetMs } from '../../shared/games/stopTheClock.ts'
 
 /** Fast enough to blur, slow enough to read as numbers rather than noise. */
 const FRAME_MS = 60
 
+/**
+ * The band the decoys run through, in whole seconds. Wider than the band the
+ * server actually draws from, so the spin reads as a full range rolling past
+ * rather than a short list cycling.
+ */
+const FIRST_DECOY_S = 1
+const LAST_DECOY_S = 10
+
+const pickDecoy = (): number =>
+  (FIRST_DECOY_S + Math.floor(Math.random() * (LAST_DECOY_S - FIRST_DECOY_S + 1))) * 1000
+
 /** Never show the same decoy twice running — a repeat reads as a freeze. */
 function nextDecoy(current: number): number {
   for (let attempt = 0; attempt < 8; attempt += 1) {
-    const candidate = pickTargetMs()
+    const candidate = pickDecoy()
     if (candidate !== current) return candidate
   }
   return current
@@ -15,15 +25,13 @@ function nextDecoy(current: number): number {
 
 /**
  * A decoy target that reshuffles while `spinning`, so the real one lands
- * rather than simply appearing. The values come from the same picker the
- * server uses, so the spin ranges over exactly the numbers it could have been
- * — which is why this must be re-copied whenever the game module changes.
+ * rather than simply appearing.
  *
  * Seeded with a decoy rather than null: the real target must never be on
  * screen, not even for the first frame.
  */
 export function useTargetSpin(spinning: boolean): number | null {
-  const [decoy, setDecoy] = useState(pickTargetMs)
+  const [decoy, setDecoy] = useState(pickDecoy)
 
   useEffect(() => {
     if (!spinning) return
