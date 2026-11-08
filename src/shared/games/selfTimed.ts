@@ -1,6 +1,6 @@
 /**
  * Types every self-timed game shares. The runner in game/selfTimedRound.ts
- * is written against these, so adding Chisel Gauntlet or Type Racer means
+ * is written against these, so adding Cube Counter or Type Racer means
  * writing a module that satisfies SelfTimedGameModule and nothing else.
  */
 
@@ -22,13 +22,26 @@ export interface RankedEntry {
     detail: Record<string, number | string | boolean>;
 }
 
+export interface RoundContext {
+    /** 1-based round within the game. */
+    roundInGame: number;
+    roundsPerGame: number;
+}
+
 export interface SelfTimedGameModule<TRound, TResult> {
     readonly id: string;
     readonly title: string;
     readonly kind: 'self-timed';
 
+    /**
+     * How many scoring rounds this game is played for in a competition. Each
+     * is worth one point. A game with internal rounds of its own (Cube
+     * Counter's puzzles) still counts as one scoring round.
+     */
+    readonly roundsPerGame: number;
+
     /** Public round data. Must contain nothing a player shouldn't see. */
-    createRoundData(): TRound;
+    createRoundData(context: RoundContext): TRound;
 
     /** Parse an untrusted client result. Returns null for anything malformed. */
     parseResult(raw: unknown, round: TRound): TResult | null;

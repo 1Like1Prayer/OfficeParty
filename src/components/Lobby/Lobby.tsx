@@ -3,7 +3,6 @@ import { PushButton } from '../ui/index.ts'
 import { ConnectedCard, type Floater } from './ConnectedCard.tsx'
 import { GamePoolCard, type PoolChipView } from './GamePoolCard.tsx'
 import { LobbyHeader } from './LobbyHeader.tsx'
-import { RoundsCard } from './RoundsCard.tsx'
 
 interface LobbyProps {
   roomCode: string
@@ -11,8 +10,6 @@ interface LobbyProps {
   /** What to say while nobody has joined yet. */
   emptyLine: string
   setupSummary: string
-  roundsPerGame: number
-  roundsOptions: number[]
   chips: PoolChipView[]
   toggleAllLabel: string
   canStart: boolean
@@ -24,7 +21,6 @@ interface LobbyProps {
   startNote: string
   onStart: () => void
   onSetReady: (ready: boolean) => void
-  onSetRounds: (rounds: number) => void
   onToggleGame: (id: string) => void
   onToggleAll: () => void
   onBack: () => void
@@ -36,8 +32,6 @@ export function Lobby({
   floaters,
   emptyLine,
   setupSummary,
-  roundsPerGame,
-  roundsOptions,
   chips,
   toggleAllLabel,
   canStart,
@@ -46,7 +40,6 @@ export function Lobby({
   startNote,
   onStart,
   onSetReady,
-  onSetRounds,
   onToggleGame,
   onToggleAll,
   onBack,
@@ -125,12 +118,6 @@ export function Lobby({
             gap: 24,
           }}
         >
-          <RoundsCard
-            value={roundsPerGame}
-            options={roundsOptions}
-            readOnly={!isOwner}
-            onChange={onSetRounds}
-          />
           <GamePoolCard
             chips={chips}
             toggleAllLabel={toggleAllLabel}

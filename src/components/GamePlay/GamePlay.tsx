@@ -1,19 +1,10 @@
 import type { ReactNode } from 'react'
 import { color, font } from '../../theme/index.ts'
-import { PlayerLights } from './PlayerLights.tsx'
 import { RoundCue } from './RoundCue.tsx'
 
 interface GamePlayProps {
   gameName: string
   statusLine: string
-  /** One light per opponent, lit while their clock is running. */
-  lights: {
-    id: string
-    initial: string
-    color: string
-    avatar: string
-    active: boolean
-  }[]
   /** Beats left in the start cue, or null while the game is still building up. */
   cueBeats: number | null
   /** The game itself, from the moment the round is being set up. */
@@ -28,7 +19,6 @@ export function GamePlay({
   gameName,
   statusLine,
   cueBeats,
-  lights,
   children,
 }: GamePlayProps) {
   return (
@@ -81,18 +71,18 @@ export function GamePlay({
         {cueBeats !== null && <RoundCue beats={cueBeats} />}
       </div>
 
-      {lights.length > 0 && <PlayerLights lights={lights} />}
-
-      <div
-        style={{
-          fontFamily: font.mono,
-          fontSize: 13,
-          color: color.mutedStrong,
-          letterSpacing: '0.1em',
-        }}
-      >
-        {statusLine.toUpperCase()}
-      </div>
+      {statusLine !== '' && (
+        <div
+          style={{
+            fontFamily: font.mono,
+            fontSize: 13,
+            color: color.mutedStrong,
+            letterSpacing: '0.1em',
+          }}
+        >
+          {statusLine.toUpperCase()}
+        </div>
+      )}
     </section>
   )
 }

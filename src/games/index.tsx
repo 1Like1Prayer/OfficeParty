@@ -1,4 +1,5 @@
 import type { GameId } from '../shared/games/catalog.ts'
+import { CubeCounter } from './CubeCounter/CubeCounter.tsx'
 import { StopTheClock } from './StopTheClock/StopTheClock.tsx'
 import type { GameSurfaceProps } from './types.ts'
 
@@ -10,6 +11,8 @@ import type { GameSurfaceProps } from './types.ts'
  */
 export function GameSurface({ gameId, ...props }: { gameId: GameId } & GameSurfaceProps) {
   switch (gameId) {
+    case 'cube-counter':
+      return <CubeCounter {...props} />
     case 'stop-the-clock':
       return <StopTheClock {...props} />
     default:

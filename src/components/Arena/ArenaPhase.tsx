@@ -3,8 +3,6 @@ import { GameSurface } from '../../games/index.tsx'
 import { hasSurface } from '../../games/playable.ts'
 import { beatsRemaining, useCountdown } from '../../hooks/index.ts'
 import {
-  initialOf,
-  playerColor,
   selectChampionLine,
   selectChampionNote,
   selectCurrentGame,
@@ -39,7 +37,6 @@ interface ArenaPhaseProps {
   round: UseRoomResult['round']
   results: UseRoomResult['results']
   leaderboard: UseRoomResult['leaderboard']
-  progress: UseRoomResult['progress']
   actions: RoomActions
 }
 
@@ -53,7 +50,6 @@ export function ArenaPhase({
   round,
   results,
   leaderboard,
-  progress,
   actions,
 }: ArenaPhaseProps) {
   const me = room.players.find((player) => player.playerId === playerId)
@@ -91,24 +87,6 @@ export function ArenaPhase({
   )
   const cueBeats = cueFrom(useCountdown(round.phase === 'countdown' ? msToPlay : null))
 
-  // Everyone else's lights; this player's own state is the game surface.
-  const lights = useMemo(
-    () =>
-      round.participants
-        .filter((id) => id !== playerId)
-        .map((id) => {
-          const player = room.players.find((p) => p.playerId === id)
-          return {
-            id,
-            initial: initialOf(player?.name ?? '?'),
-            color: playerColor(id),
-            avatar: player?.avatar ?? '',
-            active: progress[id]?.['running'] === 1,
-          }
-        }),
-    [round.participants, room.players, progress, playerId],
-  )
-
   const selected = selectSelectedGames(room)
   const playable = room.lobby.playableGames
 
@@ -143,8 +121,6 @@ export function ArenaPhase({
         floaters={selectFloaters(room)}
         emptyLine={selectLobbyEmptyLine(room)}
         setupSummary={selectSetupSummary(room)}
-        roundsPerGame={room.lobby.roundsPerGame}
-        roundsOptions={room.lobby.roundsPerGameOptions}
         chips={selectPoolChips(room)}
         toggleAllLabel={selectToggleAllLabel(room)}
         canStart={room.lobby.canStart && isOwner}
@@ -153,7 +129,6 @@ export function ArenaPhase({
         startNote={selectStartBlockedLine(room, isOwner)}
         onStart={actions.start}
         onSetReady={actions.setReady}
-        onSetRounds={actions.setRoundsPerGame}
         onToggleGame={toggleGame}
         onToggleAll={() => { setPool(selected.length >= playable.length ? [] : playable) }}
         onBack={actions.goToTitle}
@@ -201,9 +176,8 @@ export function ArenaPhase({
       return (
         <GamePlay
           gameName={game.title}
-          statusLine={selectPlayStatusLine(room, round, isParticipant, cueBeats !== null)}
+          statusLine={selectPlayStatusLine(room, round, isParticipant)}
           cueBeats={round.phase === 'countdown' ? cueBeats : null}
-          lights={lights}
         >
           {showSurface && (
             <GameSurface

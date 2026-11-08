@@ -28,7 +28,6 @@ export function Arena() {
     playerId,
     results,
     leaderboard,
-    progress,
     scores,
     error,
     busy,
@@ -119,7 +118,6 @@ export function Arena() {
             round={round}
             results={results}
             leaderboard={leaderboard}
-            progress={progress}
             actions={actions}
           />
         )}
