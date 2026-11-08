@@ -36,6 +36,11 @@ export const STOP_THE_CLOCK = {
 export interface StopTheClockRound {
     /** Milliseconds the player is trying to hit. */
     targetMs: number;
+    /**
+     * Set by the server on blind rounds. The client fades its running clock
+     * out partway through, so the player has to count the rest.
+     */
+    blind: boolean;
 }
 
 export interface StopTheClockResult {
@@ -135,7 +140,7 @@ export const stopTheClockModule: SelfTimedGameModule<
     id: 'stop-the-clock',
     title: 'Stop the Clock',
     kind: 'self-timed',
-    createRoundData: () => ({ targetMs: pickTargetMs() }),
+    createRoundData: () => ({ targetMs: pickTargetMs(), blind: false }),
     parseResult,
     parseProgress,
     resultTimeoutMs,

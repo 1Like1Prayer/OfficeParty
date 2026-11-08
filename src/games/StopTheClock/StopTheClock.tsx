@@ -21,6 +21,11 @@ const target = (ms: number): string =>
 /** The running clock always shows hundredths — that is the margin being played for. */
 const clock = (ms: number): string => (ms / 1000).toFixed(2)
 
+/** On a blind round the clock starts fading this long before half the target... */
+const FADE_LEAD_MS = 500
+/** ...and takes this long to disappear. */
+const FADE_MS = 800
+
 /**
  * Hit the target. The clock is measured here with `performance.now()`, so
  * latency to the server cannot change who wins, and what the player watches is
@@ -39,6 +44,8 @@ export function StopTheClock({
   const suspect = useRef(false)
 
   const targetMs = isRound(data) ? data.targetMs : 0
+  // The server decides whether the round is blind; the fade itself is ours.
+  const blind = isRound(data) && data.blind
   // The target rolls through the build-up and is settled by the time the
   // round counts the player in, so they have the cue to read it.
   const spinning = phase === 'building'
@@ -79,6 +86,12 @@ export function StopTheClock({
     return () => { window.removeEventListener('keydown', onKeyDown) }
   }, [playing, stop])
 
+  // Fades out starting just before half the target; comes back when the player locks in.
+  const clockOpacity =
+    blind && playing && !done
+      ? Math.min(1, Math.max(0, 1 - (elapsedMs - (targetMs / 2 - FADE_LEAD_MS)) / FADE_MS))
+      : 1
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 18 }}>
       <div
@@ -112,6 +125,7 @@ export function StopTheClock({
           animation: spinning || playing ? undefined : 'pa-pop .35s cubic-bezier(.34,1.56,.64,1)',
           // The digits are proportional; pin the width so it does not jitter.
           fontVariantNumeric: 'tabular-nums',
+          opacity: clockOpacity,
         }}
       >
         {playing
