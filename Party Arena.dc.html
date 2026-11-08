@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito+Sans:wght@400;700;900&display=swap" rel="stylesheet" />
+<style>
+  html, body { margin: 0; padding: 0; background: #FFF1D0; }
+  * { box-sizing: border-box; }
+  a { color: #E5382F; text-decoration: none; }
+  a:hover { color: #FF7A2E; }
+  @keyframes pa-pulse { 0%,100% { opacity: 1 } 50% { opacity: .4 } }
+  @keyframes pa-rise { from { transform: translateY(16px); opacity: 0 } to { transform: none; opacity: 1 } }
+  @keyframes pa-stripe { to { background-position: 80px 0 } }
+  @keyframes pa-float { 0%,100% { transform: translate(0,0) rotate(-4deg) } 33% { transform: translate(14px,-18px) rotate(5deg) } 66% { transform: translate(-10px,12px) rotate(-2deg) } }
+  @keyframes pa-swoop { from { transform: translateY(26px) scale(.985); opacity: 0 } to { transform: none; opacity: 1 } }
+  @keyframes pa-slide-in { from { transform: translateX(60px); opacity: 0 } to { transform: none; opacity: 1 } }
+  @keyframes pa-pop { from { transform: scale(.6) rotate(-8deg); opacity: 0 } to { transform: none; opacity: 1 } }
+  @keyframes pa-bob { 0%,100% { transform: rotate(-2deg) } 50% { transform: rotate(2deg) } }
+</style>
+</helmet>
+
+<div style="width: 100%; min-height: 100vh; background: #FFF1D0; color: #2E2A45; font-family: 'Nunito Sans', system-ui, sans-serif; display: flex; flex-direction: column;">
+
+<div style="height: 10px; background-image: repeating-linear-gradient(115deg,#FF5FA2 0 28px,#FFC400 28px 56px); animation: pa-stripe 1.4s linear infinite; flex-shrink: 0;"></div>
+
+<sc-if value="{{ showHeader }}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; align-items: center; justify-content: space-between; padding: 20px 44px; border-bottom: 4px solid #2E2A45; flex-shrink: 0;">
+  <div style="display: flex; align-items: baseline; gap: 16px;">
+    <div style="font-family: Fredoka,sans-serif; font-weight: 700; font-size: 32px; letter-spacing: -0.02em; color: #E5382F;">Office Party</div>
+  </div>
+  <div style="padding: 8px 18px; border-radius: 999px; background: #FFFFFF; border: 3px solid #2E2A45; font-family: Fredoka,sans-serif; font-weight: 600; font-size: 17px; letter-spacing: 0.12em;">{{ roundLabel }}</div>
+</div>
+</sc-if>
+
+<div style="flex: 1; display: flex; min-height: 0;">
+<div style="flex: 1; display: flex; flex-direction: column; min-width: 0;">
+
+<sc-if value="{{ isTitle }}" hint-placeholder-val="{{ true }}">
+<div style="animation: pa-swoop .45s ease-out; flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px 52px; gap: 40px; position: relative; overflow: hidden;">
+  <div style="position: absolute; inset: 0; background-image: radial-gradient(#FFD98A 3px, transparent 3px); background-size: 46px 46px; opacity: .55;"></div>
+  <div style="position: relative; text-align: center; animation: pa-bob 4s ease-in-out infinite;">
+    <div style="font-family: Fredoka,sans-serif; font-weight: 700; font-size: 168px; line-height: 0.86; letter-spacing: -0.04em; color: #E5382F; -webkit-text-stroke: 6px #2E2A45; paint-order: stroke fill; text-shadow: 12px 12px 0 #FFC400;">Office<br />Party</div>
+  </div>
+  <div style="position: relative; display: flex; gap: 22px; flex-wrap: wrap; justify-content: center;">
+    <div onClick="{{ goHost }}" style="cursor: pointer; background: #FF5FA2; color: #FFFFFF; border: 4px solid #2E2A45; border-radius: 20px; padding: 22px 54px; font-family: Fredoka,sans-serif; font-weight: 700; font-size: 34px; box-shadow: 0 8px 0 #2E2A45;" style-hover="transform: translateY(3px); box-shadow: 0 5px 0 #2E2A45;">Host</div>
+    <div onClick="{{ goJoin }}" style="cursor: pointer; background: #FFC400; color: #2E2A45; border: 4px solid #2E2A45; border-radius: 20px; padding: 22px 54px; font-family: Fredoka,sans-serif; font-weight: 700; font-size: 34px; box-shadow: 0 8px 0 #2E2A45;" style-hover="transform: translateY(3px); box-shadow: 0 5px 0 #2E2A45;">Join</div>
+  </div>
+  <div style="position: relative; font-weight: 900; font-size: 13px; letter-spacing: 0.24em; color: #8B84A6;">2–12 PLAYERS</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isJoin }}" hint-placeholder-val="{{ false }}">
+<div style="animation: pa-pop .4s cubic-bezier(.34,1.56,.64,1); flex: 1; display: flex; align-items: center; justify-content: center; padding: 40px 52px;">
+  <div style="width: 420px; max-width: 100%; background: #FFFFFF; border: 4px solid #2E2A45; border-radius: 28px; box-shadow: 10px 10px 0 #2E2A45; padding: 30px 30px 34px; display: flex; flex-direction: column; gap: 18px;">
+    <div style="display: flex; align-items: center; justify-content: space-between;">
+      <div style="font-weight: 900; font-size: 11px; letter-spacing: 0.2em; color: #8B84A6;">JOIN A PARTY</div>
+      <div onClick="{{ goTitle }}" style="cursor: pointer; font-weight: 900; font-size: 11px; letter-spacing: 0.14em; color: #E5382F;">BACK</div>
+    </div>
+
+    <sc-if value="{{ joinPending }}" hint-placeholder-val="{{ true }}">
+      <div style="display: flex; flex-direction: column; gap: 18px;">
+        <div style="font-family: Fredoka,sans-serif; font-weight: 700; font-size: 38px; line-height: 1.05;">Enter the code on the TV</div>
+        <div style="display: flex; gap: 10px;">
+          <sc-for list="{{ codeBoxes }}" as="c" hint-placeholder-count="3">
+            <div style="flex: 1; aspect-ratio: 1; border: 4px solid #2E2A45; border-radius: 14px; background: {{ c.bg }}; display: flex; align-items: center; justify-content: center; font-family: Fredoka,sans-serif; font-weight: 700; font-size: 40px;">{{ c.ch }}</div>
+          </sc-for>
+        </div>
+        <sc-if value="{{ joinError }}" hint-placeholder-val="{{ false }}">
+          <div style="font-weight: 900; font-size: 13px; letter-spacing: 0.12em; color: #E5382F;">WRONG CODE — TRY AGAIN</div>
+        </sc-if>
+        <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px;">
+          <sc-for list="{{ keypad }}" as="k" hint-placeholder-count="27">
+            <div onClick="{{ k.press }}" style="cursor: pointer; padding: 9px 0; text-align: center; border: 3px solid #2E2A45; border-radius: 10px; background: {{ k.bg }}; color: {{ k.fg }}; font-family: Fredoka,sans-serif; font-weight: 700; font-size: 15px;">{{ k.label }}</div>
+          </sc-for>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ joinAccepted }}" hint-placeholder-val="{{ false }}">
+      <div style="display: flex; flex-direction: column; gap: 16px; align-items: center; text-align: center;">
+        <div style="width: 96px; height: 96px; border-radius: 999px; background: #9CE86A; border: 4px solid #2E2A45; display: flex; align-items: center; justify-content: center; font-family: Fredoka,sans-serif; font-weight: 700; font-size: 44px; animation: pa-bob 3s ease-in-out infinite;">✓</div>
+        <div style="font-family: Fredoka,sans-serif; font-weight: 700; font-size: 40px; line-height: 1.05;">You're in!</div>
+        <div style="font-size: 17px; color: #6B6486; font-weight: 700;">Joined room {{ roomCode }}. Waiting for the host to start.</div>
+        <div style="font-weight: 900; font-size: 12px; letter-spacing: 0.16em; color: #8B84A6; animation: pa-pulse 1.8s ease-in-out infinite;">KEEP THIS PHONE UNLOCKED</div>
+      </div>
+    </sc-if>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isLobby }}" hint-placeholder-val="{{ false }}">
+<div style="animation: pa-swoop .45s ease-out; flex: 1; display: flex; flex-direction: column; padding: 44px 64px 52px; gap: 40px; min-height: 0;">
+  <div style="display: flex; align-items: center; gap: 30px; flex-wrap: wrap;">
+    <div onClick="{{ goTitle }}" style="cursor: pointer; display: flex; align-items: center; gap: 10px; background: #FFFFFF; border: 4px solid #2E2A45; border-radius: 999px; padding: 12px 22px; font-family: Fredoka,sans-serif; font-weight: 700; font-size: 20px; box-shadow: 0 5px 0 #2E2A45;" style-hover="transform: translateY(2px); box-shadow: 0 3px 0 #2E2A45;">← Back</div>
+    <div style="font-family: Fredoka,sans-serif; font-weight: 700; font-size: 54px; line-height: 1; letter-spacing: -0.03em;">Waiting room</div>
+    <div style="display: flex; align-items: center; gap: 10px; background: #FFC400; color: #2E2A45; border: 4px solid #2E2A45; border-radius: 18px; padding: 12px 24px;">
+      <div style="font-weight: 900; font-size: 11px; letter-spacing: 0.2em; opacity: .65;">CODE</div>
+      <div style="font-family: Fredoka,sans-serif; font-weight: 700; font-size: 34px; letter-spacing: 0.08em;">{{ roomCode }}</div>
+    </div>
+  </div>
+
+  <div style="flex: 1; display: flex; gap: 40px; min-height: 0; flex-wrap: wrap;">
+
+    <div style="flex: 1 1 360px; min-width: 320px; display: flex; flex-direction: column; gap: 24px;">
+      <div style="flex: 1; min-height: 280px; position: relative; overflow: hidden; background: #FFFFFF; border: 4px solid #2E2A45; border-radius: 26px;">
+        <div style="position: absolute; inset: 0; background-image: radial-gradient(#FFE9A3 3px, transparent 3px); background-size: 34px 34px;"></div>
+        <div style="position: absolute; top: 20px; left: 26px; font-weight: 900; font-size: 11px; letter-spacing: 0.2em; color: #8B84A6;">CONNECTED</div>
+        <sc-for list="{{ floaters }}" as="f" hint-placeholder-count="6">
+          <div style="position: absolute; left: {{ f.left }}; top: {{ f.top }}; margin-left: -41px; margin-top: -41px; width: 82px; display: flex; flex-direction: column; align-items: center; gap: 5px; animation: pa-float {{ f.dur }} ease-in-out infinite; animation-delay: {{ f.delay }};">
+            <div style="width: 54px; height: 54px; border-radius: 999px; background: {{ f.color }}; border: 4px solid #2E2A45; color: #2E2A45; font-family: Fredoka,sans-serif; font-weight: 700; font-size: 24px; display: flex; align-items: center; justify-content: center;">{{ f.initial }}</div>
+            <div style="background: #FFFFFF; border: 2px solid #2E2A45; border-radius: 999px; padding: 1px 9px; font-weight: 900; font-size: 11px; white-space: nowrap;">{{ f.name }}</div>
+          </div>
+        </sc-for>
+      </div>
+      <div style="display: flex; align-items: center; gap: 24px; flex-wrap: wrap;">
+        <div onClick="{{ startRun }}" style="cursor: pointer; background: #FF5FA2; color: #FFFFFF; border: 4px solid #2E2A45; border-radius: 20px; padding: 20px 46px; font-family: Fredoka,sans-serif; font-weight: 700; font-size: 29px; box-shadow: 0 7px 0 #2E2A45;" style-hover="transform: translateY(2px); box-shadow: 0 5px 0 #2E2A45;">Start the run</div>
+        <div style="font-weight: 900; font-size: 12px; letter-spacing: 0.14em; color: #8B84A6;">{{ setupSummary }}</div>
+      </div>
+    </div>
+
+    <div style="flex: 1 1 360px; min-width: 320px; display: flex; flex-direction: column; gap: 24px;">
+
+      <div style="background: #FFFFFF; border: 4px solid #2E2A45; border-radius: 26px; padding: 24px 28px;">
+        <div style="font-weight: 900; font-size: 11px; letter-spacing: 0.2em; color: #8B84A6; margin-bottom: 16px;">ROUNDS</div>
+        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+          <sc-for list="{{ roundOptions }}" as="r" hint-placeholder-count="3">
+            <div onClick="{{ r.pick }}" style="cursor: pointer; min-width: 78px; text-align: center; padding: 14px 20px; border-radius: 16px; border: 4px solid #2E2A45; background: {{ r.bg }}; color: {{ r.fg }}; font-family: Fredoka,sans-serif; font-weight: 700; font-size: 30px;">{{ r.n }}</div>
+          </sc-for>
+        </div>
+      </div>
+
+      <div style="flex: 1; min-height: 0; background: #FFFFFF; border: 4px solid #2E2A45; border-radius: 26px; padding: 24px 28px; display: flex; flex-direction: column; gap: 18px;">
+        <div style="display: flex; align-items: baseline; justify-content: space-between;">
+          <div style="font-weight: 900; font-size: 11px; letter-spacing: 0.2em; color: #8B84A6;">GAME POOL</div>
+          <div onClick="{{ toggleAll }}" style="cursor: pointer; font-weight: 900; font-size: 11px; letter-spacing: 0.14em; color: #E5382F;">{{ toggleAllLabel }}</div>
+        </div>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap; align-content: flex-start;">
+          <sc-for list="{{ pool }}" as="g" hint-placeholder-count="10">
+            <div onClick="{{ g.toggle }}" style="cursor: pointer; display: flex; align-items: center; gap: 9px; padding: 11px 18px; border-radius: 999px; border: 3px solid #2E2A45; background: {{ g.bg }}; color: {{ g.fg }}; font-weight: 900; font-size: 15px;">
+              <div style="width: 15px; height: 15px; border-radius: 5px; border: 2px solid #2E2A45; background: {{ g.dot }};"></div>
+              <div>{{ g.name }}</div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isReveal }}" hint-placeholder-val="{{ false }}">
+<div style="animation: pa-swoop .45s ease-out; flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 40px 52px; gap: 24px;">
+  <div style="font-family: Fredoka,sans-serif; font-weight: 700; font-size: 92px; line-height: 0.92; letter-spacing: -0.035em; color: #E5382F; max-width: 13ch; animation: pa-rise .35s ease-out;">{{ gameName }}</div>
+  <div style="background: #FFFFFF; border: 3px solid #2E2A45; border-left: 12px solid #FF5FA2; border-radius: 18px; padding: 26px 30px; max-width: 62ch;">
+    <div style="font-weight: 900; font-size: 12px; letter-spacing: 0.2em; color: #8B84A6; margin-bottom: 10px;">HOW YOU WIN</div>
+    <div style="font-size: 24px; line-height: 1.45; text-wrap: pretty;">{{ gameRules }}</div>
+  </div>
+  <div style="display: flex; align-items: center; gap: 18px;">
+    <div onClick="{{ beginGame }}" style="cursor: pointer; background: #FF5FA2; color: #FFFFFF; border: 4px solid #2E2A45; border-radius: 18px; padding: 18px 36px; font-family: Fredoka,sans-serif; font-weight: 700; font-size: 26px; box-shadow: 0 7px 0 #2E2A45;" style-hover="transform: translateY(2px); box-shadow: 0 5px 0 #2E2A45;">Everyone ready</div>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isPlaying }}" hint-placeholder-val="{{ false }}">
+<div style="animation: pa-swoop .45s ease-out; flex: 1; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; background-image: repeating-linear-gradient(45deg,#FFFFFF 0 10px,#FFF8E8 10px 20px); text-align: center;">
+  <div style="font-family: ui-monospace,monospace; font-size: 14px; color: #8B84A6; letter-spacing: 0.1em;">MINIGAME CANVAS</div>
+  <div onClick="{{ finishGame }}" style="cursor: pointer; background: #3FD9A8; color: #17434A; border: 4px solid #2E2A45; border-radius: 16px; padding: 16px 34px; font-family: Fredoka,sans-serif; font-weight: 700; font-size: 23px; box-shadow: 0 6px 0 #2E2A45;" style-hover="transform: translateY(2px); box-shadow: 0 4px 0 #2E2A45;">Simulate result</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isResults }}" hint-placeholder-val="{{ false }}">
+<div style="animation: pa-swoop .45s ease-out; flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 36px 52px; gap: 22px;">
+  <div>
+    <div style="font-weight: 900; font-size: 13px; letter-spacing: 0.24em; color: #FF7A2E; margin-bottom: 8px;">{{ gameName }} · RESULT</div>
+    <div style="font-family: Fredoka,sans-serif; font-weight: 700; font-size: 62px; line-height: 1; letter-spacing: -0.03em;">{{ winnerLine }}</div>
+  </div>
+  <div style="display: flex; flex-direction: column; gap: 8px; max-width: 760px;">
+    <sc-for list="{{ lastResults }}" as="row" hint-placeholder-count="6">
+      <div style="animation: pa-swoop .4s ease-out both; animation-delay: {{ row.delay }}; display: flex; align-items: center; gap: 16px; background: #FFFFFF; border: 3px solid #2E2A45; border-radius: 14px; padding: 10px 18px;">
+        <div style="font-family: Fredoka,sans-serif; font-weight: 700; font-size: 24px; width: 44px; color: #8B84A6;">{{ row.place }}</div>
+        <div style="width: 34px; height: 34px; border-radius: 10px; background: {{ row.color }}; color: #2E2A45; font-weight: 900; font-size: 15px; display: flex; align-items: center; justify-content: center;">{{ row.initial }}</div>
+        <div style="flex: 1; font-weight: 700; font-size: 21px;">{{ row.name }}</div>
+        <div style="font-size: 15px; color: #8B84A6; font-weight: 700;">{{ row.note }}</div>
+        <div style="font-family: Fredoka,sans-serif; font-weight: 700; font-size: 22px; color: #E5382F; width: 62px; text-align: right;">{{ row.gain }}</div>
+      </div>
+    </sc-for>
+  </div>
+  <div onClick="{{ nextGame }}" style="align-self: flex-start; cursor: pointer; background: #FF5FA2; color: #FFFFFF; border: 4px solid #2E2A45; border-radius: 18px; padding: 17px 34px; font-family: Fredoka,sans-serif; font-weight: 700; font-size: 25px; box-shadow: 0 7px 0 #2E2A45;" style-hover="transform: translateY(2px); box-shadow: 0 5px 0 #2E2A45;">{{ nextLabel }}</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isFinal }}" hint-placeholder-val="{{ false }}">
+<div style="animation: pa-swoop .45s ease-out; flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 40px 52px; gap: 28px;">
+  <div style="font-weight: 900; font-size: 13px; letter-spacing: 0.24em; color: #FF7A2E;">RUN COMPLETE</div>
+  <div style="font-family: Fredoka,sans-serif; font-weight: 700; font-size: 96px; line-height: 0.92; letter-spacing: -0.035em; color: #E5382F;">{{ championLine }}</div>
+  <div style="font-size: 22px; color: #6B6486; max-width: 40ch; line-height: 1.5;">{{ championNote }}</div>
+  <div onClick="{{ resetRun }}" style="align-self: flex-start; cursor: pointer; background: #FF5FA2; color: #FFFFFF; border: 4px solid #2E2A45; border-radius: 18px; padding: 18px 36px; font-family: Fredoka,sans-serif; font-weight: 700; font-size: 26px; box-shadow: 0 7px 0 #2E2A45;" style-hover="transform: translateY(2px); box-shadow: 0 5px 0 #2E2A45;">Run it back</div>
+</div>
+</sc-if>
+
+</div>
+
+<sc-if value="{{ showSidebar }}" hint-placeholder-val="{{ false }}">
+<div style="animation: pa-slide-in .4s ease-out; width: 400px; flex-shrink: 0; border-left: 4px solid #2E2A45; background: #FFFAF0; display: flex; flex-direction: column;">
+  <div style="padding: 20px 26px 14px; display: flex; align-items: baseline; justify-content: space-between;">
+    <div style="font-family: Fredoka,sans-serif; font-weight: 700; font-size: 26px;">Scoreboard</div>
+    <div style="font-weight: 900; font-size: 11px; letter-spacing: 0.18em; color: #8B84A6;">{{ playerCountLabel }}</div>
+  </div>
+  <div style="flex: 1; overflow: hidden; padding: 0 18px 18px; display: flex; flex-direction: column; gap: 8px;">
+    <sc-for list="{{ board }}" as="p" hint-placeholder-count="6">
+      <div style="display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 14px; background: {{ p.bg }}; border: 2px solid {{ p.border }};">
+        <div style="font-family: Fredoka,sans-serif; font-weight: 700; font-size: 20px; width: 26px; color: #8B84A6;">{{ p.rank }}</div>
+        <div style="width: 38px; height: 38px; border-radius: 11px; background: {{ p.color }}; color: #2E2A45; font-weight: 900; font-size: 16px; display: flex; align-items: center; justify-content: center;">{{ p.initial }}</div>
+        <div style="flex: 1; min-width: 0;">
+          <div style="font-weight: 700; font-size: 19px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ p.name }}</div>
+          <div style="font-size: 12px; font-weight: 700; letter-spacing: 0.1em; color: #8B84A6;">{{ p.status }}</div>
+        </div>
+        <div style="font-family: Fredoka,sans-serif; font-weight: 700; font-size: 28px; color: {{ p.ptsColor }};">{{ p.pts }}</div>
+      </div>
+    </sc-for>
+  </div>
+</div>
+</sc-if>
+
+</div>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{}">
+const GAMES = [
+  { name: "Minefield", kind: "SURVIVE", input: "Tilt + tap", len: "90s", rules: "Outrun the harvester. Scanning for mines only works while you're near-still, so every safe step costs you ground. Last one moving takes it." },
+  { name: "Chisel Gauntlet", kind: "RACE", input: "Tap to chip", len: "75s", rules: "Memorise the carved block, then chip your own cube to match it from memory. Exact shape only. Closest-and-fastest wins." },
+  { name: "Crusher Escalator", kind: "SURVIVE", input: "Swipe", len: "60s", rules: "Hit the directional sequence on the beat to climb. Wrong swipes bleed momentum. The crusher does not care how you're feeling." },
+  { name: "Safe Tile Arena", kind: "SURVIVE", input: "Joystick", len: "90s", rules: "One tile type is safe each phase. Everything else drops away. Shoving is not only allowed, it is the intended solution." },
+  { name: "Pea Dinner", kind: "RACE", input: "Drag", len: "70s", rules: "Eat peas while he's looking down. Freeze the instant he looks up — any movement and you're out. First clean plate wins." },
+  { name: "Train Alcoves", kind: "SURVIVE", input: "Tap lane", len: "80s", rules: "Six alcoves, a green/red pattern, and never enough safe space. Claim a green one before the train, or take someone else's." },
+  { name: "Blade Arena", kind: "SURVIVE", input: "Joystick", len: "90s", rules: "Blades launch from three crawl spaces and ricochet forever, faster and more numerous each wave. Dodge longer than everyone else." },
+  { name: "Stop the Clock", kind: "PRECISION", input: "Tap", len: "30s", rules: "A target between 2 and 8 seconds. Stop your own timer as close as you dare. Nobody sees a thing until everyone has stopped." },
+  { name: "Type Racer Roulette", kind: "RACE", input: "Keyboard", len: "80s", rules: "Race through the text. Three mistakes trigger an elimination roll, and surviving one makes the next roll worse. First to the end wins." },
+  { name: "Liar's Deck", kind: "SURVIVE", input: "Tap cards", len: "120s", rules: "Play cards face-down and claim they match the round's rank. Anyone can call liar — the reveal decides who eats the penalty." }
+];
+
+const COLORS = ["#FFC400","#FF9E4F","#6FD0FF","#9CE86A","#FF8FC4","#C4A8FF","#FFE066","#5FE3C0"];
+const NAMES = ["Priya","Marcus","Dee","Yusuf","Hanna","Tomas","Ola","Ren"];
+const PTS = [10, 7, 5, 3, 2, 1, 1, 0];
+const KEYS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+function pickPlaylist(names, rounds) {
+  const chosen = GAMES.filter(g => names.includes(g.name));
+  const shuf = a => a.slice().sort(() => Math.random() - 0.5);
+  const s = shuf(chosen.filter(g => g.kind === "SURVIVE"));
+  const o = shuf(chosen.filter(g => g.kind !== "SURVIVE"));
+  const out = [];
+  // interleave so eliminations don't stack up; refill when the pool runs dry
+  while (out.length < rounds) {
+    if (!s.length && !o.length) { s.push(...shuf(chosen.filter(g => g.kind === "SURVIVE"))); o.push(...shuf(chosen.filter(g => g.kind !== "SURVIVE"))); }
+    if (o.length && (out.length % 2 === 1 || !s.length)) out.push(o.shift());
+    else if (s.length) out.push(s.shift());
+    else out.push(o.shift());
+  }
+  return out;
+}
+
+function floatSpots(n) {
+  // grid of centered cells; padding leaves room for the 82px block + float amplitude
+  const cols = n <= 2 ? n : n <= 6 ? 3 : 4;
+  const rows = Math.ceil(n / cols);
+  return Array.from({ length: n }, (_, i) => {
+    const c = i % cols, r = Math.floor(i / cols);
+    const inRow = Math.min(cols, n - r * cols);
+    return {
+      left: (100 / (inRow + 1)) * (c + 1) + "%",
+      top: "calc(58px + " + r + " * (100% - 116px) / " + Math.max(1, rows) + " + (100% - 116px) / " + (Math.max(1, rows) * 2) + ")",
+      dur: (5.5 + (i % 4) * 0.9).toFixed(1) + "s",
+      delay: "-" + (i * 0.7).toFixed(1) + "s"
+    };
+  });
+}
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = {
+      phase: "title",
+      idx: 0,
+      rounds: 5,
+      entry: "",
+      joined: false,
+      selected: GAMES.map(g => g.name),
+      playlist: pickPlaylist(GAMES.map(g => g.name), 5),
+      players: NAMES.slice(0, 6).map((n, i) => ({ name: n, color: COLORS[i], pts: 0, gain: 0, place: 0, note: "" })),
+      roomCode: "GRND"
+    };
+  }
+
+  game() { return this.state.playlist[Math.min(this.state.idx, this.state.playlist.length - 1)] || GAMES[0]; }
+
+  simulate() {
+    const g = this.game();
+    const order = this.state.players.slice().sort(() => Math.random() - 0.5);
+    const notes = {
+      SURVIVE: ["last standing", "out at the wire", "clipped early", "shoved out", "misread the pattern", "did not make it"],
+      RACE: ["first over the line", "half a second back", "fumbled the finish", "steady, not fast", "lost the thread", "never got going"],
+      PRECISION: ["off by 0.04s", "off by 0.11s", "off by 0.29s", "off by 0.62s", "off by 1.15s", "off by 2.40s"]
+    }[g.kind];
+    const players = this.state.players.map(p => {
+      const i = order.findIndex(o => o.name === p.name);
+      const gain = PTS[i] ?? 0;
+      return { ...p, pts: p.pts + gain, gain, place: i + 1, note: notes[Math.min(i, notes.length - 1)] };
+    });
+    this.setState({ players, phase: "results" });
+  }
+
+  renderVals() {
+    const s = this.state, g = this.game();
+    const phase = s.phase;
+    const ranked = s.players.slice().sort((a, b) => b.pts - a.pts);
+    const lastResults = s.players.slice().sort((a, b) => a.place - b.place).map(p => ({
+      place: p.place + ".", name: p.name, color: p.color, initial: p.name[0],
+      note: p.note, gain: p.gain > 0 ? "+" + p.gain : "—", delay: (p.place * 0.07).toFixed(2) + "s"
+    }));
+    const leader = ranked[0];
+    const tied = ranked.filter(p => p.pts === leader.pts).length > 1;
+    const total = s.playlist.length;
+    const last = s.idx >= total - 1;
+    const enough = s.selected.length > 0;
+
+    return {
+      isTitle: phase === "title", isJoin: phase === "join",
+      showHeader: !["title", "join", "playing"].includes(phase),
+      showSidebar: ["reveal", "results", "final"].includes(phase),
+      joinPending: !s.joined, joinAccepted: s.joined,
+      joinError: s.entry.length === 4 && s.entry !== s.roomCode,
+      codeBoxes: [0, 1, 2, 3].map(i => ({
+        ch: s.entry[i] || "",
+        bg: s.entry.length === 4 && s.entry !== s.roomCode ? "#FFC7DE" : s.entry[i] ? "#FFE9A3" : "#FFFFFF"
+      })),
+      keypad: KEYS.split("").concat(["DEL"]).map(k => ({
+        label: k,
+        bg: k === "DEL" ? "#FFC7DE" : "#FFFFFF",
+        fg: "#2E2A45",
+        press: () => this.setState(st => {
+          if (k === "DEL") return { entry: st.entry.slice(0, -1), joined: false };
+          if (st.entry.length === 4) return { entry: k, joined: false };
+          const entry = st.entry + k;
+          return { entry, joined: entry === st.roomCode };
+        })
+      })),
+      goJoin: () => this.setState({ phase: "join", entry: "", joined: false }),
+      goTitle: () => this.setState({ phase: "title", entry: "", joined: false }),
+      isLobby: phase === "lobby", isReveal: phase === "reveal", isPlaying: phase === "playing",
+      isResults: phase === "results", isFinal: phase === "final",
+      roomCode: s.roomCode,
+      roundLabel: phase === "lobby" ? "NOT STARTED" : phase === "final" ? "FINISHED" : g.name.toUpperCase() + " · " + (s.idx + 1) + " / " + total,
+      gameNumber: s.idx + 1, totalGames: total,
+      floaters: s.players.map((p, i) => ({ ...floatSpots(s.players.length)[i], name: p.name, initial: p.name[0], color: p.color })),
+      setupSummary: s.rounds + " ROUNDS · " + s.selected.length + " GAMES IN THE POOL",
+      roundOptions: [2, 3, 5].map(n => ({
+        n, bg: s.rounds === n ? "#FF5FA2" : "#FFFFFF", fg: s.rounds === n ? "#FFFFFF" : "#2E2A45",
+        pick: () => this.setState({ rounds: n })
+      })),
+      toggleAllLabel: s.selected.length === GAMES.length ? "CLEAR ALL" : "SELECT ALL",
+      pool: GAMES.map(x => {
+        const on = s.selected.includes(x.name);
+        return {
+          name: x.name, bg: on ? "#FFE9A3" : "#FFFFFF", fg: on ? "#2E2A45" : "#A9A2C0",
+          dot: on ? "#FF5FA2" : "#FFFFFF",
+          toggle: () => this.setState(st => ({
+            selected: st.selected.includes(x.name)
+              ? st.selected.filter(v => v !== x.name)
+              : st.selected.concat(x.name)
+          }))
+        };
+      }),
+      goHost: () => this.setState({ phase: "lobby" }),
+      toggleAll: () => this.setState({ selected: s.selected.length === GAMES.length ? [] : GAMES.map(x => x.name) }),
+      gameName: g.name, gameRules: g.rules,
+      gameFormat: g.kind === "SURVIVE" ? "LAST SURVIVOR" : g.kind === "RACE" ? "RACE TO FINISH" : "PRECISION",
+      gameInput: g.input.toUpperCase(), gameLength: "~" + g.len,
+      winnerLine: (lastResults[0]?.name || "Nobody") + " takes it.",
+      lastResults,
+      nextLabel: last ? "Final standings" : "Next game",
+      championLine: tied ? "Dead heat." : leader.name + " wins the night.",
+      championNote: tied
+        ? "It's a tie. Sudden death: Stop the Clock."
+        : leader.pts + " points. Very smug about it.",
+      playerCountLabel: s.players.length + " PLAYERS",
+      board: ranked.map((p, i) => ({
+        rank: i + 1, name: p.name, initial: p.name[0], color: p.color, pts: p.pts,
+        status: p.gain > 0 ? "+" + p.gain + " LAST GAME" : p.place > 0 ? "NO POINTS" : "READY",
+        bg: i === 0 && p.pts > 0 ? "#FFE9A3" : "#FFFFFF",
+        border: "#2E2A45",
+        ptsColor: i === 0 && p.pts > 0 ? "#E5382F" : "#2E2A45"
+      })),
+      startRun: () => enough && this.setState({ phase: "reveal", idx: 0, playlist: pickPlaylist(s.selected, s.rounds) }),
+      beginGame: () => this.setState({ phase: "playing" }),
+      finishGame: () => this.simulate(),
+      nextGame: () => last ? this.setState({ phase: "final" }) : this.setState({ idx: s.idx + 1, phase: "reveal" }),
+      resetRun: () => this.setState({
+        phase: "lobby", idx: 0, playlist: pickPlaylist(s.selected, s.rounds),
+        players: s.players.map(p => ({ ...p, pts: 0, gain: 0, place: 0, note: "" }))
+      })
+    };
+  }
+}
+
+</script>
+</body>
+</html>

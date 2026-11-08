@@ -3,7 +3,117 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Office Party</title>
+    <title>Party Arena</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito+Sans:wght@400;700;900&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        background: #fff1d0;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      button {
+        font: inherit;
+      }
+      @keyframes pa-pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.4;
+        }
+      }
+      @keyframes pa-rise {
+        from {
+          transform: translateY(16px);
+          opacity: 0;
+        }
+        to {
+          transform: none;
+          opacity: 1;
+        }
+      }
+      @keyframes pa-float {
+        0%,
+        100% {
+          transform: translate(0, 0) rotate(-4deg);
+        }
+        33% {
+          transform: translate(14px, -18px) rotate(5deg);
+        }
+        66% {
+          transform: translate(-10px, 12px) rotate(-2deg);
+        }
+      }
+      /*
+       * Rise only, no scale: scaling a full-width pane pulls its left and
+       * right edges inward while it plays, which reads as the content being
+       * clipped rather than arriving.
+       */
+      @keyframes pa-swoop {
+        from {
+          transform: translateY(26px);
+          opacity: 0;
+        }
+        to {
+          transform: none;
+          opacity: 1;
+        }
+      }
+      @keyframes pa-slide-in {
+        from {
+          transform: translateX(60px);
+          opacity: 0;
+        }
+        to {
+          transform: none;
+          opacity: 1;
+        }
+      }
+      /*
+       * The handoff from the ready check into a round. Longer and softer than
+       * pa-swoop: the whole screen changes at once there — header and
+       * scoreboard included — so it needs easing into rather than snapping.
+       */
+      @keyframes pa-enter {
+        from {
+          transform: translateY(18px);
+          opacity: 0;
+        }
+        to {
+          transform: none;
+          opacity: 1;
+        }
+      }
+      @keyframes pa-pop {
+        from {
+          transform: scale(0.6) rotate(-8deg);
+          opacity: 0;
+        }
+        to {
+          transform: none;
+          opacity: 1;
+        }
+      }
+      @keyframes pa-bob {
+        0%,
+        100% {
+          transform: rotate(-2deg);
+        }
+        50% {
+          transform: rotate(2deg);
+        }
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>

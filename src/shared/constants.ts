@@ -1,0 +1,86 @@
+/**
+ * Platform-wide tunables. These are the answers to section 17 of the
+ * architecture plan ("decisions to make before building"). They live in
+ * shared/ because the client needs several of them to render honestly
+ * (how long a ready check waits, how long results stay up).
+ */
+
+/** Bumped whenever a message shape changes. Mismatched clients are asked to reload. */
+export const PROTOCOL_VERSION = 4;
+
+/**
+ * Avatars are chosen by the player and drawn from a seed, never a URL. The
+ * client turns the seed into an image; the server only ever stores an opaque
+ * token, so nobody can make the rest of the room fetch an address they picked.
+ */
+export const AVATAR = {
+    /** Seeds are compared and stored as-is, so keep the alphabet boring. */
+    SEED_PATTERN: /^[A-Za-z0-9_-]{1,32}$/,
+    /**
+     * Only a guard against absurd payloads. Anything longer than a seed is
+     * still rejected by SEED_PATTERN and replaced, rather than refusing the
+     * join over a picture.
+     */
+    MAX_PAYLOAD_LENGTH: 256
+} as const;
+
+export const ROOM = {
+    /** Room codes are 4 characters from an unambiguous alphabet. */
+    CODE_LENGTH: 4,
+    CODE_ALPHABET: 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789',
+    MIN_PLAYERS: 2,
+    MAX_PLAYERS: 12,
+    /** Name length bound, so a runaway client cannot post a novel. */
+    MAX_NAME_LENGTH: 24,
+    /** A disconnected player keeps their slot this long before being dropped. */
+    DISCONNECT_GRACE_MS: 30_000,
+    /** An empty room is reaped after this long. */
+    EMPTY_TTL_MS: 5 * 60_000,
+    /** How often the manager sweeps for empty/expired rooms. */
+    SWEEP_INTERVAL_MS: 30_000
+} as const;
+
+export const COMPETITION = {
+    /**
+     * How many times each selected game is played. Each play is a scoring
+     * round worth one point. The owner picks from ROUNDS_PER_GAME_OPTIONS.
+     */
+    DEFAULT_ROUNDS_PER_GAME: 2,
+    ROUNDS_PER_GAME_OPTIONS: [2, 3, 5] as const,
+    /** How many games random mode picks (capped by how many are implemented). */
+    RANDOM_PLAYLIST_SIZE: 5,
+    MAX_CUSTOM_PLAYLIST_SIZE: 10,
+    /** How long the results screen shows before the next round starts. */
+    RESULT_DISPLAY_MS: 6_000,
+    /** How long the final leaderboard shows before the room returns to lobby. */
+    LEADERBOARD_DISPLAY_MS: 15_000
+} as const;
+
+export const SELF_TIMED = {
+    /**
+     * How far ahead a start is scheduled once everyone is ready. Long enough to
+     * absorb normal latency, short enough not to feel like a stall.
+     *
+     * It is also the room's window to count the round in before handing the
+     * screen over to it.
+     */
+    START_LEAD_MS: 4_500,
+    /**
+     * If someone never acknowledges the ready check we start without them
+     * rather than hanging the room.
+     */
+    READY_CHECK_TIMEOUT_MS: 20_000,
+    /**
+     * The window the round owns before the clock runs, and which the server
+     * does not count against anyone: the game builds up in the first part of
+     * it — Stop the Clock spins its target — and the last part is the
+     * "get ready, set, start!" the client counts down.
+     */
+    COUNTDOWN_MS: 7_500,
+    /** Clients send progress at roughly this rate, purely for display. */
+    PROGRESS_HZ: 5,
+    /** Server-side floor on the gap between progress messages from one player. */
+    PROGRESS_MIN_INTERVAL_MS: 120,
+    /** A scoring round runs at most this many tiebreakers before coin-flipping. */
+    MAX_TIEBREAK_ATTEMPTS: 3
+} as const;
