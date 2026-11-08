@@ -18,7 +18,7 @@ export function ResultRow({ row, delay }: ResultRowProps) {
         alignItems: 'center',
         gap: 16,
         padding: '10px 18px',
-        animation: 'pa-swoop .4s ease-out both',
+        animation: 'pa-swoop .55s ease-out both',
         animationDelay: delay,
       }}
     >

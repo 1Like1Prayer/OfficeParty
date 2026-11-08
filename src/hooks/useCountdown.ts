@@ -22,3 +22,20 @@ export function useCountdown(msLeft: (() => number) | null): number | null {
   // Ignore the last countdown's value while there is no new one to show.
   return msLeft ? remaining : null
 }
+
+/**
+ * Which beat of a count-in is showing, latest first: 3, 2, 1.
+ *
+ * The beat is a share of the window rather than a literal second, so a calmer
+ * count is a longer window — the numbers still read 3, 2, 1, they just hold
+ * for longer each.
+ */
+export function beatsRemaining(
+  msLeft: number | null,
+  windowMs: number,
+  beats: number,
+): number | null {
+  if (msLeft === null || msLeft > windowMs) return null
+  const beat = windowMs / beats
+  return Math.min(beats, Math.max(1, Math.ceil(msLeft / beat)))
+}

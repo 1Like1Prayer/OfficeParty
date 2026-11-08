@@ -31,7 +31,7 @@ export const phasePane: CSSProperties = {
   flexDirection: 'column',
   justifyContent: 'center',
   padding: '40px 52px',
-  animation: 'pa-swoop .45s ease-out',
+  animation: 'pa-swoop .7s ease-out',
 }
 
 /** The big outlined card the lobby is built from. */

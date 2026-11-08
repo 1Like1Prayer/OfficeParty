@@ -77,11 +77,33 @@ A surface is mounted from the `starting` phase, so it has the server's
 input at `playing`. It never scores anything: it measures its own player and
 reports, and the server ranks.
 
-`StopTheClock` is the worked example. During `starting` it spins decoy targets
-so the real one lands rather than appearing; then the countdown runs against
-the settled number; then the clock runs, visible, until the player stops it. It
-measures with `performance.now()` — so the number on screen is the number
-reported — and flags itself `timingSuspect` if the tab was hidden mid-round.
+A round is handed over in two beats, both server-scheduled:
+
+| phase | length | screen |
+| --- | --- | --- |
+| `starting` | `START_LEAD_MS` (4.5s) | the room, counting the round in: 3, 2, 1 |
+| `countdown` | `COUNTDOWN_MS` (7.5s) | the game screen: title, its build-up, then "get ready / set / start!" |
+| `playing` | until stopped, or `target + 4s` | the game, taking input |
+
+Twelve seconds pass between the last player readying and the clock running,
+and that is deliberate: a round throws a lot at you at once — a new screen, a
+new game, a target — and the pacing is there so each part can be read before
+the next arrives.
+
+Both count-ins are **beat-based, not second-based**: `beatsRemaining` splits a
+window into N beats, so "3, 2, 1" always shows three numbers however long the
+window is, holding each for longer when the window grows. Lengthening a
+count-in is therefore a single constant, with no copy to keep in step.
+
+The round's window splits client-side: the last `ROUND_CUE_MS` (3.6s) is the
+start cue, and the game's build-up gets whatever is left (3.9s). So raising
+`COUNTDOWN_MS` lengthens the build-up and leaves the cue alone.
+
+`StopTheClock` is the worked example. It spins decoy targets through
+`countdown` so the real one lands rather than appearing, then runs the clock —
+visible — until the player stops it. It measures with `performance.now()`, so
+the number on screen is the number reported, and flags itself `timingSuspect`
+if the tab was hidden mid-round.
 
 ## Server contract
 

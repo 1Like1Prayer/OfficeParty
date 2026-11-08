@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react'
 
-/** Fast enough to blur, slow enough to read as numbers rather than noise. */
-const FRAME_MS = 60
+/**
+ * Slow enough that each candidate is legible on its way past. A faster roll
+ * reads as flicker, and the point is that you watch the target being chosen.
+ */
+const FRAME_MS = 110
 
 /**
  * The band the decoys run through, in whole seconds. Wider than the band the

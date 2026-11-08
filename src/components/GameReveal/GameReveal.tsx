@@ -2,6 +2,7 @@ import { gameCopy } from '../../content/gameCopy.ts'
 import type { GameMeta } from '../../shared/games/catalog.ts'
 import { color, sharedStyles } from '../../theme/index.ts'
 import { ReadyCheck } from './ReadyCheck.tsx'
+import { StartsIn } from './StartsIn.tsx'
 import { RulesCard } from './RulesCard.tsx'
 
 interface GameRevealProps {
@@ -14,6 +15,8 @@ interface GameRevealProps {
   onReady: (() => void) | null
   isReady: boolean
   isSpectator: boolean
+  /** Count-in beats until the round takes over, or null while still waiting. */
+  startsInBeats: number | null
 }
 
 /**
@@ -29,6 +32,7 @@ export function GameReveal({
   onReady,
   isReady,
   isSpectator,
+  startsInBeats,
 }: GameRevealProps) {
   return (
     <section style={{ ...sharedStyles.phasePane, gap: 24 }}>
@@ -42,20 +46,24 @@ export function GameReveal({
           letterSpacing: '-0.035em',
           color: color.red,
           maxWidth: '13ch',
-          animation: 'pa-rise .35s ease-out',
+          animation: 'pa-rise .6s ease-out',
         }}
       >
         {game.title}
       </h1>
       <RulesCard rules={gameCopy(game.id).rules} />
-      <ReadyCheck
-        waitingFor={waitingFor}
-        readyCount={readyCount}
-        participantCount={participantCount}
-        onReady={onReady}
-        isReady={isReady}
-        isSpectator={isSpectator}
-      />
+      {startsInBeats === null ? (
+        <ReadyCheck
+          waitingFor={waitingFor}
+          readyCount={readyCount}
+          participantCount={participantCount}
+          onReady={onReady}
+          isReady={isReady}
+          isSpectator={isSpectator}
+        />
+      ) : (
+        <StartsIn beats={startsInBeats} />
+      )}
     </section>
   )
 }

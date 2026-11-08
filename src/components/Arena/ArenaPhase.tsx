@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from 'react'
 import { GameSurface } from '../../games/index.tsx'
 import { hasSurface } from '../../games/playable.ts'
-import { useCountdown } from '../../hooks/index.ts'
+import { beatsRemaining, useCountdown } from '../../hooks/index.ts'
 import {
   initialOf,
   playerColor,
@@ -21,6 +21,9 @@ import {
   selectStartBlockedLine,
   selectToggleAllLabel,
 } from '../../selectors/index.ts'
+import { cueFrom } from '../GamePlay/cue.ts'
+import { START_BEATS } from '../GameReveal/StartsIn.tsx'
+import { SELF_TIMED } from '../../shared/constants.ts'
 import type { GameId } from '../../shared/games/catalog.ts'
 import type { RoomActions, UseRoomResult } from '../../socket/index.ts'
 import { FinalStandings } from '../FinalStandings/index.ts'
@@ -60,15 +63,33 @@ export function ArenaPhase({
   const isParticipant = playerId !== null && round.participants.includes(playerId)
   const hasReadied = playerId !== null && round.ready.includes(playerId)
 
+  // The server schedules the round to take over at `startAt`, then start
+  // timing COUNTDOWN_MS later. The room counts down to the first of those; the
+  // game screen owns everything after it.
   const { timingStartsAtLocalMs } = round
-  const msLeft = useMemo(
+  const takesOverAtLocalMs =
+    timingStartsAtLocalMs === null ? null : timingStartsAtLocalMs - SELF_TIMED.COUNTDOWN_MS
+  const msToTakeover = useMemo(
+    () =>
+      takesOverAtLocalMs === null ? null : () => takesOverAtLocalMs - performance.now(),
+    [takesOverAtLocalMs],
+  )
+  const startsInBeats = beatsRemaining(
+    useCountdown(round.phase === 'starting' ? msToTakeover : null),
+    SELF_TIMED.START_LEAD_MS,
+    START_BEATS,
+  )
+
+  // Inside the round's own window: the game builds up first, then the last
+  // ROUND_CUE_MS is the get-ready / set / start count.
+  const msToPlay = useMemo(
     () =>
       timingStartsAtLocalMs === null
         ? null
         : () => timingStartsAtLocalMs - performance.now(),
     [timingStartsAtLocalMs],
   )
-  const countdownMs = useCountdown(round.phase === 'countdown' ? msLeft : null)
+  const cueBeats = cueFrom(useCountdown(round.phase === 'countdown' ? msToPlay : null))
 
   // Everyone else's lights; this player's own state is the game surface.
   const lights = useMemo(
@@ -169,9 +190,8 @@ export function ArenaPhase({
         />
       ) : null
 
-    // The surface is up from `starting` so the round can be built up to —
-    // Stop the Clock spins its target here — and only takes input at `playing`.
-    case 'starting':
+    // The game screen takes over at `countdown`: it introduces itself, spins
+    // its target, and starts taking input at `playing`.
     case 'countdown':
     case 'playing': {
       if (!game) return null
@@ -181,14 +201,20 @@ export function ArenaPhase({
       return (
         <GamePlay
           gameName={game.title}
-          statusLine={selectPlayStatusLine(room, round, isParticipant)}
-          countdownMs={round.phase === 'countdown' ? (countdownMs ?? 0) : null}
+          statusLine={selectPlayStatusLine(room, round, isParticipant, cueBeats !== null)}
+          cueBeats={round.phase === 'countdown' ? cueBeats : null}
           lights={lights}
         >
           {showSurface && (
             <GameSurface
               gameId={game.id}
-              phase={round.phase}
+              phase={
+                round.phase === 'playing'
+                  ? 'playing'
+                  : cueBeats === null
+                    ? 'building'
+                    : 'cueing'
+              }
               data={round.data}
               timingStartsAtLocalMs={timingStartsAtLocalMs}
               submitted={false}
@@ -211,6 +237,7 @@ export function ArenaPhase({
           onReady={isParticipant && !hasReadied ? actions.readyForRound : null}
           isReady={hasReadied}
           isSpectator={!isParticipant}
+          startsInBeats={startsInBeats}
         />
       ) : null
   }

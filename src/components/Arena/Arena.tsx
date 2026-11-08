@@ -42,12 +42,12 @@ export function Arena() {
 
   const inRoom = stage === 'room' && room !== null
   const roundPhase = round.phase
-  // The round takes the whole screen from the moment it is being set up;
-  // everything else keeps the chrome.
+  // The game screen takes the whole screen once it takes over; the room keeps
+  // its chrome right up to that point, including while it counts the round in.
   const playing =
     inRoom &&
     room.phase === 'competition' &&
-    ['starting', 'countdown', 'playing'].includes(roundPhase)
+    ['countdown', 'playing'].includes(roundPhase)
   const showScoreboard =
     inRoom &&
     !playing &&

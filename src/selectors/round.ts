@@ -60,11 +60,10 @@ export function selectPlayStatusLine(
   room: RoomStatePayload,
   round: RoundView,
   isParticipant: boolean,
+  /** True once the round is counting the player in. */
+  cueing: boolean,
 ): string {
-  if (
-    !isParticipant &&
-    ['starting', 'countdown', 'playing'].includes(round.phase)
-  ) {
+  if (!isParticipant && ['countdown', 'playing'].includes(round.phase)) {
     return 'Watching this one out.'
   }
   switch (round.phase) {
@@ -75,9 +74,9 @@ export function selectPlayStatusLine(
         ? `Waiting on ${formatList(selectNames(room, round.waitingFor))}.`
         : 'Everyone is in.'
     case 'starting':
-      return 'Locking in the target…'
+      return 'Everyone is in.'
     case 'countdown':
-      return 'Here we go.'
+      return cueing ? 'Hands ready.' : 'Locking in the target…'
     case 'playing':
       return 'Go.'
     default:

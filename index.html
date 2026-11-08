@@ -79,6 +79,21 @@
           opacity: 1;
         }
       }
+      /*
+       * The handoff from the ready check into a round. Longer and softer than
+       * pa-swoop: the whole screen changes at once there — header and
+       * scoreboard included — so it needs easing into rather than snapping.
+       */
+      @keyframes pa-enter {
+        from {
+          transform: translateY(18px);
+          opacity: 0;
+        }
+        to {
+          transform: none;
+          opacity: 1;
+        }
+      }
       @keyframes pa-pop {
         from {
           transform: scale(0.6) rotate(-8deg);

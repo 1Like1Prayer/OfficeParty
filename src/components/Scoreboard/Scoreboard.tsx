@@ -18,7 +18,7 @@ export function Scoreboard({ rows, playerCountLabel }: ScoreboardProps) {
         background: color.panel,
         display: 'flex',
         flexDirection: 'column',
-        animation: 'pa-slide-in .4s ease-out',
+        animation: 'pa-slide-in .65s ease-out',
       }}
     >
       <div

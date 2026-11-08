@@ -41,7 +41,7 @@ export function RoundResults({
       >
         {rows.map((row, index) => (
           <li key={row.id}>
-            <ResultRow row={row} delay={`${(index * 0.07).toFixed(2)}s`} />
+            <ResultRow row={row} delay={`${(index * 0.11).toFixed(2)}s`} />
           </li>
         ))}
       </ol>

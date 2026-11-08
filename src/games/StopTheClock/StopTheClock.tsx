@@ -39,7 +39,9 @@ export function StopTheClock({
   const suspect = useRef(false)
 
   const targetMs = isRound(data) ? data.targetMs : 0
-  const spinning = phase === 'starting'
+  // The target rolls through the build-up and is settled by the time the
+  // round counts the player in, so they have the cue to read it.
+  const spinning = phase === 'building'
   const decoy = useTargetSpin(spinning)
   const playing = phase === 'playing'
   const done = stoppedAt !== null || submitted
@@ -84,9 +86,13 @@ export function StopTheClock({
           ...sharedStyles.microLabel,
           letterSpacing: '0.22em',
           // The target is the thing being played against, so it stays legible
-          // from across the desk once the clock is running.
+          // from across the desk once the clock is running. The box is a fixed
+          // height because the type size changes and the number sits below it.
           fontSize: playing ? 26 : 15,
           color: playing ? color.ink : color.mutedStrong,
+          height: 34,
+          display: 'flex',
+          alignItems: 'center',
         }}
       >
         {spinning ? 'PICKING A TARGET' : playing ? `STOP AT ${target(targetMs)}s` : 'STOP AT'}
@@ -113,29 +119,42 @@ export function StopTheClock({
           : `${target(decoy ?? targetMs)}s`}
       </div>
 
-      {playing &&
-        (done ? (
-          <div
-            style={{
-              fontFamily: font.display,
-              fontWeight: 700,
-              fontSize: 30,
-              color: color.mutedStrong,
-              animation: 'pa-pulse 2s ease-in-out infinite',
-            }}
-          >
-            Locked in. Waiting for everyone else…
-          </div>
-        ) : (
-          <>
-            <PushButton size="lg" variant="success" onClick={stop}>
-              STOP
-            </PushButton>
-            <div style={{ fontFamily: font.mono, fontSize: 13, color: color.mutedStrong }}>
-              CLICK, TAP, OR HIT SPACE
+      {/* Reserved from the build-up onwards: the button appearing must not
+          push the target up the screen. */}
+      <div
+        style={{
+          minHeight: 112,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 12,
+        }}
+      >
+        {playing &&
+          (done ? (
+            <div
+              style={{
+                fontFamily: font.display,
+                fontWeight: 700,
+                fontSize: 30,
+                color: color.mutedStrong,
+                animation: 'pa-pulse 2s ease-in-out infinite',
+              }}
+            >
+              Locked in. Waiting for everyone else…
             </div>
-          </>
-        ))}
+          ) : (
+            <>
+              <PushButton size="lg" variant="success" onClick={stop}>
+                STOP
+              </PushButton>
+              <div style={{ fontFamily: font.mono, fontSize: 13, color: color.mutedStrong }}>
+                CLICK, TAP, OR HIT SPACE
+              </div>
+            </>
+          ))}
+      </div>
     </div>
   )
 }

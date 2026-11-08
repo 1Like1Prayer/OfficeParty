@@ -9,11 +9,13 @@ import type { ReactNode } from 'react'
  */
 export interface GameSurfaceProps {
   /**
-   * Where the round is. A surface is mounted from `starting` so it can build
-   * up to the round — reveal a target, deal a hand — and only takes input at
-   * `playing`.
+   * Where the round is.
+   *
+   * `building` is the game's own run-up — reveal a target, deal a hand. By
+   * `cueing` that has to be settled and final, because the round is counting
+   * the player in and they are reading it. Input opens at `playing`.
    */
-  phase: 'starting' | 'countdown' | 'playing'
+  phase: 'building' | 'cueing' | 'playing'
   /** Public round data, exactly as `round:data` delivered it. */
   data: unknown
   /** `performance.now()` value the clock starts at. */
