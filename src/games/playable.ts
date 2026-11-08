@@ -6,5 +6,5 @@ import type { GameId } from '../shared/games/catalog.ts'
  * will play but the client cannot draw would leave players staring at nothing.
  */
 export function hasSurface(gameId: GameId): boolean {
-  return gameId === 'stop-the-clock'
+  return gameId === 'stop-the-clock' || gameId === 'cube-counter'
 }

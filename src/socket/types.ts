@@ -64,10 +64,6 @@ export interface ClientToServerEvents {
     payload: { mode: 'random' | 'custom'; gameIds?: GameId[] },
     ack: (response: Ack<unknown>) => void,
   ) => void
-  'lobby:setRounds': (
-    payload: { roundsPerGame: number },
-    ack: (response: Ack<unknown>) => void,
-  ) => void
   'lobby:ready': (
     payload: { ready: boolean },
     ack: (response: Ack<unknown>) => void,

@@ -34,7 +34,6 @@ export interface RoomActions {
   setReady: (ready: boolean) => void
   /** Owner only; the server enforces that. */
   start: () => void
-  setRoundsPerGame: (rounds: number) => void
   setPlaylist: (mode: PlaylistMode, gameIds?: GameId[]) => void
   /** Owner only: skip the results or leaderboard timer. */
   skip: () => void
@@ -232,9 +231,6 @@ export function useRoom(): UseRoomResult {
 
       setReady: (ready: boolean) => { socket.emit('lobby:ready', { ready }, report) },
       start: () => { socket.emit('lobby:start', null, report) },
-      setRoundsPerGame: (rounds: number) => {
-        socket.emit('lobby:setRounds', { roundsPerGame: rounds }, report)
-      },
       setPlaylist: (mode: PlaylistMode, gameIds?: GameId[]) => {
         socket.emit('lobby:setMode', gameIds ? { mode, gameIds } : { mode }, report)
       },

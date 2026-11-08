@@ -27,6 +27,12 @@ const COPY: Partial<Record<GameId, GameCopy>> = {
     rules:
       'A target lands, then the clock runs. Stop it as close to the target as you can — closest wins, and hundredths are the margin.',
   },
+  'cube-counter': {
+    input: 'Keypad',
+    length: '45s',
+    rules:
+      'A pile of blocks flashes up, then vanishes. Type how many you saw. Wide blocks count once, and the flashes get shorter. Most right wins; speed breaks ties.',
+  },
   'type-racer-roulette': {
     input: 'Keyboard',
     length: '45s',

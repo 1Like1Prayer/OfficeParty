@@ -9,13 +9,18 @@
  * no I/O.
  */
 
+import { assignSharedRanks } from './ranking';
 import type {
     RankedEntry,
+    RoundContext,
     ResultEntry,
     SelfTimedGameModule
 } from './selfTimed';
 
 export const STOP_THE_CLOCK = {
+    /** Scoring rounds per game: the first half normal, the second half faded. */
+    ROUNDS_PER_GAME: 4,
+    BLIND_ROUNDS: 2,
     MIN_TARGET_MS: 2_000,
     MAX_TARGET_MS: 8_000,
     /** Targets land on whole seconds so they read cleanly as "4 s". */
@@ -30,16 +35,15 @@ export const STOP_THE_CLOCK = {
      * If someone never reports, the round closes at target + 4 s and is scored
      * from whatever arrived.
      */
-    RESULT_GRACE_MS: 4_000
+    RESULT_GRACE_MS: 4_000,
+    /** Blind rounds draw from a narrower, longer band so the gap is worth guessing. */
+    BLIND_MIN_TARGET_MS: 4_000
 } as const;
 
 export interface StopTheClockRound {
     /** Milliseconds the player is trying to hit. */
     targetMs: number;
-    /**
-     * Set by the server on blind rounds. The client fades its running clock
-     * out partway through, so the player has to count the rest.
-     */
+    /** The clock fades out mid-round. Public: it reveals nothing about results. */
     blind: boolean;
 }
 
@@ -54,11 +58,23 @@ export interface StopTheClockResult {
     timingSuspect: boolean;
 }
 
-/** Pick a whole-second target inside the allowed band. */
-export const pickTargetMs = (): number => {
-    const { MIN_TARGET_MS, MAX_TARGET_MS, TARGET_STEP_MS } = STOP_THE_CLOCK;
-    const steps = (MAX_TARGET_MS - MIN_TARGET_MS) / TARGET_STEP_MS;
-    return MIN_TARGET_MS + Math.floor(Math.random() * (steps + 1)) * TARGET_STEP_MS;
+/** Faded (blind) in the last BLIND_ROUNDS rounds: with 4 rounds, rounds 3 and 4. */
+export const isBlindRound = ({ roundInGame, roundsPerGame }: RoundContext): boolean =>
+    roundInGame > roundsPerGame - STOP_THE_CLOCK.BLIND_ROUNDS;
+
+/** Pick a whole-second target between minMs and the maximum. */
+export const pickTargetMs = (minMs: number = STOP_THE_CLOCK.MIN_TARGET_MS): number => {
+    const { MAX_TARGET_MS, TARGET_STEP_MS } = STOP_THE_CLOCK;
+    const steps = Math.floor((MAX_TARGET_MS - minMs) / TARGET_STEP_MS);
+    return minMs + Math.floor(Math.random() * (steps + 1)) * TARGET_STEP_MS;
+};
+
+export const createRoundData = (context: RoundContext): StopTheClockRound => {
+    const blind = isBlindRound(context);
+    return {
+        targetMs: pickTargetMs(blind ? STOP_THE_CLOCK.BLIND_MIN_TARGET_MS : undefined),
+        blind
+    };
 };
 
 /** How far off a report is. Integer milliseconds, so ties are exact. */
@@ -105,29 +121,19 @@ export const rank = (
         }))
         .sort((a, b) => a.error - b.error || a.playerId.localeCompare(b.playerId));
 
-    const ranked: RankedEntry[] = [];
-    let lastError: number | null = null;
-    let lastRank = 0;
-
-    scored.forEach((entry, index) => {
-        const isTie = lastError !== null && entry.error === lastError;
-        const position = isTie ? lastRank : index + 1;
-        lastError = entry.error;
-        lastRank = position;
-        ranked.push({
-            playerId: entry.playerId,
+    return assignSharedRanks(scored, (a, b) => a.error === b.error).map(
+        ({ item, rank: position }) => ({
+            playerId: item.playerId,
             rank: position,
             reported: true,
             detail: {
-                elapsedMs: entry.result.elapsedMs,
-                errorMs: entry.error,
+                elapsedMs: item.result.elapsedMs,
+                errorMs: item.error,
                 targetMs: round.targetMs,
-                timingSuspect: entry.result.timingSuspect
+                timingSuspect: item.result.timingSuspect
             }
-        });
-    });
-
-    return ranked;
+        })
+    );
 };
 
 export const resultTimeoutMs = (round: StopTheClockRound): number =>
@@ -140,7 +146,8 @@ export const stopTheClockModule: SelfTimedGameModule<
     id: 'stop-the-clock',
     title: 'Stop the Clock',
     kind: 'self-timed',
-    createRoundData: () => ({ targetMs: pickTargetMs(), blind: false }),
+    roundsPerGame: STOP_THE_CLOCK.ROUNDS_PER_GAME,
+    createRoundData,
     parseResult,
     parseProgress,
     resultTimeoutMs,

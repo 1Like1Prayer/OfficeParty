@@ -67,6 +67,12 @@ function describeDetail(detail: Record<string, number | string | boolean>): stri
       detail['errorMs'] === 0 ? 'exact' : `off by ${seconds(detail['errorMs'])}s`,
     )
   }
+  if (typeof detail['correctCount'] === 'number' && typeof detail['puzzleCount'] === 'number') {
+    parts.push(`${detail['correctCount']}/${detail['puzzleCount']} right`)
+    if (typeof detail['correctAnswerMs'] === 'number' && detail['correctCount'] > 0) {
+      parts.push(`${seconds(detail['correctAnswerMs'])}s`)
+    }
+  }
   if (detail['timingSuspect'] === true) parts.push('timing suspect')
 
   if (parts.length > 0) return parts.join(' · ')

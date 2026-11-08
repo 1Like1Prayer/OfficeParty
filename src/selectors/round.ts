@@ -25,7 +25,9 @@ export function selectRoundLabel(room: RoomStatePayload, round: RoundView): stri
   const { gameIndex, totalGames, roundInGame, roundsPerGame, isTiebreak } = round
   if (isTiebreak) return 'TIEBREAK'
   if (gameIndex === 0) return 'STARTING'
-  return `GAME ${gameIndex}/${totalGames} · ROUND ${roundInGame}/${roundsPerGame}`
+  const game = `GAME ${gameIndex}/${totalGames}`
+  // Each game sets its own round count; a single round needs no counter.
+  return roundsPerGame > 1 ? `${game} · ROUND ${roundInGame}/${roundsPerGame}` : game
 }
 
 /** Why start is unavailable, in the room's own words. */
@@ -60,8 +62,6 @@ export function selectPlayStatusLine(
   room: RoomStatePayload,
   round: RoundView,
   isParticipant: boolean,
-  /** True once the round is counting the player in. */
-  cueing: boolean,
 ): string {
   if (!isParticipant && ['countdown', 'playing'].includes(round.phase)) {
     return 'Watching this one out.'
@@ -75,10 +75,11 @@ export function selectPlayStatusLine(
         : 'Everyone is in.'
     case 'starting':
       return 'Everyone is in.'
+    // The play screen speaks for itself once the round is on; nothing is
+    // captioned underneath it.
     case 'countdown':
-      return cueing ? 'Hands ready.' : 'Locking in the target…'
     case 'playing':
-      return 'Go.'
+      return ''
     default:
       return ''
   }
