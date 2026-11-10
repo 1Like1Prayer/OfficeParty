@@ -54,6 +54,11 @@ export interface GameSurfaceProps {
   onSubmit: (result: unknown) => void
   /** Display-only signal for the other players' screens. */
   onProgress: (progress: unknown) => void
+  /**
+   * Ask the server something mid-round that only it can answer, such as the
+   * outcome of a dice roll. Resolves with its reply; rejects if it refuses.
+   */
+  onAction: (action: unknown) => Promise<unknown>
 }
 
 export type GameSurface = (props: GameSurfaceProps) => ReactNode

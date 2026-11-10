@@ -5,11 +5,13 @@ import {
   selectGameScreenIsUp,
   selectPlayerCountLabel,
   selectRoundLabel,
+  selectScreenKey,
   selectScoreboardRows,
 } from '../../selectors/index.ts'
 import { ROOM } from '../../shared/constants.ts'
 import { useConnectionStatus, useRoom } from '../../socket/index.ts'
 import { ArenaLayout } from '../ArenaLayout/index.ts'
+import { ScreenTransition } from '../ScreenTransition/index.ts'
 import { ConnectionGate } from '../ConnectionGate/index.ts'
 import { HostScreen, JoinScreen } from '../EntryScreen/index.ts'
 import { Scoreboard } from '../Scoreboard/index.ts'
@@ -54,6 +56,15 @@ export function Arena() {
     inRoom &&
     room.phase === 'competition' &&
     selectGameScreenIsUp({ round, results, isParticipant, isFinishing, nextStage })
+  const screenKey = selectScreenKey({
+    stage,
+    room,
+    round,
+    results,
+    isParticipant,
+    isFinishing,
+    nextStage,
+  })
   const showScoreboard =
     inRoom &&
     !playing &&
@@ -61,77 +72,79 @@ export function Arena() {
 
   return (
     <ConnectionGate status={status} error={handshakeError}>
-      <ArenaLayout
-        roundLabel={inRoom ? selectRoundLabel(room, round) : ''}
-        showHeader={inRoom && !playing}
-        notice={inRoom ? error : null}
-        aside={
-          showScoreboard && (
-            <Scoreboard
-              rows={selectScoreboardRows(room, round, scores, playerId)}
-              playerCountLabel={selectPlayerCountLabel(room)}
+      <ScreenTransition screenKey={screenKey}>
+        <ArenaLayout
+          roundLabel={inRoom ? selectRoundLabel(room, round) : ''}
+          showHeader={inRoom && !playing}
+          notice={inRoom ? error : null}
+          aside={
+            showScoreboard && (
+              <Scoreboard
+                rows={selectScoreboardRows(room, round, scores, playerId)}
+                playerCountLabel={selectPlayerCountLabel(room)}
+              />
+            )
+          }
+        >
+          {stage === 'title' && (
+            <TitleScreen
+              minPlayers={ROOM.MIN_PLAYERS}
+              maxPlayers={ROOM.MAX_PLAYERS}
+              busy={busy}
+              onHost={actions.goToHost}
+              onJoin={() => {
+                code.reset()
+                setNameDone(false)
+                actions.goToJoin()
+              }}
             />
-          )
-        }
-      >
-        {stage === 'title' && (
-          <TitleScreen
-            minPlayers={ROOM.MIN_PLAYERS}
-            maxPlayers={ROOM.MAX_PLAYERS}
-            busy={busy}
-            onHost={actions.goToHost}
-            onJoin={() => {
-              code.reset()
-              setNameDone(false)
-              actions.goToJoin()
-            }}
-          />
-        )}
+          )}
 
-        {stage === 'host' && (
-          <HostScreen
-            name={name}
-            avatar={avatar}
-            error={error}
-            busy={busy}
-            onName={setName}
-            onAvatar={setAvatar}
-            onHost={() => { actions.host(name.trim(), avatar) }}
-            onBack={actions.goToTitle}
-          />
-        )}
+          {stage === 'host' && (
+            <HostScreen
+              name={name}
+              avatar={avatar}
+              error={error}
+              busy={busy}
+              onName={setName}
+              onAvatar={setAvatar}
+              onHost={() => { actions.host(name.trim(), avatar) }}
+              onBack={actions.goToTitle}
+            />
+          )}
 
-        {stage === 'join' && (
-          <JoinScreen
-            name={name}
-            avatar={avatar}
-            code={code.entry}
-            nameDone={nameDone}
-            error={error}
-            busy={busy}
-            onName={setName}
-            onAvatar={setAvatar}
-            onNameDone={() => { setNameDone(true) }}
-            onCode={code.set}
-            onJoin={() => { actions.join(name.trim(), avatar, code.entry) }}
-            onBack={actions.goToTitle}
-          />
-        )}
+          {stage === 'join' && (
+            <JoinScreen
+              name={name}
+              avatar={avatar}
+              code={code.entry}
+              nameDone={nameDone}
+              error={error}
+              busy={busy}
+              onName={setName}
+              onAvatar={setAvatar}
+              onNameDone={() => { setNameDone(true) }}
+              onCode={code.set}
+              onJoin={() => { actions.join(name.trim(), avatar, code.entry) }}
+              onBack={actions.goToTitle}
+            />
+          )}
 
-        {inRoom && (
-          <ArenaPhase
-            room={room}
-            playerId={playerId}
-            round={round}
-            results={results}
-            leaderboard={leaderboard}
-            progress={progress}
-            isFinishing={isFinishing}
-            nextStage={nextStage}
-            actions={actions}
-          />
-        )}
-      </ArenaLayout>
+          {inRoom && (
+            <ArenaPhase
+              room={room}
+              playerId={playerId}
+              round={round}
+              results={results}
+              leaderboard={leaderboard}
+              progress={progress}
+              isFinishing={isFinishing}
+              nextStage={nextStage}
+              actions={actions}
+            />
+          )}
+        </ArenaLayout>
+      </ScreenTransition>
     </ConnectionGate>
   )
 }

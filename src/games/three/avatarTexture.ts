@@ -1,5 +1,5 @@
 import { CanvasTexture, SRGBColorSpace } from 'three'
-import { avatarUrl } from '../../../content/avatars.ts'
+import { avatarUrl } from '../../content/avatars.ts'
 
 const SIZE = 128
 

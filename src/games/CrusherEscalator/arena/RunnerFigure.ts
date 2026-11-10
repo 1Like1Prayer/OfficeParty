@@ -18,7 +18,7 @@ import {
   STEP_SPEED,
 } from './arenaConfig.ts'
 import type { EscalatorRamp } from './EscalatorRamp.ts'
-import { LightBeam } from './LightBeam.ts'
+import { LightBeam } from '../../three/LightBeam.ts'
 
 type Phase = 'running' | 'sliding' | 'airborne' | 'swallowed' | 'carried'
 

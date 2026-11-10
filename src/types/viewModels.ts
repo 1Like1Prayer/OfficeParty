@@ -35,7 +35,7 @@ export interface ResultRowView {
 
 export interface PlaylistRowView {
   id: string
-  /** e.g. "3. Blade Arena". */
+  /** e.g. "3. Crusher Escalator". */
   name: string
   /** Uppercased game kind, e.g. "SELF-TIMED". */
   kind: string

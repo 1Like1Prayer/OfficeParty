@@ -9,7 +9,8 @@ export function hasSurface(gameId: GameId): boolean {
   return (
     gameId === 'stop-the-clock' ||
     gameId === 'cube-counter' ||
-    gameId === 'crusher-escalator'
+    gameId === 'crusher-escalator' ||
+    gameId === 'type-racer-roulette'
   )
 }
 
@@ -18,7 +19,7 @@ export function hasSurface(gameId: GameId): boolean {
  * lays its title and countdown over the top instead of stacking them above.
  */
 export function isFullBleed(gameId: GameId): boolean {
-  return gameId === 'crusher-escalator'
+  return gameId === 'crusher-escalator' || gameId === 'type-racer-roulette'
 }
 
 /**
@@ -27,4 +28,12 @@ export function isFullBleed(gameId: GameId): boolean {
  */
 export function canSpectate(gameId: GameId): boolean {
   return gameId === 'crusher-escalator'
+}
+
+/**
+ * Games whose own screen already says what they are, so the play screen's
+ * title over the top of it is only in the way.
+ */
+export function hidesTitle(gameId: GameId): boolean {
+  return gameId === 'type-racer-roulette'
 }

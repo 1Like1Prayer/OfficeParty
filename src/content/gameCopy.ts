@@ -41,8 +41,9 @@ const COPY: Partial<Record<GameId, GameCopy>> = {
   },
   'type-racer-roulette': {
     input: 'Keyboard',
-    length: '45s',
-    rules: 'Type the passage. One mistyped character and the round is somebody else’s.',
+    length: '3 min',
+    rules:
+      'Everyone types the same paragraphs on an old typewriter, perched on a board over the sea. A wrong key sends you back to the start of the line and costs a strike. Three strikes roll the dice: a skull and your block crumbles. Run out of time on a paragraph and it crumbles too. First to finish wins.',
   },
   minefield: {
     input: 'Tilt + tap',

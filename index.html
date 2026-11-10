@@ -104,6 +104,64 @@
           opacity: 1;
         }
       }
+      /* Screen swipe: three bands cross the screen sideways, in and then out the far side. */
+      @keyframes pa-swipe-in-from-left {
+        from { transform: translateX(-101%); }
+        to { transform: translateX(0); }
+      }
+      @keyframes pa-swipe-in-from-right {
+        from { transform: translateX(101%); }
+        to { transform: translateX(0); }
+      }
+      @keyframes pa-swipe-out-to-right {
+        from { transform: translateX(0); }
+        to { transform: translateX(101%); }
+      }
+      @keyframes pa-swipe-out-to-left {
+        from { transform: translateX(0); }
+        to { transform: translateX(-101%); }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        [style*='pa-swipe'] {
+          animation-duration: 1ms !important;
+          animation-delay: 0ms !important;
+        }
+      }
+      /* Type Racer: a wrong key flashes the sheet red and shakes it. */
+      @keyframes pa-type-mistake {
+        0% { background: rgba(229, 56, 47, 0.55); transform: translateX(0); }
+        20% { transform: translateX(-9px); }
+        40% { transform: translateX(8px); }
+        60% { transform: translateX(-5px); }
+        80% { transform: translateX(3px); }
+        100% { background: rgba(229, 56, 47, 0); transform: translateX(0); }
+      }
+      /* Type Racer: between paragraphs the finished text clears away line by line,
+         and the next one is written in line by line. */
+      @keyframes pa-line-clear {
+        from { opacity: 1; transform: none; filter: none; }
+        to { opacity: 0; transform: translateX(40px); filter: blur(4px); }
+      }
+      @keyframes pa-line-in {
+        from { opacity: 0; transform: translateY(10px); filter: blur(3px); }
+        to { opacity: 1; transform: none; filter: none; }
+      }
+      @keyframes pa-fade-up {
+        from { opacity: 0; transform: translateY(8px); }
+        to { opacity: 1; transform: none; }
+      }
+      @keyframes pa-load-shimmer {
+        from { background-position: 0 0; }
+        to { background-position: 28px 0; }
+      }
+      @keyframes pa-type-mistake-b {
+        0% { background: rgba(229, 56, 47, 0.55); transform: translateX(0); }
+        20% { transform: translateX(-9px); }
+        40% { transform: translateX(8px); }
+        60% { transform: translateX(-5px); }
+        80% { transform: translateX(3px); }
+        100% { background: rgba(229, 56, 47, 0); transform: translateX(0); }
+      }
       @keyframes pa-bob {
         0%,
         100% {

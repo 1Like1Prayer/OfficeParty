@@ -12,6 +12,8 @@ interface GamePlayProps {
    * rather than the game sitting in the space left beneath them.
    */
   isFullBleed?: boolean
+  /** Show the game's name over the top. A game that says what it is itself can turn it off. */
+  showTitle?: boolean
   /** The game itself, from the moment the round is being set up. */
   children?: ReactNode
 }
@@ -25,6 +27,7 @@ export function GamePlay({
   statusLine,
   cueBeats,
   isFullBleed = false,
+  showTitle = true,
   children,
 }: GamePlayProps) {
   if (isFullBleed) {
@@ -54,20 +57,22 @@ export function GamePlay({
             zIndex: 2,
           }}
         >
-          <div
-            style={{
-              alignSelf: 'flex-start',
-              fontFamily: font.display,
-              fontWeight: 700,
-              fontSize: 30,
-              lineHeight: 1,
-              letterSpacing: '-0.02em',
-              color: color.cream,
-              textShadow: `0 2px 0 ${color.ink}`,
-            }}
-          >
-            {gameName}
-          </div>
+          {showTitle && (
+            <div
+              style={{
+                alignSelf: 'flex-start',
+                fontFamily: font.display,
+                fontWeight: 700,
+                fontSize: 30,
+                lineHeight: 1,
+                letterSpacing: '-0.02em',
+                color: color.cream,
+                textShadow: `0 2px 0 ${color.ink}`,
+              }}
+            >
+              {gameName}
+            </div>
+          )}
           <div style={{ flex: 1, display: 'flex', alignItems: 'center' }}>
             {cueBeats !== null && (
               <div
