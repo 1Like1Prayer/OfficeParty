@@ -14,7 +14,7 @@ import {
   type CanvasTexture,
 } from 'three'
 import type { RoundPlayerView } from '../../../types/index.ts'
-import { createAvatarTexture } from './avatarTexture.ts'
+import { createAvatarTexture } from '../../three/avatarTexture.ts'
 import {
   BACKGROUND_COLOR,
   CAMERA_FIELD_OF_VIEW,
@@ -34,9 +34,9 @@ import {
 import { BlackHoleMesh } from './BlackHoleMesh.ts'
 import { Starfield } from './Starfield.ts'
 import { EscalatorRamp } from './EscalatorRamp.ts'
-import { Nameplate } from './Nameplate.ts'
+import { Nameplate } from '../../three/Nameplate.ts'
 import { RunnerFigure } from './RunnerFigure.ts'
-import { Tweener } from './tweens.ts'
+import { Tweener } from '../../three/tweens.ts'
 import type { LaneView } from './types.ts'
 
 interface Lane {

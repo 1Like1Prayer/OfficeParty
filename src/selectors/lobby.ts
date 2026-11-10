@@ -48,18 +48,11 @@ export function selectSelectedGames(room: RoomStatePayload): GameId[] {
   return room.mode === 'random' ? room.lobby.playableGames : room.playlist
 }
 
-/**
- * Games the server's catalog lists but this client does not offer. They are
- * not built and not planned for now, so showing them greyed out is clutter.
- * The catalog itself is the server's and stays as copied.
- */
-const HIDDEN_FROM_POOL: readonly GameId[] = ['pea-dinner', 'train-alcoves', 'safe-tile-arena']
-
 export function selectPoolChips(room: RoomStatePayload): PoolChipView[] {
   const playable = new Set(room.lobby.playableGames)
   const selected = new Set(selectSelectedGames(room))
 
-  return GAME_IDS.filter((gameId) => !HIDDEN_FROM_POOL.includes(gameId)).map((gameId) => ({
+  return GAME_IDS.map((gameId) => ({
     id: gameId,
     name: GAME_CATALOG[gameId].title,
     selected: selected.has(gameId),

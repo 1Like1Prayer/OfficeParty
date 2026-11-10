@@ -59,6 +59,22 @@ function avatarOf(room: RoomStatePayload, playerId: string): string {
 function describeDetail(detail: Record<string, number | string | boolean>): string {
   const parts: string[] = []
 
+  // Type Racer Roulette: how the race went for this player.
+  if (typeof detail['paragraphCount'] === 'number' && typeof detail['paragraphsDone'] === 'number') {
+    const status = detail['status']
+    if (detail['lastSurvivor'] === true) {
+      parts.push('last one standing')
+    } else if (status === 'finished' && typeof detail['endedAtMs'] === 'number') {
+      parts.push(`finished in ${clock(detail['endedAtMs'])}`)
+    } else {
+      const cause = detail['eliminatedBy'] === 'time' ? 'out of time' : detail['eliminatedBy'] === 'skull' ? 'a skull' : 'still typing'
+      parts.push(`${cause} · ${detail['paragraphsDone']}/${detail['paragraphCount']} paragraphs`)
+    }
+    if (typeof detail['rollsCast'] === 'number' && detail['rollsCast'] > 0) {
+      parts.push(`${detail['rollsCast']} ${detail['rollsCast'] === 1 ? 'roll' : 'rolls'} survived`)
+    }
+  }
+
   if (typeof detail['elapsedMs'] === 'number') {
     parts.push(`${seconds(detail['elapsedMs'])}s`)
   }
@@ -83,6 +99,12 @@ function describeDetail(detail: Record<string, number | string | boolean>): stri
 }
 
 const seconds = (ms: number): string => (ms / 1000).toFixed(2)
+
+/** A race time as minutes and seconds, e.g. 1:42. */
+const clock = (ms: number): string => {
+  const whole = Math.round(ms / 1000)
+  return `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, '0')}`
+}
 
 export function selectResultHeadline(
   room: RoomStatePayload,

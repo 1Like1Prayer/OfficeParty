@@ -46,6 +46,12 @@ export interface RoomActions {
   submitResult: (result: unknown) => void
   /** Display-only signal to the rest of the room. */
   reportProgress: (progress: unknown) => void
+  /**
+   * Ask the game something only the server can answer mid-round, such as the
+   * outcome of a dice roll. Resolves with the server's reply, or rejects with
+   * the reason it refused.
+   */
+  sendAction: (action: unknown) => Promise<unknown>
 }
 
 export interface UseRoomResult {
@@ -269,6 +275,13 @@ export function useRoom(): UseRoomResult {
       submitResult: (result: unknown) => {
         socket.emit('round:result', { roundId, attempt, result }, report)
       },
+      sendAction: (action: unknown) =>
+        new Promise<unknown>((resolve, reject) => {
+          socket.emit('round:action', { roundId, attempt, action }, (ack) => {
+            if (ack.ok) resolve(ack.data)
+            else reject(new Error(ack.message))
+          })
+        }),
       // Unacknowledged on the wire: dropping one costs nothing.
       reportProgress: (value: unknown) => {
         socket.emit('round:progress', { roundId, attempt, progress: value })

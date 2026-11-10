@@ -25,7 +25,7 @@ import {
 import { useArrowKeyPresses } from './useArrowKeyPresses.ts'
 import { useFallenPlayers } from './useFallenPlayers.ts'
 import { useScoreBroadcast } from './useScoreBroadcast.ts'
-import { useTabWasHidden } from './useTabWasHidden.ts'
+import { useTabWasHidden } from '../../hooks/useTabWasHidden.ts'
 
 const NO_STREAM: readonly Direction[] = []
 const NO_PLAYERS: ReadonlySet<string> = new Set()

@@ -32,4 +32,6 @@ export {
   selectResultHeadline,
   selectResultRows,
 } from './results.ts'
+export { selectScreenKey } from './screen.ts'
+export type { ScreenKey } from './screen.ts'
 export { selectPlayerCountLabel, selectScoreboardRows } from './scoreboard.ts'

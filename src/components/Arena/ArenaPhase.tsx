@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo } from 'react'
 import { GameSurface } from '../../games/index.tsx'
-import { canSpectate, hasSurface, isFullBleed } from '../../games/playable.ts'
+import { canSpectate, hasSurface, hidesTitle, isFullBleed } from '../../games/playable.ts'
 import { beatsRemaining, useCountdown } from '../../hooks/index.ts'
 import {
   selectChampionLine,
@@ -121,7 +121,7 @@ export function ArenaPhase({
     )
   }
 
-  const { submitResult, reportProgress } = actions
+  const { submitResult, reportProgress, sendAction } = actions
   const onSubmit = useCallback((result: unknown) => { submitResult(result) }, [submitResult])
   const onProgress = useCallback(
     (value: unknown) => { reportProgress(value) },
@@ -191,6 +191,7 @@ export function ArenaPhase({
         statusLine={selectPlayStatusLine(room, round, isParticipant)}
         cueBeats={round.phase === 'countdown' ? cueBeats : null}
         isFullBleed={isFullBleed(game.id)}
+        showTitle={!hidesTitle(game.id)}
       >
         {showSurface && (
           <GameSurface
@@ -215,6 +216,7 @@ export function ArenaPhase({
             submitted={false}
             onSubmit={onSubmit}
             onProgress={onProgress}
+            onAction={sendAction}
           />
         )}
       </GamePlay>

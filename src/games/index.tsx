@@ -1,5 +1,6 @@
 import type { GameId } from '../shared/games/catalog.ts'
 import { CrusherEscalator } from './CrusherEscalator/CrusherEscalator.tsx'
+import { TypeRacer } from './TypeRacer/TypeRacer.tsx'
 import { CubeCounter } from './CubeCounter/CubeCounter.tsx'
 import { StopTheClock } from './StopTheClock/StopTheClock.tsx'
 import type { GameSurfaceProps } from './types.ts'
@@ -16,6 +17,8 @@ export function GameSurface({ gameId, ...props }: { gameId: GameId } & GameSurfa
       return <CrusherEscalator {...props} />
     case 'cube-counter':
       return <CubeCounter {...props} />
+    case 'type-racer-roulette':
+      return <TypeRacer {...props} />
     case 'stop-the-clock':
       return <StopTheClock {...props} />
     default:

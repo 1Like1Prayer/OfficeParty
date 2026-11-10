@@ -83,6 +83,11 @@ export interface ClientToServerEvents {
     attempt: number
     progress: unknown
   }) => void
+  /** A mid-round request the game answers, e.g. casting the dice. */
+  'round:action': (
+    payload: { roundId: number; attempt: number; action: unknown },
+    ack: (response: Ack<unknown>) => void,
+  ) => void
   'time:ping': (payload: null, ack: (response: Ack<PingAckData>) => void) => void
 }
 

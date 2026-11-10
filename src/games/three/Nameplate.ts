@@ -6,6 +6,8 @@ const HEIGHT = 130
 export interface NameplateContent {
   name: string
   score: number
+  /** Small text drawn after the number, such as "%". */
+  unit?: string
   status: string
   isYou: boolean
   isFallen: boolean
@@ -75,7 +77,13 @@ export class Nameplate {
     context.fillStyle = '#2E2A45'
     context.textAlign = 'right'
     context.font = '800 78px sans-serif'
-    context.fillText(String(content.score), WIDTH - 28, HEIGHT / 2 + 2)
+    const unit = content.unit ?? ''
+    if (unit !== '') {
+      context.font = '800 34px sans-serif'
+      context.fillText(unit, WIDTH - 28, HEIGHT / 2 + 14)
+    }
+    context.font = '800 78px sans-serif'
+    context.fillText(String(content.score), WIDTH - 28 - (unit === '' ? 0 : context.measureText(unit).width + 4), HEIGHT / 2 + 2)
     this.texture.needsUpdate = true
   }
 
@@ -92,3 +100,13 @@ export class Nameplate {
     return fitted === text ? text : `${fitted}…`
   }
 }
+
+/**
+ * The sprite scale that draws a screen-sized sprite `pixels` wide, for a canvas
+ * this tall. Tags drawn this way read the same at any depth.
+ */
+export const labelWidthFor = (
+  pixels: number,
+  canvasHeight: number,
+  fieldOfViewDegrees: number,
+): number => (pixels * 2 * Math.tan((fieldOfViewDegrees * Math.PI) / 360)) / canvasHeight
