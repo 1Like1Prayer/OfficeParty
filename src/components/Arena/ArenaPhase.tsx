@@ -1,12 +1,13 @@
-import { useCallback, useMemo } from 'react'
+import { useCallback, useEffect, useMemo } from 'react'
 import { GameSurface } from '../../games/index.tsx'
-import { hasSurface } from '../../games/playable.ts'
+import { canSpectate, hasSurface, isFullBleed } from '../../games/playable.ts'
 import { beatsRemaining, useCountdown } from '../../hooks/index.ts'
 import {
   selectChampionLine,
   selectChampionNote,
   selectCurrentGame,
   selectFloaters,
+  selectGameScreenIsUp,
   selectLobbyEmptyLine,
   selectNames,
   selectPlayStatusLine,
@@ -14,6 +15,7 @@ import {
   selectResultEyebrow,
   selectResultHeadline,
   selectResultRows,
+  selectRoundPlayers,
   selectSelectedGames,
   selectSetupSummary,
   selectStartBlockedLine,
@@ -24,6 +26,7 @@ import { START_BEATS } from '../GameReveal/StartsIn.tsx'
 import { SELF_TIMED } from '../../shared/constants.ts'
 import type { GameId } from '../../shared/games/catalog.ts'
 import type { RoomActions, UseRoomResult } from '../../socket/index.ts'
+import type { NextStageView } from '../../types/index.ts'
 import { FinalStandings } from '../FinalStandings/index.ts'
 import { GamePlay } from '../GamePlay/index.ts'
 import { GameReveal } from '../GameReveal/index.ts'
@@ -37,6 +40,12 @@ interface ArenaPhaseProps {
   round: UseRoomResult['round']
   results: UseRoomResult['results']
   leaderboard: UseRoomResult['leaderboard']
+  /** What each player is reporting live, for games that show the others. */
+  progress: UseRoomResult['progress']
+  /** The game's ending animation is playing, so its screen stays up past the results. */
+  isFinishing: boolean
+  /** Set between a game's stages: who goes through, and for how long it pauses. */
+  nextStage: NextStageView | null
   actions: RoomActions
 }
 
@@ -50,6 +59,9 @@ export function ArenaPhase({
   round,
   results,
   leaderboard,
+  progress,
+  isFinishing,
+  nextStage,
   actions,
 }: ArenaPhaseProps) {
   const me = room.players.find((player) => player.playerId === playerId)
@@ -64,7 +76,9 @@ export function ArenaPhase({
   // game screen owns everything after it.
   const { timingStartsAtLocalMs } = round
   const takesOverAtLocalMs =
-    timingStartsAtLocalMs === null ? null : timingStartsAtLocalMs - SELF_TIMED.COUNTDOWN_MS
+    timingStartsAtLocalMs === null
+      ? null
+      : timingStartsAtLocalMs - (round.countdownMs ?? SELF_TIMED.COUNTDOWN_MS)
   const msToTakeover = useMemo(
     () =>
       takesOverAtLocalMs === null ? null : () => takesOverAtLocalMs - performance.now(),
@@ -114,6 +128,15 @@ export function ArenaPhase({
     [reportProgress],
   )
 
+  // The players going through to a game's next stage were only just watching,
+  // so there is nothing to confirm: the stage opens straight into its countdown.
+  const readyForRound = actions.readyForRound
+  const shouldAutoReady =
+    nextStage !== null && round.phase === 'ready-check' && isParticipant && !hasReadied
+  useEffect(() => {
+    if (shouldAutoReady) readyForRound()
+  }, [shouldAutoReady, readyForRound])
+
   if (room.phase === 'lobby') {
     return (
       <Lobby
@@ -151,6 +174,53 @@ export function ArenaPhase({
 
   const game = selectCurrentGame(round)
 
+  // The game's screen: the race, its ending, and between a game's stages the
+  // pause and set-up, so it never drops back to a menu mid-round.
+  const isDecided = round.phase === 'results' && results !== null
+  if (selectGameScreenIsUp({ round, results, isParticipant, isFinishing, nextStage })) {
+    if (!game) return null
+    const showSurface =
+      playerId !== null &&
+      hasSurface(game.id) &&
+      (isParticipant || canSpectate(game.id)) &&
+      timingStartsAtLocalMs !== null
+
+    return (
+      <GamePlay
+        gameName={game.title}
+        statusLine={selectPlayStatusLine(room, round, isParticipant)}
+        cueBeats={round.phase === 'countdown' ? cueBeats : null}
+        isFullBleed={isFullBleed(game.id)}
+      >
+        {showSurface && (
+          <GameSurface
+            gameId={game.id}
+            phase={
+              round.phase === 'countdown'
+                ? cueBeats === null
+                  ? 'building'
+                  : 'cueing'
+                : round.phase === 'results' || round.phase === 'playing'
+                  ? 'playing'
+                  : 'building'
+            }
+            data={round.data}
+            players={selectRoundPlayers(room, round.participants)}
+            selfPlayerId={playerId}
+            progress={progress}
+            attemptKey={`${round.roundId}:${round.attempt}`}
+            nextStage={isDecided && results.advancing !== null ? nextStage : null}
+            finalRanking={isDecided ? results.ranked : null}
+            timingStartsAtLocalMs={timingStartsAtLocalMs}
+            submitted={false}
+            onSubmit={onSubmit}
+            onProgress={onProgress}
+          />
+        )}
+      </GamePlay>
+    )
+  }
+
   switch (round.phase) {
     case 'results':
       return results ? (
@@ -164,41 +234,6 @@ export function ArenaPhase({
           onSkip={actions.skip}
         />
       ) : null
-
-    // The game screen takes over at `countdown`: it introduces itself, spins
-    // its target, and starts taking input at `playing`.
-    case 'countdown':
-    case 'playing': {
-      if (!game) return null
-      const showSurface =
-        isParticipant && hasSurface(game.id) && timingStartsAtLocalMs !== null
-
-      return (
-        <GamePlay
-          gameName={game.title}
-          statusLine={selectPlayStatusLine(room, round, isParticipant)}
-          cueBeats={round.phase === 'countdown' ? cueBeats : null}
-        >
-          {showSurface && (
-            <GameSurface
-              gameId={game.id}
-              phase={
-                round.phase === 'playing'
-                  ? 'playing'
-                  : cueBeats === null
-                    ? 'building'
-                    : 'cueing'
-              }
-              data={round.data}
-              timingStartsAtLocalMs={timingStartsAtLocalMs}
-              submitted={false}
-              onSubmit={onSubmit}
-              onProgress={onProgress}
-            />
-          )}
-        </GamePlay>
-      )
-    }
 
     default:
       return game ? (

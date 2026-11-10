@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { randomSeed } from '../../content/avatars.ts'
-import { useCodeEntry } from '../../hooks/index.ts'
+import { useCodeEntry, useFinishAnimation } from '../../hooks/index.ts'
 import {
+  selectGameScreenIsUp,
   selectPlayerCountLabel,
   selectRoundLabel,
   selectScoreboardRows,
@@ -28,6 +29,9 @@ export function Arena() {
     playerId,
     results,
     leaderboard,
+    progress,
+    nextStage,
+    finishAnimationEndsAtLocalMs,
     scores,
     error,
     busy,
@@ -40,13 +44,16 @@ export function Arena() {
   const code = useCodeEntry(ROOM.CODE_LENGTH, ROOM.CODE_ALPHABET)
 
   const inRoom = stage === 'room' && room !== null
-  const roundPhase = round.phase
+  const isFinishing = useFinishAnimation(finishAnimationEndsAtLocalMs)
+  const isParticipant = playerId !== null && round.participants.includes(playerId)
   // The game screen takes the whole screen once it takes over; the room keeps
   // its chrome right up to that point, including while it counts the round in.
+  // It keeps it through the game's ending animation too, which plays on the
+  // game's own screen before the results replace it.
   const playing =
     inRoom &&
     room.phase === 'competition' &&
-    ['countdown', 'playing'].includes(roundPhase)
+    selectGameScreenIsUp({ round, results, isParticipant, isFinishing, nextStage })
   const showScoreboard =
     inRoom &&
     !playing &&
@@ -118,6 +125,9 @@ export function Arena() {
             round={round}
             results={results}
             leaderboard={leaderboard}
+            progress={progress}
+            isFinishing={isFinishing}
+            nextStage={nextStage}
             actions={actions}
           />
         )}

@@ -1,1 +1,7 @@
-export type { PlaylistRowView, ResultRowView, ScoreboardRowView } from './viewModels.ts'
+export type {
+  NextStageView,
+  PlaylistRowView,
+  ResultRowView,
+  RoundPlayerView,
+  ScoreboardRowView,
+} from './viewModels.ts'

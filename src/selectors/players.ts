@@ -1,5 +1,6 @@
 import type { PlayerView, RoomStatePayload } from '../shared/protocol.ts'
 import { swatches } from '../theme/index.ts'
+import type { RoundPlayerView } from '../types/index.ts'
 
 /**
  * Player colour. The server has no opinion on it, so it is derived from the
@@ -36,4 +37,25 @@ export function selectNames(room: RoomStatePayload, ids: string[]): string[] {
 /** Who is actually running this room. */
 export function selectOwnerName(room: RoomStatePayload): string {
   return selectPlayer(room, room.ownerId)?.name ?? 'Someone else'
+}
+
+/** The players taking part in the running round, in the order the server lists them. */
+export function selectRoundPlayers(
+  room: RoomStatePayload,
+  participantIds: string[],
+): RoundPlayerView[] {
+  return participantIds.flatMap((participantId) => {
+    const player = selectPlayer(room, participantId)
+    return player === undefined
+      ? []
+      : [
+          {
+            playerId: player.playerId,
+            name: player.name,
+            initial: initialOf(player.name),
+            color: playerColor(player.playerId),
+            avatar: player.avatar,
+          },
+        ]
+  })
 }

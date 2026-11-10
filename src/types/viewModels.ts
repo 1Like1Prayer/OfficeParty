@@ -42,3 +42,21 @@ export interface PlaylistRowView {
   color: string
   dotColor: string
 }
+
+/** One player in the running round, as a game surface needs to draw them. */
+export interface RoundPlayerView {
+  playerId: string
+  name: string
+  initial: string
+  color: string
+  avatar: string
+}
+
+/**
+ * A game with stages (heats, then a final) has finished one and is about to
+ * load the next: who goes on, best first, and how long the pause lasts.
+ */
+export interface NextStageView {
+  playerIds: string[]
+  pauseMs: number
+}
