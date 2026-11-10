@@ -10,6 +10,7 @@ import type {
   ScoreRow,
 } from '../shared/protocol.ts'
 import type { GameId } from '../shared/games/catalog.ts'
+import type { NextStageView } from '../types/index.ts'
 import { ROOM_CODE } from './config.ts'
 import { clearSession, readSession, writeSession } from './session.ts'
 import { useLiveRound, type LiveRound } from './useLiveRound.ts'
@@ -59,6 +60,17 @@ export interface UseRoomResult {
   leaderboard: LeaderboardPayload | null
   /** Live per-player progress for the running round, keyed by player id. */
   progress: Record<string, Record<string, number>>
+  /**
+   * Set when the round that just resolved goes on to another stage, and kept
+   * through the next stage's set-up until that stage resolves in turn. Null
+   * for any round that is simply over.
+   */
+  nextStage: NextStageView | null
+  /**
+   * `performance.now()` value the game's ending animation runs until, or null
+   * when the round that just ended has none. The results screen waits for it.
+   */
+  finishAnimationEndsAtLocalMs: number | null
   /** Points as of the last resolved round, ahead of the last snapshot. */
   scores: Record<string, number>
   error: string | null
@@ -82,6 +94,8 @@ export function useRoom(): UseRoomResult {
   const [leaderboard, setLeaderboard] = useState<LeaderboardPayload | null>(null)
   const [progress, setProgress] = useState<Record<string, Record<string, number>>>({})
   const [scores, setScores] = useState<Record<string, number>>({})
+  const [nextStage, setNextStage] = useState<NextStageView | null>(null)
+  const [finishAnimationEndsAtLocalMs, setFinishAnimationEndsAtLocalMs] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -148,6 +162,16 @@ export function useRoom(): UseRoomResult {
     }
     const onResults = (payload: RoundResultsPayload) => {
       setResults(payload)
+      setNextStage(
+        payload.advancing === null
+          ? null
+          : { playerIds: payload.advancing, pauseMs: payload.stageBreakMs },
+      )
+      // Measured from now: the server has already held the next round back for
+      // this long, so the animation and its wait start together.
+      setFinishAnimationEndsAtLocalMs(
+        payload.finishAnimationMs > 0 ? performance.now() + payload.finishAnimationMs : null,
+      )
       foldScores(payload.scores)
     }
     const onScores = (payload: { scores: ScoreRow[] }) => { foldScores(payload.scores) }
@@ -155,8 +179,11 @@ export function useRoom(): UseRoomResult {
     // where the last round's leftovers go.
     const onRoundData = () => {
       setResults(null)
+      setFinishAnimationEndsAtLocalMs(null)
       setProgress({})
     }
+    // A new game starts from scratch, whatever stage the last one ended on.
+    const onGameStarting = () => { setNextStage(null) }
     const onLeaderboard = (payload: LeaderboardPayload) => { setLeaderboard(payload) }
     const onProgress = (payload: ProgressPayload) => {
       setProgress((current) => ({ ...current, [payload.playerId]: payload.progress }))
@@ -178,6 +205,7 @@ export function useRoom(): UseRoomResult {
     socket.on('room:state', onState)
     socket.on('round:results', onResults)
     socket.on('round:data', onRoundData)
+    socket.on('competition:gameStarting', onGameStarting)
     socket.on('competition:scores', onScores)
     socket.on('competition:leaderboard', onLeaderboard)
     socket.on('round:progress', onProgress)
@@ -190,6 +218,7 @@ export function useRoom(): UseRoomResult {
       socket.off('room:state', onState)
       socket.off('round:results', onResults)
       socket.off('round:data', onRoundData)
+      socket.off('competition:gameStarting', onGameStarting)
       socket.off('competition:scores', onScores)
       socket.off('competition:leaderboard', onLeaderboard)
       socket.off('round:progress', onProgress)
@@ -256,6 +285,8 @@ export function useRoom(): UseRoomResult {
     results,
     leaderboard,
     progress,
+    nextStage,
+    finishAnimationEndsAtLocalMs,
     scores,
     error,
     busy,

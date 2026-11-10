@@ -13,7 +13,13 @@ export const CUBE_COUNTER = {
 
     /** One scoring round per game, made of this many consecutive puzzles. */
     ROUNDS_PER_GAME: 1,
-    PUZZLES_PER_ROUND: 6,
+    PUZZLES_PER_ROUND: 8,
+    /**
+     * Shapes the difficulty ramp. Below 1 the ramp climbs quickly and then
+     * levels off, so more of the round's puzzles sit at the hard end. 1 is a
+     * straight line.
+     */
+    RAMP_CURVE_EXPONENT: 0.6,
 
     /** How long every scene stays on screen, at every difficulty level. */
     FLASH_MS: 2_000,

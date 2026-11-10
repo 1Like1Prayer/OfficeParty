@@ -17,6 +17,12 @@ export interface LiveRound extends RoundView {
    * the arena only displays the countdown, it never times anything.
    */
   timingStartsAtLocalMs: number | null
+  /**
+   * How long this attempt's countdown runs, as the server scheduled it. Games
+   * can lengthen it (the heats do, to fit their opening animation), so it is
+   * read from the schedule rather than assumed.
+   */
+  countdownMs: number | null
   /** Public round data, e.g. Stop the Clock's target. */
   data: unknown
 }
@@ -39,6 +45,7 @@ const IDLE: LiveRound = {
   waitingFor: [],
   startAtServerMs: null,
   timingStartsAtLocalMs: null,
+  countdownMs: null,
   data: null,
 }
 
@@ -65,6 +72,7 @@ export function useLiveRound(state: RoomStatePayload | null): LiveRound {
         waitingFor: [],
         startAtServerMs: null,
         timingStartsAtLocalMs: null,
+        countdownMs: null,
         data: null,
       }))
     }
@@ -136,6 +144,7 @@ export function useLiveRound(state: RoomStatePayload | null): LiveRound {
               phase: 'starting',
               startAtServerMs: payload.startAtServerMs,
               timingStartsAtLocalMs,
+              countdownMs: payload.countdownMs,
             }
           : current,
       )

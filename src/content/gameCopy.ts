@@ -33,6 +33,12 @@ const COPY: Partial<Record<GameId, GameCopy>> = {
     rules:
       'A pile of blocks flashes up, then vanishes. Type how many you saw. Wide blocks count once, and the flashes get shorter. Most right wins; speed breaks ties.',
   },
+  'crusher-escalator': {
+    input: 'Arrow keys',
+    length: '1 min',
+    rules:
+      'Everyone runs up their own escalator. Press the arrow that is showing — every press moves on to the next one. Fall 8 points behind the leader and you slip into the black hole. Last one running wins.',
+  },
   'type-racer-roulette': {
     input: 'Keyboard',
     length: '45s',

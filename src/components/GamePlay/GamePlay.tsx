@@ -7,6 +7,11 @@ interface GamePlayProps {
   statusLine: string
   /** Beats left in the start cue, or null while the game is still building up. */
   cueBeats: number | null
+  /**
+   * The game fills the whole pane and the title and countdown float over it,
+   * rather than the game sitting in the space left beneath them.
+   */
+  isFullBleed?: boolean
   /** The game itself, from the moment the round is being set up. */
   children?: ReactNode
 }
@@ -19,8 +24,69 @@ export function GamePlay({
   gameName,
   statusLine,
   cueBeats,
+  isFullBleed = false,
   children,
 }: GamePlayProps) {
+  if (isFullBleed) {
+    return (
+      <section
+        style={{
+          flex: 1,
+          position: 'relative',
+          overflow: 'hidden',
+          animation: 'pa-enter 1.5s cubic-bezier(.22,.61,.36,1) both',
+        }}
+      >
+        <div style={{ position: 'absolute', inset: 0 }}>{children}</div>
+
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            padding: '22px 24px',
+            gap: 16,
+            // Only decoration: the keyboard is the controller, and nothing
+            // here should ever swallow a click meant for the game.
+            pointerEvents: 'none',
+            zIndex: 2,
+          }}
+        >
+          <div
+            style={{
+              alignSelf: 'flex-start',
+              fontFamily: font.display,
+              fontWeight: 700,
+              fontSize: 30,
+              lineHeight: 1,
+              letterSpacing: '-0.02em',
+              color: color.cream,
+              textShadow: `0 2px 0 ${color.ink}`,
+            }}
+          >
+            {gameName}
+          </div>
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center' }}>
+            {cueBeats !== null && (
+              <div
+                style={{
+                  padding: '4px 36px',
+                  borderRadius: 28,
+                  background: color.cream,
+                  border: `4px solid ${color.ink}`,
+                }}
+              >
+                <RoundCue beats={cueBeats} />
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+    )
+  }
+
   return (
     <section
       style={{
@@ -56,7 +122,21 @@ export function GamePlay({
         {gameName}
       </div>
 
-      <div style={{ animation: 'pa-enter 1.1s ease-out 1s both' }}>{children}</div>
+      {/* Takes whatever height the title and cue leave, so a game that wants the
+          whole screen can fill it; the others stay centred at the top. */}
+      <div
+        style={{
+          flex: 1,
+          minHeight: 0,
+          width: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          animation: 'pa-enter 1.1s ease-out 1s both',
+        }}
+      >
+        {children}
+      </div>
 
       {/* Reserved whether or not it is showing, so the cue arriving moves
           nothing that is already on screen. */}

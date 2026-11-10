@@ -20,9 +20,14 @@ export interface DifficultyProfile {
 const lerp = (from: number, to: number, progress: number): number =>
     from + (to - from) * progress;
 
-/** 0 at the first puzzle, 1 at the last. */
+/**
+ * 0 at the first puzzle, 1 at the last. Curved (see RAMP_CURVE_EXPONENT) so
+ * the round spends most of its puzzles at the hard end.
+ */
 const rampProgress = (puzzleIndex: number, puzzleCount: number): number =>
-    puzzleCount <= 1 ? 0 : puzzleIndex / (puzzleCount - 1);
+    puzzleCount <= 1
+        ? 0
+        : (puzzleIndex / (puzzleCount - 1)) ** CUBE_COUNTER.RAMP_CURVE_EXPONENT;
 
 export const difficultyForPuzzle = (
     puzzleIndex: number,

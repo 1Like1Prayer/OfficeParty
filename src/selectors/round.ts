@@ -1,5 +1,11 @@
 import { GAME_CATALOG, type GameMeta } from '../shared/games/catalog.ts'
-import type { RoomStatePayload, RoundView, StartBlockedReason } from '../shared/protocol.ts'
+import type {
+  RoomStatePayload,
+  RoundResultsPayload,
+  RoundView,
+  StartBlockedReason,
+} from '../shared/protocol.ts'
+import type { NextStageView } from '../types/index.ts'
 import { selectNames, selectOwnerName } from './players.ts'
 
 /** Metadata for the game being revealed, played or scored. */
@@ -82,5 +88,40 @@ export function selectPlayStatusLine(
       return ''
     default:
       return ''
+  }
+}
+
+/**
+ * Whether the game's own screen has the whole pane. That is the race itself,
+ * the game's ending animation once the round is decided, and — for a game with
+ * stages — the pause and set-up between one stage and the next, so the screen
+ * never drops back to a menu in the middle of a scoring round.
+ */
+export function selectGameScreenIsUp({
+  round,
+  results,
+  isParticipant,
+  isFinishing,
+  nextStage,
+}: {
+  round: RoundView
+  results: RoundResultsPayload | null
+  isParticipant: boolean
+  /** The game's ending animation is still playing. */
+  isFinishing: boolean
+  nextStage: NextStageView | null
+}): boolean {
+  switch (round.phase) {
+    case 'countdown':
+    case 'playing':
+      return true
+    case 'results':
+      return results !== null && (results.advancing !== null || (isFinishing && isParticipant))
+    case 'loading':
+    case 'ready-check':
+    case 'starting':
+      return nextStage !== null
+    default:
+      return false
   }
 }
