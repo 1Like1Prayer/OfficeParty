@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useMemo } from 'react'
 import { GameSurface } from '../../games/index.tsx'
-import { canSpectate, hasSurface, hidesTitle, isFullBleed } from '../../games/playable.ts'
+import {
+  canSpectate,
+  hasSurface,
+  hidesTitle,
+  hidesTitleOncePlaying,
+  isFullBleed,
+} from '../../games/playable.ts'
 import { beatsRemaining, useCountdown } from '../../hooks/index.ts'
 import {
   selectChampionLine,
@@ -191,7 +197,10 @@ export function ArenaPhase({
         statusLine={selectPlayStatusLine(room, round, isParticipant)}
         cueBeats={round.phase === 'countdown' ? cueBeats : null}
         isFullBleed={isFullBleed(game.id)}
-        showTitle={!hidesTitle(game.id)}
+        showTitle={
+          !hidesTitle(game.id) &&
+          !(hidesTitleOncePlaying(game.id) && (round.phase === 'playing' || round.phase === 'results'))
+        }
       >
         {showSurface && (
           <GameSurface

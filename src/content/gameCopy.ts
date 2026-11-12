@@ -45,6 +45,12 @@ const COPY: Partial<Record<GameId, GameCopy>> = {
     rules:
       'Everyone types the same paragraphs on an old typewriter, perched on a board over the sea. A wrong key sends you back to the start of the line and costs a strike. Three strikes roll the dice: a skull and your block crumbles. Run out of time on a paragraph and it crumbles too. First to finish wins.',
   },
+  'log-dodge': {
+    input: 'Arrow keys',
+    length: '1 min',
+    rules:
+      'Everyone runs on one giant treadmill out over the sea while logs roll in along the deck — some at your feet, some at your head. Get over them or under them. Three hits and you’re thrown off the back. Last one standing wins.',
+  },
   minefield: {
     input: 'Tilt + tap',
     length: '90s',

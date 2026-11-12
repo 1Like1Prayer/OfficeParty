@@ -10,7 +10,8 @@ export function hasSurface(gameId: GameId): boolean {
     gameId === 'stop-the-clock' ||
     gameId === 'cube-counter' ||
     gameId === 'crusher-escalator' ||
-    gameId === 'type-racer-roulette'
+    gameId === 'type-racer-roulette' ||
+    gameId === 'log-dodge'
   )
 }
 
@@ -19,7 +20,11 @@ export function hasSurface(gameId: GameId): boolean {
  * lays its title and countdown over the top instead of stacking them above.
  */
 export function isFullBleed(gameId: GameId): boolean {
-  return gameId === 'crusher-escalator' || gameId === 'type-racer-roulette'
+  return (
+    gameId === 'crusher-escalator' ||
+    gameId === 'type-racer-roulette' ||
+    gameId === 'log-dodge'
+  )
 }
 
 /**
@@ -36,4 +41,12 @@ export function canSpectate(gameId: GameId): boolean {
  */
 export function hidesTitle(gameId: GameId): boolean {
   return gameId === 'type-racer-roulette'
+}
+
+/**
+ * Games whose title is only worth showing while the round is being set up.
+ * Once play begins it is in the way of the game, so it goes.
+ */
+export function hidesTitleOncePlaying(gameId: GameId): boolean {
+  return gameId === 'log-dodge'
 }
