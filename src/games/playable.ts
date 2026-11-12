@@ -11,7 +11,8 @@ export function hasSurface(gameId: GameId): boolean {
     gameId === 'cube-counter' ||
     gameId === 'crusher-escalator' ||
     gameId === 'type-racer-roulette' ||
-    gameId === 'log-dodge'
+    gameId === 'log-dodge' ||
+    gameId === 'minefield'
   )
 }
 
@@ -23,7 +24,8 @@ export function isFullBleed(gameId: GameId): boolean {
   return (
     gameId === 'crusher-escalator' ||
     gameId === 'type-racer-roulette' ||
-    gameId === 'log-dodge'
+    gameId === 'log-dodge' ||
+    gameId === 'minefield'
   )
 }
 
@@ -48,5 +50,5 @@ export function hidesTitle(gameId: GameId): boolean {
  * Once play begins it is in the way of the game, so it goes.
  */
 export function hidesTitleOncePlaying(gameId: GameId): boolean {
-  return gameId === 'log-dodge'
+  return gameId === 'log-dodge' || gameId === 'minefield'
 }

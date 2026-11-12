@@ -201,12 +201,13 @@ export class ArenaScene {
 
       lane.runner.setSlip(view.slip)
       if (view.isFallen) lane.runner.fall()
+      else if (view.isWinner === true) lane.runner.celebrate()
       // A swallowed runner leaves an empty escalator that keeps running.
       lane.ramp.setPowered(isRacing)
       lane.nameplate.update({
         name: lane.player.name,
         score: view.score,
-        status: view.isFallen ? 'SWALLOWED' : view.gap > 0 ? `−${view.gap} behind` : 'LEADING',
+        status: view.isFallen ? 'SWALLOWED' : view.isWinner === true ? 'WINNER!' : view.gap > 0 ? `−${view.gap} behind` : 'LEADING',
         isYou: view.isYou,
         isFallen: view.isFallen,
       })

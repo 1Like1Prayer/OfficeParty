@@ -36,6 +36,11 @@ export function useSceneSync(sceneRef: RefObject<TypeRacerScene | null>, state: 
     const wonNow = state.status === 'finished' || state.status === 'survived'
     const hadWon = before.status === 'finished' || before.status === 'survived'
     if (wonNow && !hadWon) scene.celebrate()
-    if (state.status === 'out' && before.status !== 'out') scene.crumble()
+    if (state.status === 'out' && before.status !== 'out') {
+      // Time can run out while the die is still shaking, waiting on the server.
+      // Nothing will ever throw it then, so it must not be left spinning.
+      if (state.cause === 'time') scene.cancelRoll()
+      scene.crumble()
+    }
   }, [sceneRef, state])
 }

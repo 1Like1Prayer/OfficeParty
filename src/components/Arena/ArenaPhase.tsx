@@ -48,6 +48,8 @@ interface ArenaPhaseProps {
   leaderboard: UseRoomResult['leaderboard']
   /** What each player is reporting live, for games that show the others. */
   progress: UseRoomResult['progress']
+  /** Set once the round is decided and only the listed players are still playing. */
+  closing: UseRoomResult['closing']
   /** The game's ending animation is playing, so its screen stays up past the results. */
   isFinishing: boolean
   /** Set between a game's stages: who goes through, and for how long it pauses. */
@@ -66,6 +68,7 @@ export function ArenaPhase({
   results,
   leaderboard,
   progress,
+  closing,
   isFinishing,
   nextStage,
   actions,
@@ -219,6 +222,11 @@ export function ArenaPhase({
             selfPlayerId={playerId}
             progress={progress}
             attemptKey={`${round.roundId}:${round.attempt}`}
+            closingPlayerIds={
+              closing !== null && closing.roundId === round.roundId && closing.attempt === round.attempt
+                ? closing.pending
+                : null
+            }
             nextStage={isDecided && results.advancing !== null ? nextStage : null}
             finalRanking={isDecided ? results.ranked : null}
             timingStartsAtLocalMs={timingStartsAtLocalMs}

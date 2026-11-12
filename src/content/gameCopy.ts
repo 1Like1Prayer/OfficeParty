@@ -52,14 +52,10 @@ const COPY: Partial<Record<GameId, GameCopy>> = {
       'Everyone runs on one giant treadmill out over the sea while logs roll in along the deck — some at your feet, some at your head. Get over them or under them. Three hits and you’re thrown off the back. Last one standing wins.',
   },
   minefield: {
-    input: 'Tilt + tap',
+    input: 'Arrow keys + Space',
     length: '90s',
-    rules: 'Cross the grid. Some tiles are mines. Everyone sees where you stepped.',
-  },
-  'liars-deck': {
-    input: 'Tap',
-    length: '3 min',
-    rules: 'Play a card and claim what it is. Everyone else decides whether to believe you.',
+    rules:
+      'Race across a field of hidden mines. Walk too close to one and it goes off, and the second blast takes you out. Space sends a sonar pulse that shows the mines nearby to everyone, but you stand still while it scans. First across the line wins.',
   },
 }
 

@@ -112,6 +112,7 @@ export function CrusherEscalator({
   players,
   selfPlayerId,
   progress,
+  closingPlayerIds,
   attemptKey,
   nextStage,
   timingStartsAtLocalMs,
@@ -145,7 +146,11 @@ export function CrusherEscalator({
   const score = countCorrectPresses(inputs, stream)
   const scores = collectScores({ players, selfPlayerId, selfScore: score, progress })
   const gaps = gapsBehindGroupLeader(scores, groups)
-  const fallenPlayers = useFallenPlayers(gaps, attemptKey)
+  // Once the race is called, the players still standing have won: no late score
+  // report can take them back down.
+  const winnersByServer = finalRanking === null ? NO_PLAYERS : new Set(survivingPlayerIds(finalRanking))
+  const safeIds = closingPlayerIds === null ? winnersByServer : new Set([...winnersByServer, ...closingPlayerIds])
+  const fallenPlayers = useFallenPlayers(gaps, attemptKey, safeIds)
 
   // Once the server has decided the race its replay is the truth: anyone it
   // crushed goes into the hole now, even if this screen had not seen it coming.
@@ -160,8 +165,14 @@ export function CrusherEscalator({
   const survivorCount = players.filter(({ playerId }) => !hasFallen(playerId)).length
   // The heats end when the finalists are decided, the final when one is left.
   const survivorsToEnd = stage === 'heats' ? FINALISTS : 1
+  // The server calls the race once enough players have reported, whatever this
+  // screen has been told by progress reports (which can be late or dropped).
   const isRaceOver =
-    finalRanking !== null || isTimeUp || selfHasFallen || survivorCount <= survivorsToEnd
+    finalRanking !== null ||
+    isTimeUp ||
+    selfHasFallen ||
+    survivorCount <= survivorsToEnd ||
+    closingPlayerIds !== null
   const isFlashingPress = flashedPressCount === inputs.length && inputs.length > 0
   const acceptsInput = isRacing && !isRaceOver && stream.length > 0 && !isFlashingPress
 
@@ -212,6 +223,18 @@ export function CrusherEscalator({
         : 'wrong'
       : null
 
+  // The last runner in the final has won: they jump on the spot and nothing touches them.
+  const isFinalDecided =
+    stage === 'final' && nextStage === null && (finalRanking !== null || closingPlayerIds !== null || survivorCount <= 1)
+  const winnerIds = new Set(
+    isFinalDecided
+      ? finalRanking !== null
+        ? survivingPlayerIds(finalRanking)
+        : players.filter(({ playerId }) => !hasFallen(playerId)).map(({ playerId }) => playerId)
+      : [],
+  )
+  const hasSoleWinner = winnerIds.size === 1
+
   const roster = selectRoster({ round, players, nextStage, selfPlayerId })
   const lanes: LaneView[] = roster.map(({ playerId }) => {
     // Between stages the finalists are being set down for a fresh start.
@@ -225,6 +248,7 @@ export function CrusherEscalator({
       gap,
       slip: slipFraction(gap),
       isFallen: hasFallen(playerId),
+      isWinner: hasSoleWinner && winnerIds.has(playerId),
       isYou: playerId === selfPlayerId,
     }
   })

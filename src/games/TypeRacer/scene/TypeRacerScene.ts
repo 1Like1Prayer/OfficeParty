@@ -192,6 +192,9 @@ export class TypeRacerScene {
     this.frontDie.resolve(roll, () => { station.showRollOutcome(roll) })
   }
 
+  /** Drop the die from the screen, such as when time runs out in the middle of a roll. */
+  cancelRoll(): void { this.frontDie.cancel() }
+
   /** The player is out: their block gives way, and the camera rises to watch the rest. */
   crumble(): void {
     this.self()?.crumble()
@@ -312,7 +315,7 @@ export class TypeRacerScene {
       score: Math.round(view.fraction * 100),
       unit: '%',
       status:
-        view.status === 'out' ? 'OUT' : view.status === 'finished' ? 'DONE!' : view.strikes > 0 ? `${view.strikes} STRIKE${view.strikes > 1 ? 'S' : ''}` : 'TYPING',
+        view.status === 'out' ? 'OUT' : view.status === 'finished' ? 'DONE!' : view.strikes > 0 ? `${view.strikes} STRIKE${view.strikes > 1 ? 'S' : ''}` : '',
       isYou,
       isFallen: view.status === 'out',
     })

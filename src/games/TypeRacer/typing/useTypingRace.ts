@@ -19,6 +19,20 @@ const MIN_ROLL_AFTER_REPLY_MS = 2900
 const ROLL_RETRY_MS = 900
 /** Just past a paragraph's limit, so the server's replay also sees it as out of time. */
 const TIMEOUT_MARGIN_MS = 50
+/**
+ * A reply that never comes (the connection dropped while it was in flight, and
+ * socket.io then never answers) must not leave the die shaking for good.
+ */
+const ROLL_REPLY_TIMEOUT_MS = 2500
+
+const withTimeout = <T,>(promise: Promise<T>, ms: number): Promise<T> =>
+  new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => { reject(new Error('no reply')) }, ms)
+    promise.then(
+      (value) => { clearTimeout(timer); resolve(value) },
+      (error: unknown) => { clearTimeout(timer); reject(error instanceof Error ? error : new Error('refused')) },
+    )
+  })
 
 /** What this player reports to the rest of the room, as whole numbers. */
 export interface TypingProgress {
@@ -106,7 +120,7 @@ export function useTypingRace({
     let retryTimer: ReturnType<typeof setTimeout> | undefined
 
     const ask = () => {
-      requestRoll(state.rollsCast)
+      withTimeout(requestRoll(state.rollsCast), ROLL_REPLY_TIMEOUT_MS)
         .then((reply) => {
           const roll: DieRoll | null = parseDieRoll(reply)
           if (cancelled) return

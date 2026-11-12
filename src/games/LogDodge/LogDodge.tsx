@@ -42,6 +42,7 @@ function LogDodgeRun({
   players,
   selfPlayerId,
   progress,
+  closingPlayerIds,
   timingStartsAtLocalMs,
   onSubmit,
   onProgress,
@@ -58,8 +59,14 @@ function LogDodgeRun({
 
   // Judged by the server's own rules, over the logs whose window has closed.
   const [inputs, setInputs] = useState<Input[]>([])
+  // Once the round is decided no more logs come: whatever had not yet reached the
+  // contestants is gone, so it can never count against anyone (the server ignores
+  // it too).
+  const [stoppedAtMs, setStoppedAtMs] = useState<number | null>(null)
   const closedLogs = round.logs.filter(
-    (log) => log.arriveAtMs + LOG_DODGE.HIT_WINDOW_MS <= elapsedMs,
+    (log) =>
+      log.arriveAtMs + LOG_DODGE.HIT_WINDOW_MS <= elapsedMs &&
+      (stoppedAtMs === null || log.arriveAtMs <= stoppedAtMs),
   )
   const outcome = judgePlayer(closedLogs, inputs)
   const isOut = outcome.eliminatedAtMs !== null
@@ -67,7 +74,13 @@ function LogDodgeRun({
   // Everyone else knocked out: the round is won, so this player reports now rather than
   // making the room wait out the clock. The server stops the logs at that moment, and
   // ignores anything this player did after it.
-  const standing = lastStanding({ players, selfPlayerId, selfIsOut: isOut, progress })
+  const reported = lastStanding({ players, selfPlayerId, selfIsOut: isOut, progress })
+  // The server saying that only this player is still playing is the surest sign
+  // of all, and does not depend on anyone's progress reports having arrived.
+  const isClosedOnSelf = !isOut && !isSpectating && (closingPlayerIds?.includes(selfPlayerId) ?? false)
+  const standing = isClosedOnSelf ? { isRoundOver: true, winnerId: selfPlayerId } : reported
+  const isRoundOver = standing.isRoundOver || closingPlayerIds !== null
+  if (stoppedAtMs === null && isRoundOver && elapsedMs > 0) setStoppedAtMs(elapsedMs)
   const isLastStanding = !isSpectating && standing.winnerId === selfPlayerId
   const isOver = isOut || isTimeUp || isLastStanding
 
@@ -110,7 +123,7 @@ function LogDodgeRun({
       finalRanking,
     }),
     selfEnded: isOver || finalRanking !== null,
-    isRoundOver: standing.isRoundOver || finalRanking !== null,
+    isRoundOver: isRoundOver || finalRanking !== null,
     // The winner jumps for joy: as soon as the others are all out, then as the server confirms.
     survivorIds:
       survivorsOf(finalRanking) ??

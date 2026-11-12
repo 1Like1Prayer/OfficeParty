@@ -8,5 +8,7 @@ export interface LaneView {
   slip: number
   /** Crushed: the runner is lost to the black hole. */
   isFallen: boolean
+  /** Won the race: they jump for joy and nothing can take them now. */
+  isWinner?: boolean
   isYou: boolean
 }

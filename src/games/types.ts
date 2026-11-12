@@ -38,6 +38,13 @@ export interface GameSurfaceProps {
    */
   attemptKey: string
   /**
+   * Set once the server has decided the round and is waiting only on these
+   * players, who must stop and report what they have now. Null until then.
+   * Everyone else's result is already in, so for the rest of the room it also
+   * means the round is over.
+   */
+  closingPlayerIds: readonly string[] | null
+  /**
    * Set while the round pauses between stages: who goes through to the next
    * stage, best first. Games with stages use it to show the changeover.
    */
