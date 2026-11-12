@@ -8,6 +8,7 @@ export interface NameplateContent {
   score: number
   /** Small text drawn after the number, such as "%". */
   unit?: string
+  /** A short line under the name; leave empty to centre the name on its own. */
   status: string
   isYou: boolean
   isFallen: boolean
@@ -69,7 +70,9 @@ export class Nameplate {
     context.textBaseline = 'middle'
     context.textAlign = 'left'
     context.font = '800 46px sans-serif'
-    context.fillText(this.fit(context, content.isYou ? 'You' : content.name, 200), 24, 44)
+    // With no status line the name sits in the middle of the tag instead of leaving a gap under it.
+    const nameY = content.status === '' ? HEIGHT / 2 + 2 : 44
+    context.fillText(this.fit(context, content.isYou ? 'You' : content.name, 200), 24, nameY)
     context.font = '800 30px sans-serif'
     context.fillStyle = content.isFallen || content.status.startsWith('−') ? '#E5382F' : '#6B6486'
     context.fillText(content.status, 24, 94)
