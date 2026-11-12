@@ -56,11 +56,6 @@ const COPY: Partial<Record<GameId, GameCopy>> = {
     length: '90s',
     rules: 'Cross the grid. Some tiles are mines. Everyone sees where you stepped.',
   },
-  'liars-deck': {
-    input: 'Tap',
-    length: '3 min',
-    rules: 'Play a card and claim what it is. Everyone else decides whether to believe you.',
-  },
 }
 
 export function gameCopy(gameId: GameId): GameCopy {

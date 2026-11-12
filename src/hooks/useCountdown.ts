@@ -6,21 +6,23 @@ import { useEffect, useState } from 'react'
  * when there is nothing to count down to.
  */
 export function useCountdown(msLeft: (() => number) | null): number | null {
-  const [remaining, setRemaining] = useState<number | null>(null)
+  // Remembers which countdown the reading belongs to, so a new countdown
+  // never starts from the last one's final zero.
+  const [reading, setReading] = useState<{ source: () => number; ms: number } | null>(null)
 
   useEffect(() => {
     if (!msLeft) return
 
     let frame = requestAnimationFrame(function tick() {
-      setRemaining(Math.max(0, msLeft()))
+      setReading({ source: msLeft, ms: Math.max(0, msLeft()) })
       frame = requestAnimationFrame(tick)
     })
 
     return () => { cancelAnimationFrame(frame) }
   }, [msLeft])
 
-  // Ignore the last countdown's value while there is no new one to show.
-  return msLeft ? remaining : null
+  // Ignore a finished countdown's value while there is no reading of this one yet.
+  return msLeft && reading?.source === msLeft ? reading.ms : null
 }
 
 /**

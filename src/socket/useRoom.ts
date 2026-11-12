@@ -6,6 +6,7 @@ import type {
   PlaylistMode,
   ProgressPayload,
   RoomStatePayload,
+  RoundClosingPayload,
   RoundResultsPayload,
   ScoreRow,
 } from '../shared/protocol.ts'
@@ -64,6 +65,12 @@ export interface UseRoomResult {
   playerId: string | null
   results: RoundResultsPayload | null
   leaderboard: LeaderboardPayload | null
+  /**
+   * Set once the server has decided the running round and is waiting only on
+   * the players it lists: they must stop and report now. Cleared with the next
+   * round's data.
+   */
+  closing: RoundClosingPayload | null
   /** Live per-player progress for the running round, keyed by player id. */
   progress: Record<string, Record<string, number>>
   /**
@@ -99,6 +106,7 @@ export function useRoom(): UseRoomResult {
   const [results, setResults] = useState<RoundResultsPayload | null>(null)
   const [leaderboard, setLeaderboard] = useState<LeaderboardPayload | null>(null)
   const [progress, setProgress] = useState<Record<string, Record<string, number>>>({})
+  const [closing, setClosing] = useState<RoundClosingPayload | null>(null)
   const [scores, setScores] = useState<Record<string, number>>({})
   const [nextStage, setNextStage] = useState<NextStageView | null>(null)
   const [finishAnimationEndsAtLocalMs, setFinishAnimationEndsAtLocalMs] = useState<number | null>(null)
@@ -187,6 +195,7 @@ export function useRoom(): UseRoomResult {
       setResults(null)
       setFinishAnimationEndsAtLocalMs(null)
       setProgress({})
+      setClosing(null)
     }
     // A new game starts from scratch, whatever stage the last one ended on.
     const onGameStarting = () => { setNextStage(null) }
@@ -194,6 +203,7 @@ export function useRoom(): UseRoomResult {
     const onProgress = (payload: ProgressPayload) => {
       setProgress((current) => ({ ...current, [payload.playerId]: payload.progress }))
     }
+    const onClosing = (payload: RoundClosingPayload) => { setClosing(payload) }
     const onError = (payload: { message: string }) => { setError(payload.message) }
     const onClosed = () => {
       clearSession()
@@ -215,6 +225,7 @@ export function useRoom(): UseRoomResult {
     socket.on('competition:scores', onScores)
     socket.on('competition:leaderboard', onLeaderboard)
     socket.on('round:progress', onProgress)
+    socket.on('round:closing', onClosing)
     socket.on('error', onError)
     socket.on('room:closed', onClosed)
     socket.on('connect', onConnect)
@@ -228,6 +239,7 @@ export function useRoom(): UseRoomResult {
       socket.off('competition:scores', onScores)
       socket.off('competition:leaderboard', onLeaderboard)
       socket.off('round:progress', onProgress)
+      socket.off('round:closing', onClosing)
       socket.off('error', onError)
       socket.off('room:closed', onClosed)
       socket.off('connect', onConnect)
@@ -298,6 +310,7 @@ export function useRoom(): UseRoomResult {
     results,
     leaderboard,
     progress,
+    closing,
     nextStage,
     finishAnimationEndsAtLocalMs,
     scores,

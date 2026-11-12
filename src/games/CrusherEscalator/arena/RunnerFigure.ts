@@ -58,6 +58,9 @@ interface Carry {
 
 const lerp = (from: number, to: number, amount: number): number => from + (to - from) * amount
 
+const CELEBRATE_SECONDS = 0.75
+const CELEBRATE_HEIGHT = 0.9
+
 /**
  * A low-poly runner built from jointed limbs: thighs and shins, upper arms and
  * forearms, a torso, and a head. Their avatar is the badge on their back,
@@ -82,6 +85,8 @@ export class RunnerFigure {
   private runAmount = 0
   private slip = 0
   private isRacing = false
+  /** Seconds the victory jump has been going, or null while the runner is still racing. */
+  private celebrationClock: number | null = null
   private slideSpeed = 0
   private velocity = new Vector3()
   private tumble = new Vector3()
@@ -192,6 +197,15 @@ export class RunnerFigure {
     this.slip = slip
   }
 
+  /**
+   * The runner has won: they stop climbing and hop for joy where they stand,
+   * and the escalator can no longer take them. Only the first call counts.
+   */
+  celebrate(): void {
+    if (this.phase !== 'running' || this.celebrationClock !== null) return
+    this.celebrationClock = 0
+  }
+
   /** The runner has been crushed; they start sliding off. Only the first call counts. */
   fall(): void {
     if (this.phase !== 'running') return
@@ -243,6 +257,10 @@ export class RunnerFigure {
   /* ---------------- phases ---------------- */
 
   private updateRunning(deltaSeconds: number): void {
+    if (this.celebrationClock !== null) {
+      this.updateCelebrating(deltaSeconds)
+      return
+    }
     // Position: drift, slowly, toward where the gap puts them.
     const targetDistance = lerp(RUNNER_START_DISTANCE, RUNNER_LOWEST_DISTANCE, this.slip)
     this.distanceUp +=
@@ -259,6 +277,30 @@ export class RunnerFigure {
       reach: lerp(1, 0.6, this.slip),
       lean: lerp(CLIMB_LEAN, SLIP_LEAN, this.slip) * this.runAmount,
       flail: 0,
+    })
+  }
+
+  /** A hop on the spot, arms thrown up, legs tucked at the top of each jump. */
+  private updateCelebrating(deltaSeconds: number): void {
+    this.celebrationClock = (this.celebrationClock ?? 0) + deltaSeconds
+    // Settle where they are and stop slipping, whatever the gap says.
+    this.slip += (0 - this.slip) * (1 - Math.exp(-6 * deltaSeconds))
+    const targetDistance = lerp(RUNNER_START_DISTANCE, RUNNER_LOWEST_DISTANCE, this.slip)
+    this.distanceUp += (targetDistance - this.distanceUp) * (1 - Math.exp(-SLIP_RESPONSE_PER_SECOND * deltaSeconds))
+    this.runAmount += (0 - this.runAmount) * (1 - Math.exp(-10 * deltaSeconds))
+    this.placeOnRamp()
+
+    const cycle = (this.celebrationClock % CELEBRATE_SECONDS) / CELEBRATE_SECONDS
+    const arc = Math.sin(cycle * Math.PI)
+    this.root.position.y += arc * CELEBRATE_HEIGHT
+    this.torsoPivot.position.y = 0.95 - (1 - arc) * 0.05
+    this.torsoPivot.rotation.set(0, 0, 0)
+    ;([0, 1] as const).forEach((leg) => {
+      this.thighs[leg]!.rotation.x = -arc * 0.9
+      this.shins[leg]!.rotation.x = arc * 1.3
+      this.shoulders[leg]!.rotation.x = -Math.PI + 0.25 - arc * 0.15
+      this.shoulders[leg]!.rotation.z = (leg === 0 ? 1 : -1) * 0.25
+      this.forearms[leg]!.rotation.x = 0.2
     })
   }
 

@@ -16,7 +16,6 @@ export function selectCurrentGame(round: RoundView): GameMeta | null {
 const KIND_LABEL: Record<GameMeta['kind'], string> = {
   'self-timed': 'EVERYONE AT ONCE',
   'shared-world': 'SHARED ARENA',
-  'turn-based': 'TAKE TURNS',
 }
 
 export function selectFormatLabel(kind: GameMeta['kind']): string {

@@ -10,6 +10,7 @@ import type {
   ProgressPayload,
   ReadyStatePayload,
   RoomStatePayload,
+  RoundClosingPayload,
   RoundDataPayload,
   RoundResultsPayload,
   ScoreRow,
@@ -37,6 +38,7 @@ export interface ServerToClientEvents {
   'round:readyState': (payload: ReadyStatePayload) => void
   'round:startAt': (payload: StartAtPayload) => void
   'round:progress': (payload: ProgressPayload) => void
+  'round:closing': (payload: RoundClosingPayload) => void
   'round:results': (payload: RoundResultsPayload) => void
   'protocol:mismatch': (payload: { expected: number; received: number | null }) => void
   error: (payload: ErrorPayload) => void

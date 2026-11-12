@@ -302,7 +302,9 @@ export class LogDodgeScene {
       // A log that has reached the player with nothing dodging it has hit them.
       while (entry.nextContact < logs.length && nowMs >= logs[entry.nextContact]!.arriveAtMs + CONTACT_GRACE_MS) {
         const isCutOff = this.stoppedAtMs !== null && logs[entry.nextContact]!.arriveAtMs > this.stoppedAtMs
-        if (!this.dodged.has(entry.nextContact) && !contestant.isOut && !isCutOff) {
+        // The last one standing has won: nothing touches them any more.
+        const hasWon = this.status.survivorIds?.has(player.playerId) === true
+        if (!this.dodged.has(entry.nextContact) && !contestant.isOut && !isCutOff && !hasWon) {
           contestant.zap()
           this.shake = 1
         }
