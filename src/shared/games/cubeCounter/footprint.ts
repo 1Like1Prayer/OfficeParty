@@ -1,4 +1,4 @@
-import type { Box, Cell } from './types';
+import type { Box, Cell } from './types.js';
 
 export const footprintCells = (box: Box): Cell[] => {
     const cells: Cell[] = [];

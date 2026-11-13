@@ -1,5 +1,5 @@
 import { useCopyText, useHover } from '../../hooks/index.ts'
-import { border, color, font, lift } from '../../theme/index.ts'
+import { border, color, fluid, font, lift } from '../../theme/index.ts'
 
 interface RoomCodeButtonProps {
   roomCode: string
@@ -21,12 +21,13 @@ export function RoomCodeButton({ roomCode }: RoomCodeButtonProps) {
       style={{
         display: 'flex',
         alignItems: 'center',
-        gap: 12,
+        gap: fluid(8, 12),
+        maxWidth: '100%',
         background: copied ? color.green : color.yellow,
         color: color.ink,
         border: border.heavy,
-        borderRadius: 18,
-        padding: '12px 24px',
+        borderRadius: fluid(14, 18),
+        padding: `${fluid(8, 12)} ${fluid(14, 24)}`,
         cursor: 'pointer',
         boxShadow: lift(hovered ? 3 : 5),
         transform: hovered ? 'translateY(2px)' : 'none',
@@ -36,7 +37,7 @@ export function RoomCodeButton({ roomCode }: RoomCodeButtonProps) {
       <span
         style={{
           fontWeight: 900,
-          fontSize: 11,
+          fontSize: fluid(9, 11),
           letterSpacing: '0.2em',
           opacity: 0.65,
           maxWidth: 88,
@@ -50,8 +51,9 @@ export function RoomCodeButton({ roomCode }: RoomCodeButtonProps) {
         style={{
           fontFamily: font.display,
           fontWeight: 700,
-          fontSize: 34,
+          fontSize: fluid(26, 34),
           letterSpacing: '0.08em',
+          whiteSpace: 'nowrap',
         }}
       >
         {roomCode}

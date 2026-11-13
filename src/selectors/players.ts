@@ -1,4 +1,4 @@
-import type { PlayerView, RoomStatePayload } from '../shared/protocol.ts'
+import type { PlayerView, RoomView } from '../network/index.ts'
 import { swatches } from '../theme/index.ts'
 import type { RoundPlayerView } from '../types/index.ts'
 
@@ -17,31 +17,31 @@ export function initialOf(name: string): string {
 }
 
 /** Everyone in the room. */
-export function selectPlayers(room: RoomStatePayload): PlayerView[] {
+export function selectPlayers(room: RoomView): PlayerView[] {
   return room.players
 }
 
 export function selectPlayer(
-  room: RoomStatePayload,
+  room: RoomView,
   playerId: string,
 ): PlayerView | undefined {
   return room.players.find((player) => player.playerId === playerId)
 }
 
-export function selectNames(room: RoomStatePayload, ids: string[]): string[] {
+export function selectNames(room: RoomView, ids: string[]): string[] {
   return ids
     .map((id) => selectPlayer(room, id)?.name)
     .filter((name): name is string => name !== undefined)
 }
 
 /** Who is actually running this room. */
-export function selectOwnerName(room: RoomStatePayload): string {
+export function selectOwnerName(room: RoomView): string {
   return selectPlayer(room, room.ownerId)?.name ?? 'Someone else'
 }
 
 /** The players taking part in the running round, in the order the server lists them. */
 export function selectRoundPlayers(
-  room: RoomStatePayload,
+  room: RoomView,
   participantIds: string[],
 ): RoundPlayerView[] {
   return participantIds.flatMap((participantId) => {

@@ -4,8 +4,8 @@
  * survives adds another, and the count never resets during a race.
  */
 
-import { TYPE_RACER } from './constants';
-import type { DieRoll } from './types';
+import { TYPE_RACER } from './constants.js';
+import type { DieRoll } from './types.js';
 
 /** How many sides are skulls on a player's `rollIndex`-th roll (0-based). */
 export const skullsForRoll = (rollIndex: number): number =>

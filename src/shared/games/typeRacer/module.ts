@@ -16,13 +16,13 @@
  * secret and this module is shared with the browser.
  */
 
-import { assignSharedRanks } from '../ranking';
-import type { RandomSource } from '../random';
-import type { RankedEntry, ResultEntry, SelfTimedGameModule } from '../selfTimed';
-import { TYPE_RACER } from './constants';
-import { describeRoll } from './dice';
-import { parseRollAction, parseTypeRacerProgress, parseTypeRacerResult } from './parsing';
-import { locateOnBar, totalCharacters } from './progress';
+import { assignSharedRanks } from '../ranking.js';
+import type { RandomSource } from '../random.js';
+import type { RankedEntry, ResultEntry, SelfTimedGameModule } from '../selfTimed.js';
+import { TYPE_RACER } from './constants.js';
+import { describeRoll } from './dice.js';
+import { parseRollAction, parseTypeRacerProgress, parseTypeRacerResult } from './parsing.js';
+import { locateOnBar, totalCharacters } from './progress.js';
 import {
     compareRuns,
     findLastSurvivor,
@@ -30,9 +30,9 @@ import {
     replayRun,
     type PlayerRun,
     type PlayerRunEntry
-} from './replay';
-import { createTypeRacerRound } from './roundData';
-import type { DieRoll, RollFace, TypeRacerResult, TypeRacerRound } from './types';
+} from './replay.js';
+import { createTypeRacerRound } from './roundData.js';
+import type { DieRoll, RollFace, TypeRacerResult, TypeRacerRound } from './types.js';
 
 /** The longest the race can take: every paragraph run to its limit, with every pause. */
 const resultTimeoutMs = (round: TypeRacerRound): number => {

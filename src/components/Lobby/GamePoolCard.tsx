@@ -1,5 +1,5 @@
 import { useHover } from '../../hooks/index.ts'
-import { border, color, sharedStyles } from '../../theme/index.ts'
+import { border, color, fluid, sharedStyles } from '../../theme/index.ts'
 
 export interface PoolChipView {
   id: string
@@ -32,13 +32,13 @@ export function GamePoolCard({
         ...sharedStyles.bigCard,
         flex: 1,
         minHeight: 0,
-        padding: '24px 28px',
+        padding: `${fluid(16, 24)} ${fluid(16, 28)}`,
         display: 'flex',
         flexDirection: 'column',
-        gap: 18,
+        gap: fluid(12, 18),
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
         <div style={sharedStyles.microLabel}>GAME POOL</div>
         {!readOnly && (
           <button type="button" onClick={onToggleAll} style={sharedStyles.inlineAction}>
@@ -46,7 +46,7 @@ export function GamePoolCard({
           </button>
         )}
       </div>
-      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignContent: 'flex-start' }}>
+      <div style={{ display: 'flex', gap: fluid(8, 10), flexWrap: 'wrap', alignContent: 'flex-start' }}>
         {chips.map((chip) => (
           <PoolChip key={chip.id} chip={chip} readOnly={readOnly} onToggle={onToggle} />
         ))}
@@ -75,8 +75,10 @@ function PoolChip({ chip, readOnly, onToggle }: PoolChipProps) {
       style={{
         display: 'flex',
         alignItems: 'center',
-        gap: 9,
-        padding: '11px 18px',
+        gap: fluid(7, 9),
+        padding: `${fluid(9, 11)} ${fluid(13, 18)}`,
+        maxWidth: '100%',
+        textAlign: 'left',
         borderRadius: 999,
         border: border.medium,
         background: chip.selected
@@ -86,7 +88,7 @@ function PoolChip({ chip, readOnly, onToggle }: PoolChipProps) {
             : color.white,
         color: chip.selected ? color.ink : color.mutedSoft,
         fontWeight: 900,
-        fontSize: 15,
+        fontSize: fluid(14, 15),
         cursor: locked ? 'default' : 'pointer',
         opacity: chip.playable ? 1 : 0.55,
         borderStyle: chip.playable ? 'solid' : 'dashed',
@@ -96,6 +98,7 @@ function PoolChip({ chip, readOnly, onToggle }: PoolChipProps) {
         style={{
           width: 15,
           height: 15,
+          flexShrink: 0,
           borderRadius: 5,
           border: border.thin,
           background: chip.selected ? color.pink : color.white,

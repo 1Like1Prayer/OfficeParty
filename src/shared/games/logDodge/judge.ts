@@ -15,8 +15,8 @@
  *    player is left standing.
  */
 
-import { COUNTER_ACTION, LOG_DODGE } from './constants';
-import type { Input, Log } from './types';
+import { COUNTER_ACTION, LOG_DODGE } from './constants.js';
+import type { Input, Log } from './types.js';
 
 export interface Outcome {
     hits: number;

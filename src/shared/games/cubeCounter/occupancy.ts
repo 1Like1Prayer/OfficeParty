@@ -3,9 +3,9 @@
  * overlap check and by the visibility ray casts.
  */
 
-import { CUBE_COUNTER } from './constants';
-import { footprintCells } from './footprint';
-import type { Box } from './types';
+import { CUBE_COUNTER } from './constants.js';
+import { footprintCells } from './footprint.js';
+import type { Box } from './types.js';
 
 const { GRID_SIZE, MAX_LEVELS } = CUBE_COUNTER;
 

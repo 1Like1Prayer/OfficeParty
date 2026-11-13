@@ -21,7 +21,7 @@ const ROLL_RETRY_MS = 900
 const TIMEOUT_MARGIN_MS = 50
 /**
  * A reply that never comes (the connection dropped while it was in flight, and
- * socket.io then never answers) must not leave the die shaking for good.
+ * the request is never answered) must not leave the die shaking for good.
  */
 const ROLL_REPLY_TIMEOUT_MS = 2500
 

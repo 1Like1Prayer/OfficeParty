@@ -15,8 +15,8 @@ export function AvatarPicker({ value, onChange }: AvatarPickerProps) {
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(6, 1fr)',
-          gap: 8,
+          gridTemplateColumns: 'repeat(6, minmax(0, 1fr))',
+          gap: 'clamp(5px, 1.5vw, 8px)',
         }}
       >
         {AVATAR_SEEDS.map((seed) => (

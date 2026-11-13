@@ -8,8 +8,8 @@
  * can't help anyone. A full tie is left to the runner's tiebreaker.
  */
 
-import { countBlocks } from './sceneValidation';
-import type { Answer, CubeCounterResult, Puzzle } from './types';
+import { countBlocks } from './sceneValidation.js';
+import type { Answer, CubeCounterResult, Puzzle } from './types.js';
 
 export interface RoundScore {
     correctCount: number;

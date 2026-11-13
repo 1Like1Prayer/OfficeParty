@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { color, font } from '../../theme/index.ts'
+import { color, fluid, font } from '../../theme/index.ts'
 import { RoundCue } from './RoundCue.tsx'
 
 interface GamePlayProps {
@@ -12,6 +12,8 @@ interface GamePlayProps {
    * rather than the game sitting in the space left beneath them.
    */
   isFullBleed?: boolean
+  /** Centre the game in the pane instead of anchoring it to the top. */
+  isCentered?: boolean
   /** Show the game's name over the top. A game that says what it is itself can turn it off. */
   showTitle?: boolean
   /** The game itself, from the moment the round is being set up. */
@@ -27,6 +29,7 @@ export function GamePlay({
   statusLine,
   cueBeats,
   isFullBleed = false,
+  isCentered = false,
   showTitle = true,
   children,
 }: GamePlayProps) {
@@ -49,7 +52,7 @@ export function GamePlay({
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            padding: '22px 24px',
+            padding: `${fluid(14, 22)} ${fluid(14, 24)}`,
             gap: 16,
             // Only decoration: the keyboard is the controller, and nothing
             // here should ever swallow a click meant for the game.
@@ -63,7 +66,7 @@ export function GamePlay({
                 alignSelf: 'flex-start',
                 fontFamily: font.display,
                 fontWeight: 700,
-                fontSize: 30,
+                fontSize: fluid(22, 30),
                 lineHeight: 1,
                 letterSpacing: '-0.02em',
                 color: color.cream,
@@ -77,8 +80,9 @@ export function GamePlay({
             {cueBeats !== null && (
               <div
                 style={{
-                  padding: '4px 36px',
-                  borderRadius: 28,
+                  padding: `4px ${fluid(20, 36)}`,
+                  maxWidth: '100%',
+                  borderRadius: fluid(20, 28),
                   background: color.cream,
                   border: `4px solid ${color.ink}`,
                 }}
@@ -102,36 +106,39 @@ export function GamePlay({
         alignItems: 'center',
         // Anchored to the top rather than centred: the parts below appear and
         // disappear as the round moves, and centring would shove the title and
-        // the target around every time one of them did.
-        justifyContent: 'flex-start',
-        gap: 22,
-        padding: '64px 52px 40px',
+        // the target around every time one of them did. A centred game reserves
+        // room for all of its parts, so it and the cue can sit mid-screen as one.
+        justifyContent: isCentered ? 'center' : 'flex-start',
+        gap: fluid(16, 22),
+        padding: `${fluid(28, 64)} ${fluid(16, 52)} ${fluid(24, 40)}`,
         textAlign: 'center',
         backgroundImage: `repeating-linear-gradient(45deg,${color.white} 0 10px,#FFF8E8 10px 20px)`,
         animation: 'pa-enter 1.5s cubic-bezier(.22,.61,.36,1) both',
       }}
     >
-      <div
-        style={{
-          fontFamily: font.display,
-          fontWeight: 700,
-          fontSize: 40,
-          lineHeight: 1,
-          letterSpacing: '-0.02em',
-          color: color.red,
-          // Staggered behind the pane so the round assembles rather than
-          // arriving all at once.
-          animation: 'pa-enter 1.1s ease-out .45s both',
-        }}
-      >
-        {gameName}
-      </div>
+      {showTitle && (
+        <div
+          style={{
+            fontFamily: font.display,
+            fontWeight: 700,
+            fontSize: fluid(28, 40),
+            lineHeight: 1,
+            letterSpacing: '-0.02em',
+            color: color.red,
+            // Staggered behind the pane so the round assembles rather than
+            // arriving all at once.
+            animation: 'pa-enter 1.1s ease-out .45s both',
+          }}
+        >
+          {gameName}
+        </div>
+      )}
 
       {/* Takes whatever height the title and cue leave, so a game that wants the
           whole screen can fill it; the others stay centred at the top. */}
       <div
         style={{
-          flex: 1,
+          flex: isCentered ? '0 0 auto' : 1,
           minHeight: 0,
           width: '100%',
           display: 'flex',
@@ -147,7 +154,7 @@ export function GamePlay({
           nothing that is already on screen. */}
       <div
         style={{
-          minHeight: 100,
+          minHeight: fluid(72, 100),
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -160,9 +167,10 @@ export function GamePlay({
         <div
           style={{
             fontFamily: font.mono,
-            fontSize: 13,
+            fontSize: fluid(11, 13),
             color: color.mutedStrong,
             letterSpacing: '0.1em',
+            overflowWrap: 'anywhere',
           }}
         >
           {statusLine.toUpperCase()}

@@ -9,13 +9,13 @@
  * no I/O.
  */
 
-import { assignSharedRanks } from './ranking';
+import { assignSharedRanks } from './ranking.js';
 import type {
     RankedEntry,
     RoundContext,
     ResultEntry,
     SelfTimedGameModule
-} from './selfTimed';
+} from './selfTimed.js';
 
 export const STOP_THE_CLOCK = {
     /** Scoring rounds per game: the first half normal, the second half faded. */

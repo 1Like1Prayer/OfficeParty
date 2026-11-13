@@ -3,8 +3,8 @@
  * is dropped by the runner; nothing here throws.
  */
 
-import { MINEFIELD } from './constants';
-import type { Axis, Input, MinefieldResult } from './types';
+import { MINEFIELD } from './constants.js';
+import type { Axis, Input, MinefieldResult } from './types.js';
 
 /** More scans than a race could ever hold (one per cooldown, with room to spare). */
 const MAX_SCANS = Math.ceil(MINEFIELD.MAX_RACE_MS / MINEFIELD.SONAR_COOLDOWN_MS) + 1;

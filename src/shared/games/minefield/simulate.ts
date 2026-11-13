@@ -27,8 +27,8 @@
  * Plain functions over plain data: no sockets, no clock.
  */
 
-import { MINEFIELD } from './constants';
-import type { Input, MinefieldMap, Mine } from './types';
+import { MINEFIELD } from './constants.js';
+import type { Input, MinefieldMap, Mine } from './types.js';
 
 export interface Detonation {
     atMs: number;

@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { border, color, lift, sharedStyles } from '../../theme/index.ts'
+import { border, color, fluid, lift, sharedStyles } from '../../theme/index.ts'
 
 interface EntryCardProps {
   label: string
@@ -14,9 +14,7 @@ export function EntryCard({ label, onBack, children }: EntryCardProps) {
       style={{
         flex: 1,
         display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '40px 52px',
+        padding: `${fluid(20, 40)} ${fluid(16, 52)}`,
         animation: 'pa-pop .4s cubic-bezier(.34,1.56,.64,1)',
       }}
     >
@@ -24,17 +22,20 @@ export function EntryCard({ label, onBack, children }: EntryCardProps) {
         style={{
           width: 460,
           maxWidth: '100%',
+          // Auto margins centre the card, but unlike centring the section they
+          // let it scroll from its top when the screen is shorter than the card.
+          margin: 'auto',
           background: color.white,
           border: border.heavy,
-          borderRadius: 28,
+          borderRadius: fluid(22, 28),
           boxShadow: lift(10),
-          padding: '30px 30px 34px',
+          padding: `${fluid(20, 30)} ${fluid(18, 30)} ${fluid(24, 34)}`,
           display: 'flex',
           flexDirection: 'column',
-          gap: 18,
+          gap: fluid(14, 18),
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
           <div style={sharedStyles.microLabel}>{label}</div>
           <button type="button" onClick={onBack} style={sharedStyles.inlineAction}>
             BACK

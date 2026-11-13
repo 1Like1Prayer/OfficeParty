@@ -1,4 +1,4 @@
-import { color, font, sharedStyles } from '../../theme/index.ts'
+import { color, fluid, font, sharedStyles } from '../../theme/index.ts'
 
 /** Three numbers, however long the room's window is. */
 export const START_BEATS = 3
@@ -14,8 +14,8 @@ interface StartsInProps {
  */
 export function StartsIn({ beats }: StartsInProps) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-      <div style={{ ...sharedStyles.microLabel, fontSize: 15, letterSpacing: '0.22em' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: fluid(12, 20), flexWrap: 'wrap' }}>
+      <div style={{ ...sharedStyles.microLabel, fontSize: fluid(12, 15), letterSpacing: '0.22em' }}>
         GAME BEGINS IN
       </div>
       <div
@@ -24,7 +24,7 @@ export function StartsIn({ beats }: StartsInProps) {
         style={{
           fontFamily: font.display,
           fontWeight: 700,
-          fontSize: 88,
+          fontSize: fluid(56, 88),
           lineHeight: 1,
           color: color.red,
           animation: 'pa-pop .5s cubic-bezier(.34,1.56,.64,1)',

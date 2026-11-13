@@ -19,9 +19,9 @@
  * Plain functions over plain data: no sockets, no clock.
  */
 
-import { CRUSHER_ESCALATOR } from './constants';
-import { directionAt } from './stream';
-import type { ArrowStream, Input } from './types';
+import { CRUSHER_ESCALATOR } from './constants.js';
+import { directionAt } from './stream.js';
+import type { ArrowStream, Input } from './types.js';
 
 export interface Racer {
     playerId: string;

@@ -3,9 +3,9 @@
  * is dropped by the runner; nothing here throws.
  */
 
-import { MAX_RACE_MS, TYPE_RACER } from './constants';
-import { totalCharacters } from './progress';
-import type { RollAction, TypeRacerResult, TypeRacerRound, TypingEvent } from './types';
+import { MAX_RACE_MS, TYPE_RACER } from './constants.js';
+import { totalCharacters } from './progress.js';
+import type { RollAction, TypeRacerResult, TypeRacerRound, TypingEvent } from './types.js';
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
     typeof value === 'object' && value !== null;

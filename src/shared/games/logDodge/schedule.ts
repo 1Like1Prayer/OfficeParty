@@ -4,9 +4,9 @@
  * different speeds (the same spread all round), and come in from wider angles.
  */
 
-import { randomInt, type RandomSource } from '../random';
-import { LOG_DODGE, LOG_HEIGHTS } from './constants';
-import type { Log } from './types';
+import { randomInt, type RandomSource } from '../random.js';
+import { LOG_DODGE, LOG_HEIGHTS } from './constants.js';
+import type { Log } from './types.js';
 
 const lerp = (from: number, to: number, t: number): number => from + (to - from) * t;
 

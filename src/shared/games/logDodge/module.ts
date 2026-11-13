@@ -18,14 +18,14 @@
  * exactly one winner.
  */
 
-import { assignSharedRanks } from '../ranking';
-import type { RandomSource } from '../random';
-import type { RankedEntry, ResultEntry, RoundContext, SelfTimedGameModule } from '../selfTimed';
-import { LOG_DODGE } from './constants';
-import { compareOutcomes, isSameOutcome, judgePlayer, type Outcome } from './judge';
-import { parseLogDodgeProgress, parseLogDodgeResult } from './parsing';
-import { generateLogs } from './schedule';
-import type { LogDodgeResult, LogDodgeRound } from './types';
+import { assignSharedRanks } from '../ranking.js';
+import type { RandomSource } from '../random.js';
+import type { RankedEntry, ResultEntry, RoundContext, SelfTimedGameModule } from '../selfTimed.js';
+import { LOG_DODGE } from './constants.js';
+import { compareOutcomes, isSameOutcome, judgePlayer, type Outcome } from './judge.js';
+import { parseLogDodgeProgress, parseLogDodgeResult } from './parsing.js';
+import { generateLogs } from './schedule.js';
+import type { LogDodgeResult, LogDodgeRound } from './types.js';
 
 export const createRoundData = (
     _context: RoundContext,

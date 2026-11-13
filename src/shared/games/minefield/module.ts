@@ -21,14 +21,14 @@
  * game trusts the room not to.
  */
 
-import { assignSharedRanks } from '../ranking';
-import type { RandomSource } from '../random';
-import type { RankedEntry, ResultEntry, SelfTimedGameModule } from '../selfTimed';
-import { MINEFIELD } from './constants';
-import { generateMap } from './map';
-import { parseMinefieldProgress, parseMinefieldResult } from './parsing';
-import { simulateRace, type RunOutcome } from './simulate';
-import type { MinefieldResult, MinefieldRound } from './types';
+import { assignSharedRanks } from '../ranking.js';
+import type { RandomSource } from '../random.js';
+import type { RankedEntry, ResultEntry, SelfTimedGameModule } from '../selfTimed.js';
+import { MINEFIELD } from './constants.js';
+import { generateMap } from './map.js';
+import { parseMinefieldProgress, parseMinefieldResult } from './parsing.js';
+import { simulateRace, type RunOutcome } from './simulate.js';
+import type { MinefieldResult, MinefieldRound } from './types.js';
 
 export const createRoundData = (random: RandomSource = Math.random): MinefieldRound => ({
     map: generateMap(random)

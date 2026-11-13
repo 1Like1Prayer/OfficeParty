@@ -21,9 +21,9 @@
  * dice come in through `faceOfRoll`).
  */
 
-import { TYPE_RACER } from './constants';
-import { isSkull } from './dice';
-import type { Paragraph, TypingEvent } from './types';
+import { TYPE_RACER } from './constants.js';
+import { isSkull } from './dice.js';
+import type { Paragraph, TypingEvent } from './types.js';
 
 export type RunStatus = 'finished' | 'eliminated' | 'unfinished';
 export type EliminationCause = 'skull' | 'time';

@@ -1,4 +1,4 @@
-import type { DIRECTIONS } from './constants';
+import type { DIRECTIONS } from './constants.js';
 
 export type Direction = (typeof DIRECTIONS)[number];
 

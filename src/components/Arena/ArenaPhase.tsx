@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo } from 'react'
 import { GameSurface } from '../../games/index.tsx'
 import {
   canSpectate,
+  centersInPane,
   hasSurface,
   hidesTitle,
   hidesTitleOncePlaying,
@@ -31,11 +32,12 @@ import { cueFrom } from '../GamePlay/cue.ts'
 import { START_BEATS } from '../GameReveal/StartsIn.tsx'
 import { SELF_TIMED } from '../../shared/constants.ts'
 import type { GameId } from '../../shared/games/catalog.ts'
-import type { RoomActions, UseRoomResult } from '../../socket/index.ts'
+import type { RoomActions, UseRoomResult } from '../../network/index.ts'
 import type { NextStageView } from '../../types/index.ts'
 import { FinalStandings } from '../FinalStandings/index.ts'
 import { GamePlay } from '../GamePlay/index.ts'
 import { GameReveal } from '../GameReveal/index.ts'
+import { HostControls } from '../HostControls/index.ts'
 import { Lobby } from '../Lobby/index.ts'
 import { RoundResults } from '../RoundResults/index.ts'
 
@@ -163,6 +165,8 @@ export function ArenaPhase({
         onSetReady={actions.setReady}
         onToggleGame={toggleGame}
         onToggleAll={() => { setPool(selected.length >= playable.length ? [] : playable) }}
+        selfId={playerId}
+        onKick={isOwner ? actions.kick : null}
         onBack={actions.goToTitle}
       />
     )
@@ -176,7 +180,7 @@ export function ArenaPhase({
           leaderboard ? selectChampionNote(room, leaderboard) : 'Counting the last round…'
         }
         // The server returns the room to the lobby on its own timer anyway.
-        onBackToLobby={isOwner ? actions.skip : null}
+        onBackToLobby={isOwner ? actions.backToLobby : null}
       />
     )
   }
@@ -200,6 +204,7 @@ export function ArenaPhase({
         statusLine={selectPlayStatusLine(room, round, isParticipant)}
         cueBeats={round.phase === 'countdown' ? cueBeats : null}
         isFullBleed={isFullBleed(game.id)}
+        isCentered={centersInPane(game.id)}
         showTitle={
           !hidesTitle(game.id) &&
           !(hidesTitleOncePlaying(game.id) && (round.phase === 'playing' || round.phase === 'results'))
@@ -266,6 +271,15 @@ export function ArenaPhase({
           isReady={hasReadied}
           isSpectator={!isParticipant}
           startsInBeats={startsInBeats}
+          hostControls={
+            isOwner && (
+              <HostControls
+                isLastGame={round.gameIndex > 0 && round.gameIndex >= round.totalGames}
+                onSkipGame={actions.skipGame}
+                onBackToLobby={actions.backToLobby}
+              />
+            )
+          }
         />
       ) : null
   }

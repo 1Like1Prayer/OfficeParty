@@ -14,10 +14,10 @@
  *  - a single cube still shows enough of itself to be counted.
  */
 
-import { CUBE_COUNTER } from './constants';
-import { footprintCells, isBigBox } from './footprint';
-import { buildOccupancy, type Occupancy } from './occupancy';
-import type { Box } from './types';
+import { CUBE_COUNTER } from './constants.js';
+import { footprintCells, isBigBox } from './footprint.js';
+import { buildOccupancy, type Occupancy } from './occupancy.js';
+import type { Box } from './types.js';
 
 const { GRID_SIZE, MAX_LEVELS } = CUBE_COUNTER;
 

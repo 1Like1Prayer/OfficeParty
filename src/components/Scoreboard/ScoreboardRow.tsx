@@ -1,19 +1,21 @@
-import { color, font, sharedStyles } from '../../theme/index.ts'
+import { color, fluid, font, sharedStyles } from '../../theme/index.ts'
 import type { ScoreboardRowView } from '../../types/index.ts'
-import { Avatar } from '../ui/index.ts'
+import { Avatar, ConfirmButton } from '../ui/index.ts'
 
 interface ScoreboardRowProps {
   row: ScoreboardRowView
+  /** Set for the owner only. */
+  onKick: (() => void) | null
 }
 
-export function ScoreboardRow({ row }: ScoreboardRowProps) {
+export function ScoreboardRow({ row, onKick }: ScoreboardRowProps) {
   return (
     <div
       style={{
         display: 'flex',
         alignItems: 'center',
-        gap: 12,
-        padding: '10px 14px',
+        gap: fluid(8, 12),
+        padding: `${fluid(8, 10)} ${fluid(10, 14)}`,
         borderRadius: 14,
         background: row.background,
         border: `${row.isYou ? 3 : 2}px solid ${color.ink}`,
@@ -24,8 +26,9 @@ export function ScoreboardRow({ row }: ScoreboardRowProps) {
         style={{
           fontFamily: font.display,
           fontWeight: 700,
-          fontSize: 20,
-          width: 26,
+          fontSize: fluid(17, 20),
+          width: fluid(20, 26),
+          flexShrink: 0,
           color: color.mutedStrong,
         }}
       >
@@ -33,9 +36,12 @@ export function ScoreboardRow({ row }: ScoreboardRowProps) {
       </div>
       <Avatar initial={row.initial} background={row.color} seed={row.avatar} />
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontWeight: 700, fontSize: 19, ...sharedStyles.ellipsis }}>
-          {row.name}
-          {row.isYou && <span style={{ color: color.mutedStrong }}> (you)</span>}
+        <div style={{ display: 'flex', fontWeight: 700, fontSize: fluid(16, 19) }}>
+          {/* A long name gives way before the "(you)" does. */}
+          <span style={{ minWidth: 0, ...sharedStyles.ellipsis }}>{row.name}</span>
+          {row.isYou && (
+            <span style={{ flexShrink: 0, whiteSpace: 'pre', color: color.mutedStrong }}> (you)</span>
+          )}
         </div>
         <div
           style={{
@@ -43,6 +49,7 @@ export function ScoreboardRow({ row }: ScoreboardRowProps) {
             fontWeight: 700,
             letterSpacing: '0.1em',
             color: color.mutedStrong,
+            ...sharedStyles.ellipsis,
           }}
         >
           {row.status}
@@ -52,12 +59,23 @@ export function ScoreboardRow({ row }: ScoreboardRowProps) {
         style={{
           fontFamily: font.display,
           fontWeight: 700,
-          fontSize: 28,
+          fontSize: fluid(22, 28),
           color: row.pointsColor,
+          flexShrink: 0,
         }}
       >
         {row.points}
       </div>
+      {onKick && (
+        <ConfirmButton
+          badge
+          label="×"
+          title={`Remove ${row.name}`}
+          confirmLabel="Remove?"
+          onConfirm={onKick}
+          style={{ flexShrink: 0 }}
+        />
+      )}
     </div>
   )
 }

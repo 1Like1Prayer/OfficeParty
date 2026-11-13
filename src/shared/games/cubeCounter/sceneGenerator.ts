@@ -7,13 +7,13 @@
  * tower, say) are thrown away and regenerated.
  */
 
-import { randomInt, type RandomSource } from '../random';
-import { CUBE_COUNTER } from './constants';
-import type { DifficultyProfile } from './difficulty';
-import { planDifficulty } from './difficulty';
-import { footprintCells } from './footprint';
-import { findSceneProblem } from './sceneValidation';
-import type { Box, Puzzle } from './types';
+import { randomInt, type RandomSource } from '../random.js';
+import { CUBE_COUNTER } from './constants.js';
+import type { DifficultyProfile } from './difficulty.js';
+import { planDifficulty } from './difficulty.js';
+import { footprintCells } from './footprint.js';
+import { findSceneProblem } from './sceneValidation.js';
+import type { Box, Puzzle } from './types.js';
 
 const { GRID_SIZE } = CUBE_COUNTER;
 

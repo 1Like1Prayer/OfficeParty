@@ -1,9 +1,6 @@
 import { GAME_CATALOG } from '../shared/games/catalog.ts'
-import type {
-  LeaderboardPayload,
-  RoomStatePayload,
-  RoundResultsPayload,
-} from '../shared/protocol.ts'
+import type { RoomView } from '../network/index.ts'
+import type { LeaderboardPayload, RoundResultsPayload } from '../shared/protocol.ts'
 import type { ResultRowView } from '../types/index.ts'
 import { formatList } from './round.ts'
 import { initialOf, playerColor, selectPlayer } from './players.ts'
@@ -13,7 +10,7 @@ import { initialOf, playerColor, selectPlayer } from './players.ts'
  * who reported, in order; the no-shows are appended below them.
  */
 export function selectResultRows(
-  room: RoomStatePayload,
+  room: RoomView,
   results: RoundResultsPayload,
   playerId: string | null,
 ): ResultRowView[] {
@@ -44,11 +41,11 @@ export function selectResultRows(
   )
 }
 
-function nameOf(room: RoomStatePayload, playerId: string): string {
+function nameOf(room: RoomView, playerId: string): string {
   return selectPlayer(room, playerId)?.name ?? 'Someone'
 }
 
-function avatarOf(room: RoomStatePayload, playerId: string): string {
+function avatarOf(room: RoomView, playerId: string): string {
   return selectPlayer(room, playerId)?.avatar ?? ''
 }
 
@@ -107,7 +104,7 @@ const clock = (ms: number): string => {
 }
 
 export function selectResultHeadline(
-  room: RoomStatePayload,
+  room: RoomView,
   results: RoundResultsPayload,
 ): string {
   if (results.winnerId === null) return 'Nobody took it.'
@@ -129,7 +126,7 @@ export function selectResultEyebrow(results: RoundResultsPayload): string {
 /* ---------------------------------------------------------------- */
 
 export function selectChampionLine(
-  room: RoomStatePayload,
+  room: RoomView,
   leaderboard: LeaderboardPayload,
 ): string {
   if (leaderboard.rows.length === 0) return 'Nobody wins the night.'
@@ -138,7 +135,7 @@ export function selectChampionLine(
 }
 
 export function selectChampionNote(
-  room: RoomStatePayload,
+  room: RoomView,
   leaderboard: LeaderboardPayload,
 ): string {
   const top = leaderboard.rows.filter((row) => row.rank === 1)

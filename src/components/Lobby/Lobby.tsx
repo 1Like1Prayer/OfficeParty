@@ -1,4 +1,5 @@
-import { color, font } from '../../theme/index.ts'
+import { useMediaQuery } from '../../hooks/index.ts'
+import { breakpoint, color, fluid, font } from '../../theme/index.ts'
 import { PushButton } from '../ui/index.ts'
 import { ConnectedCard, type Floater } from './ConnectedCard.tsx'
 import { GamePoolCard, type PoolChipView } from './GamePoolCard.tsx'
@@ -24,6 +25,10 @@ interface LobbyProps {
   onToggleGame: (id: string) => void
   onToggleAll: () => void
   onBack: () => void
+  /** This player, who can't remove themselves. */
+  selfId: string | null
+  /** Set for the owner only: remove a player from the room. */
+  onKick: ((playerId: string) => void) | null
 }
 
 /** Waiting room: who is here, what the run looks like, and the start button. */
@@ -43,51 +48,56 @@ export function Lobby({
   onToggleGame,
   onToggleAll,
   onBack,
+  selfId,
+  onKick,
 }: LobbyProps) {
+  const compact = useMediaQuery(breakpoint.compact)
+
   return (
     <section
       style={{
         flex: 1,
         display: 'flex',
         flexDirection: 'column',
-        padding: '44px 64px 52px',
-        gap: 40,
+        padding: `${fluid(20, 44)} ${fluid(16, 64)} ${fluid(28, 52)}`,
+        gap: fluid(20, 40),
         minHeight: 0,
         animation: 'pa-swoop .45s ease-out',
       }}
     >
       <LobbyHeader roomCode={roomCode} onBack={onBack} />
 
-      <div style={{ flex: 1, display: 'flex', gap: 40, minHeight: 0, flexWrap: 'wrap' }}>
+      <div style={{ flex: 1, display: 'flex', gap: fluid(20, 40), minHeight: 0, flexWrap: 'wrap' }}>
         <div
           style={{
             flex: '1 1 360px',
-            minWidth: 320,
+            minWidth: 0,
             display: 'flex',
             flexDirection: 'column',
-            gap: 24,
+            gap: fluid(16, 24),
           }}
         >
-          <ConnectedCard floaters={floaters} emptyLine={emptyLine} />
-          <div style={{ display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap' }}>
+          <ConnectedCard floaters={floaters} emptyLine={emptyLine} selfId={selfId} onKick={onKick} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: fluid(12, 24), flexWrap: 'wrap' }}>
             {isOwner ? (
-              <PushButton size="lg" onClick={onStart} disabled={!canStart}>
+              <PushButton size="lg" fullWidth={compact} onClick={onStart} disabled={!canStart}>
                 Start the run
               </PushButton>
             ) : (
               <PushButton
                 size="lg"
+                fullWidth={compact}
                 variant={isReady ? 'success' : 'primary'}
                 onClick={() => { onSetReady(!isReady) }}
               >
                 {isReady ? "I'm ready ✓" : "I'm ready"}
               </PushButton>
             )}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0, flex: '1 1 200px' }}>
               <div
                 style={{
                   fontWeight: 900,
-                  fontSize: 12,
+                  fontSize: fluid(11, 12),
                   letterSpacing: '0.14em',
                   color: color.mutedStrong,
                 }}
@@ -98,7 +108,7 @@ export function Lobby({
                 style={{
                   fontFamily: font.body,
                   fontWeight: 700,
-                  fontSize: 15,
+                  fontSize: fluid(14, 15),
                   color: canStart ? color.ink : color.mutedStrong,
                   animation: canStart ? 'pa-pulse 2.4s ease-in-out infinite' : undefined,
                 }}
@@ -112,10 +122,10 @@ export function Lobby({
         <div
           style={{
             flex: '1 1 360px',
-            minWidth: 320,
+            minWidth: 0,
             display: 'flex',
             flexDirection: 'column',
-            gap: 24,
+            gap: fluid(16, 24),
           }}
         >
           <GamePoolCard

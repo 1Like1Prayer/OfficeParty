@@ -1,10 +1,6 @@
 import { GAME_CATALOG, type GameMeta } from '../shared/games/catalog.ts'
-import type {
-  RoomStatePayload,
-  RoundResultsPayload,
-  RoundView,
-  StartBlockedReason,
-} from '../shared/protocol.ts'
+import type { RoomView, RoundView } from '../network/index.ts'
+import type { RoundResultsPayload, StartBlockedReason } from '../shared/protocol.ts'
 import type { NextStageView } from '../types/index.ts'
 import { selectNames, selectOwnerName } from './players.ts'
 
@@ -23,7 +19,7 @@ export function selectFormatLabel(kind: GameMeta['kind']): string {
 }
 
 /** The pill in the header. */
-export function selectRoundLabel(room: RoomStatePayload, round: RoundView): string {
+export function selectRoundLabel(room: RoomView, round: RoundView): string {
   if (room.phase === 'lobby') return 'NOT STARTED'
   if (room.phase === 'leaderboard') return 'FINISHED'
 
@@ -36,9 +32,9 @@ export function selectRoundLabel(room: RoomStatePayload, round: RoundView): stri
 }
 
 /** Why start is unavailable, in the room's own words. */
-export function selectStartBlockedLine(room: RoomStatePayload, isOwner: boolean): string {
+export function selectStartBlockedLine(room: RoomView, isOwner: boolean): string {
   // A screen that only shows the room cannot drive it — say whose call it is.
-  if (!isOwner) return `${selectOwnerName(room)} is running this one.`
+  if (!isOwner) return `${selectOwnerName(room)} is the Game Host.`
 
   const reasons: Record<StartBlockedReason, () => string> = {
     not_enough_players: () =>
@@ -51,7 +47,7 @@ export function selectStartBlockedLine(room: RoomStatePayload, isOwner: boolean)
   return reason ? reasons[reason]() : 'Everyone is in. Press it.'
 }
 
-function describeCount(room: RoomStatePayload): string {
+function describeCount(room: RoomView): string {
   const count = room.lobby.ready.length + room.lobby.waitingFor.length
   return count === 1 ? '1 here' : `${count} here`
 }
@@ -64,7 +60,7 @@ export function formatList(names: string[]): string {
 
 /** What the play screen says while the round moves through its phases. */
 export function selectPlayStatusLine(
-  room: RoomStatePayload,
+  room: RoomView,
   round: RoundView,
   isParticipant: boolean,
 ): string {

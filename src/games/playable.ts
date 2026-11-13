@@ -42,7 +42,16 @@ export function canSpectate(gameId: GameId): boolean {
  * title over the top of it is only in the way.
  */
 export function hidesTitle(gameId: GameId): boolean {
-  return gameId === 'type-racer-roulette'
+  return gameId === 'type-racer-roulette' || gameId === 'stop-the-clock'
+}
+
+/**
+ * Games that sit in the middle of the play screen rather than at its top. Only
+ * safe for a game that reserves room for everything it shows, so nothing moves
+ * as its parts come and go.
+ */
+export function centersInPane(gameId: GameId): boolean {
+  return gameId === 'stop-the-clock'
 }
 
 /**
@@ -51,4 +60,12 @@ export function hidesTitle(gameId: GameId): boolean {
  */
 export function hidesTitleOncePlaying(gameId: GameId): boolean {
   return gameId === 'log-dodge' || gameId === 'minefield'
+}
+
+/**
+ * Games that show a looping demo round on the reveal screen instead of the
+ * written rules. Must match the cases `GameDemo` in `demos.tsx` renders.
+ */
+export function hasDemo(gameId: GameId): boolean {
+  return gameId === 'stop-the-clock'
 }

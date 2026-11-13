@@ -3,8 +3,8 @@
  * the last and restarts every round, so round 2 begins easy again.
  */
 
-import { randomInt, type RandomSource } from '../random';
-import { CUBE_COUNTER } from './constants';
+import { randomInt, type RandomSource } from '../random.js';
+import { CUBE_COUNTER } from './constants.js';
 
 export interface DifficultyProfile {
     /** Target number of boxes. The generator may place fewer if space runs out. */

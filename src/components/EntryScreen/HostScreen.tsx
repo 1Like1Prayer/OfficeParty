@@ -1,5 +1,5 @@
 import { ROOM } from '../../shared/constants.ts'
-import { color, sharedStyles } from '../../theme/index.ts'
+import { color, fluid, sharedStyles } from '../../theme/index.ts'
 import { PushButton, TextField } from '../ui/index.ts'
 import { AvatarPicker } from './AvatarPicker.tsx'
 import { EntryCard } from './EntryCard.tsx'
@@ -30,7 +30,7 @@ export function HostScreen({
 
   return (
     <EntryCard label="OPEN A PARTY" onBack={onBack}>
-      <div style={{ ...sharedStyles.displayHeading, fontSize: 38, lineHeight: 1.05 }}>
+      <div style={{ ...sharedStyles.displayHeading, fontSize: fluid(28, 38), lineHeight: 1.05 }}>
         What should we call you?
       </div>
       <TextField
@@ -43,14 +43,14 @@ export function HostScreen({
       />
       <AvatarPicker value={avatar} onChange={onAvatar} />
       {error && (
-        <div style={{ fontWeight: 900, fontSize: 13, letterSpacing: '0.12em', color: color.red }}>
+        <div style={{ fontWeight: 900, fontSize: fluid(12, 13), letterSpacing: '0.12em', color: color.red, overflowWrap: 'break-word' }}>
           {error.toUpperCase()}
         </div>
       )}
-      <PushButton onClick={onHost} disabled={!ready}>
+      <PushButton fullWidth onClick={onHost} disabled={!ready}>
         {busy ? 'Opening…' : 'Open the room'}
       </PushButton>
-      <div style={{ fontSize: 15, color: color.muted, fontWeight: 700 }}>
+      <div style={{ fontSize: fluid(14, 15), color: color.muted, fontWeight: 700 }}>
         You&rsquo;ll get a code to share. {ROOM.MIN_PLAYERS} players minimum.
       </div>
     </EntryCard>

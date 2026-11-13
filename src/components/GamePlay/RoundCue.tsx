@@ -1,4 +1,4 @@
-import { color, font, sharedStyles } from '../../theme/index.ts'
+import { color, fluid, font, sharedStyles } from '../../theme/index.ts'
 import { CUES } from './cue.ts'
 
 interface RoundCueProps {
@@ -18,7 +18,8 @@ export function RoundCue({ beats }: RoundCueProps) {
       style={{
         ...sharedStyles.displayHeading,
         fontFamily: font.display,
-        fontSize: last ? 92 : 68,
+        fontSize: last ? fluid(56, 92) : fluid(40, 68),
+        whiteSpace: 'nowrap',
         letterSpacing: '0.02em',
         color: last ? color.red : color.ink,
         animation: 'pa-pop .55s cubic-bezier(.34,1.56,.64,1)',

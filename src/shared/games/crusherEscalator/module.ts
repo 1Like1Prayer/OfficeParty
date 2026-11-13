@@ -17,9 +17,9 @@
  * two attempts of one scoring round, driven by the runner's `nextStage` hook.
  */
 
-import { SELF_TIMED } from '../../constants';
-import { assignSharedRanks } from '../ranking';
-import type { RandomSource } from '../random';
+import { SELF_TIMED } from '../../constants.js';
+import { assignSharedRanks } from '../ranking.js';
+import type { RandomSource } from '../random.js';
 import type {
     AttemptTiming,
     RankedEntry,
@@ -27,23 +27,23 @@ import type {
     RoundContext,
     SelfTimedGameModule,
     StageAdvance
-} from '../selfTimed';
-import { CRUSHER_ESCALATOR } from './constants';
-import { splitIntoTwoGroups } from './groups';
-import { parseCrusherEscalatorProgress, parseCrusherEscalatorResult } from './parsing';
+} from '../selfTimed.js';
+import { CRUSHER_ESCALATOR } from './constants.js';
+import { splitIntoTwoGroups } from './groups.js';
+import { parseCrusherEscalatorProgress, parseCrusherEscalatorResult } from './parsing.js';
 import {
     compareOutcomes,
     isSameOutcome,
     simulateRace,
     type RaceOutcome,
     type Racer
-} from './race';
-import { generatePlayerStreams } from './stream';
+} from './race.js';
+import { generatePlayerStreams } from './stream.js';
 import type {
     CrusherEscalatorResult,
     CrusherEscalatorRound,
     RaceStage
-} from './types';
+} from './types.js';
 
 /** Heats only when there are too many players and it is the opening attempt. */
 const stageFor = ({ playerIds, attempt }: RoundContext): RaceStage =>

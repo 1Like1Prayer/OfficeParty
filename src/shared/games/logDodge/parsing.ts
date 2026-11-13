@@ -3,8 +3,8 @@
  * is dropped by the runner; nothing here throws.
  */
 
-import { ACTIONS, LOG_DODGE } from './constants';
-import type { Action, Input, LogDodgeResult } from './types';
+import { ACTIONS, LOG_DODGE } from './constants.js';
+import type { Action, Input, LogDodgeResult } from './types.js';
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
     typeof value === 'object' && value !== null;

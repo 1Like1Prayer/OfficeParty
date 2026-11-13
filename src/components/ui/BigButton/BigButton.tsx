@@ -1,5 +1,5 @@
 import { useHover } from '../../../hooks/index.ts'
-import { color, lift, sharedStyles } from '../../../theme/index.ts'
+import { color, fluid, lift, sharedStyles } from '../../../theme/index.ts'
 
 export type BigButtonVariant = 'pink' | 'yellow'
 
@@ -34,9 +34,13 @@ export function BigButton({
       style={{
         ...sharedStyles.raised(pressed ? 5 : 8),
         ...VARIANTS[variant],
-        borderRadius: 20,
-        padding: '22px 54px',
-        fontSize: 34,
+        borderRadius: fluid(16, 20),
+        padding: `${fluid(14, 22)} ${fluid(28, 54)}`,
+        fontSize: fluid(26, 34),
+        lineHeight: 1.1,
+        // The pair sits side by side; give them a shared width so neither looks stubby.
+        minWidth: fluid(140, 220),
+        maxWidth: '100%',
         opacity: disabled ? 0.55 : 1,
         cursor: disabled ? 'not-allowed' : 'pointer',
         boxShadow: lift(pressed ? 5 : 8),

@@ -5,9 +5,9 @@
  * even if hard to find without scanning.
  */
 
-import type { RandomSource } from '../random';
-import { MINEFIELD } from './constants';
-import type { Mine, MinefieldMap } from './types';
+import type { RandomSource } from '../random.js';
+import { MINEFIELD } from './constants.js';
+import type { Mine, MinefieldMap } from './types.js';
 
 const lerp = (from: number, to: number, t: number): number => from + (to - from) * t;
 
