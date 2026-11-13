@@ -1,6 +1,8 @@
-import { useEffect, useState, type CSSProperties } from 'react'
-import { useMediaQuery } from '../../hooks/index.ts'
+import type { CSSProperties } from 'react'
 import { border, color, fluid, font, lift, sharedStyles } from '../../theme/index.ts'
+import { DemoCard, DemoRow } from '../demo/DemoKit.tsx'
+import { stepAt, useLoopTime } from '../demo/demoLoop.ts'
+import { stageSize } from '../demo/stageSize.ts'
 
 /**
  * The round, played on a loop in miniature: the target rolls and lands, the
@@ -34,169 +36,35 @@ const RIVAL = { name: 'Sam', offS: 0.41 }
 
 const STEPS = ['Target lands', 'Stop the clock', 'Closest wins'] as const
 
-/** Below this the step tabs drop their number badge so the labels fit. */
-const TIGHT = '(max-width: 380px)'
-
 /**
  * Deterministic decoy per spin frame, 1–10. Stepping by 7 (coprime with 10)
  * never repeats the previous value, so the roll never looks frozen.
  */
 const decoyAt = (frame: number): number => 1 + ((frame * 7 + 3) % 10)
 
-function useLoopTime(): number {
-  const [time, setTime] = useState(0)
-
-  useEffect(() => {
-    let frame = 0
-    const startedAt = performance.now()
-    const tick = (now: number) => {
-      setTime((now - startedAt) % LOOP_MS)
-      frame = requestAnimationFrame(tick)
-    }
-    frame = requestAnimationFrame(tick)
-    return () => { cancelAnimationFrame(frame) }
-  }, [])
-
-  return time
-}
-
 export function StopTheClockDemo() {
-  const t = useLoopTime()
-  const step = t < TARGET_END ? 0 : t < RESULT_AT ? 1 : 2
-  const stepStart = [0, TARGET_END, RESULT_AT][step]!
-  const stepEnd = [TARGET_END, RESULT_AT, LOOP_MS][step]!
-  const stepProgress = (t - stepStart) / (stepEnd - stepStart)
-  const tight = useMediaQuery(TIGHT)
+  const t = useLoopTime(LOOP_MS)
+  const { step, progress } = stepAt(t, [0, TARGET_END, RESULT_AT], LOOP_MS)
 
   return (
-    <div
-      style={{
-        background: color.white,
-        border: border.medium,
-        borderRadius: 18,
-        padding: fluid(12, 16),
-        display: 'flex',
-        flexDirection: 'column',
-        gap: fluid(10, 14),
-        width: '100%',
-        maxWidth: 560,
-      }}
-      role="img"
-      aria-label={`How it works: a target lands, you stop the clock as close to it as you can, and the closest stop wins the point.`}
+    <DemoCard
+      steps={STEPS}
+      step={step}
+      progress={progress}
+      ariaLabel="How it works: a target lands, you stop the clock as close to it as you can, and the closest stop wins the point."
+      footnote="Last two rounds, the clock fades out halfway — you count the rest in your head."
     >
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: fluid(6, 8) }}>
-        {STEPS.map((label, index) => (
-          <StepTab
-            key={label}
-            index={index}
-            label={label}
-            active={index === step}
-            done={index < step}
-            progress={index === step ? stepProgress : 0}
-            showBadge={!tight}
-          />
-        ))}
-      </div>
-
-      <div
-        style={{
-          position: 'relative',
-          height: fluid(210, 240),
-          borderRadius: 12,
-          border: border.thin,
-          overflow: 'hidden',
-          backgroundImage: `repeating-linear-gradient(45deg,${color.white} 0 10px,#FFF8E8 10px 20px)`,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: fluid(8, 10),
-          padding: 12,
-          textAlign: 'center',
-        }}
-      >
-        {step === 0 && <TargetStep t={t} />}
-        {step === 1 && <ClockStep t={t} />}
-        {step === 2 && <ResultStep t={t} />}
-      </div>
-
-      <div style={{ fontSize: fluid(13, 15), fontWeight: 700, color: color.muted, lineHeight: 1.4 }}>
-        Last two rounds, the clock fades out halfway — you count the rest in your head.
-      </div>
-    </div>
-  )
-}
-
-interface StepTabProps {
-  index: number
-  label: string
-  active: boolean
-  done: boolean
-  progress: number
-  showBadge: boolean
-}
-
-function StepTab({ index, label, active, done, progress, showBadge }: StepTabProps) {
-  return (
-    <div
-      style={{
-        position: 'relative',
-        overflow: 'hidden',
-        borderRadius: 10,
-        border: border.thin,
-        background: active ? color.yellowSoft : color.white,
-        color: active || done ? color.ink : color.mutedSoft,
-        padding: `${fluid(5, 7)} ${fluid(6, 10)}`,
-        display: 'flex',
-        alignItems: 'center',
-        gap: 6,
-        fontWeight: 900,
-        fontSize: fluid(10, 12),
-        letterSpacing: '0.06em',
-        lineHeight: 1.15,
-        transition: 'background .2s ease, color .2s ease',
-      }}
-    >
-      {showBadge && (
-        <span
-          style={{
-            flexShrink: 0,
-            width: fluid(16, 20),
-            height: fluid(16, 20),
-            borderRadius: 999,
-            background: active ? color.pink : done ? color.ink : color.white,
-            color: active || done ? color.white : color.mutedSoft,
-            border: border.thin,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: fluid(9, 11),
-          }}
-        >
-          {done ? '✓' : index + 1}
-        </span>
-      )}
-      <span style={{ minWidth: 0 }}>{label.toUpperCase()}</span>
-      {active && (
-        <span
-          style={{
-            position: 'absolute',
-            left: 0,
-            bottom: 0,
-            height: 3,
-            width: `${Math.min(1, progress) * 100}%`,
-            background: color.pink,
-          }}
-        />
-      )}
-    </div>
+      {step === 0 && <TargetStep t={t} />}
+      {step === 1 && <ClockStep t={t} />}
+      {step === 2 && <ResultStep t={t} />}
+    </DemoCard>
   )
 }
 
 const label = (playing: boolean): CSSProperties => ({
   ...sharedStyles.microLabel,
   letterSpacing: '0.22em',
-  fontSize: playing ? fluid(14, 17) : fluid(10, 12),
+  fontSize: playing ? stageSize(14, 7, 22) : stageSize(10, 5, 15),
   color: playing ? color.ink : color.mutedStrong,
   whiteSpace: 'nowrap',
 })
@@ -204,7 +72,7 @@ const label = (playing: boolean): CSSProperties => ({
 const bigNumber: CSSProperties = {
   fontFamily: font.display,
   fontWeight: 700,
-  fontSize: fluid(52, 72),
+  fontSize: stageSize(52, 26, 104),
   lineHeight: 1,
   letterSpacing: '-0.02em',
   fontVariantNumeric: 'tabular-nums',
@@ -249,10 +117,10 @@ function ClockStep({ t }: { t: number }) {
             background: color.mint,
             color: color.mintInk,
             borderRadius: 12,
-            padding: `${fluid(8, 10)} ${fluid(36, 48)}`,
+            padding: `${stageSize(8, 4, 14)} ${stageSize(36, 18, 64)}`,
             fontFamily: font.display,
             fontWeight: 700,
-            fontSize: fluid(17, 20),
+            fontSize: stageSize(17, 8, 26),
             boxShadow: lift(pressed ? 2 : 5),
             transform: pressed ? 'translateY(3px)' : 'none',
             transition: 'transform .08s ease, box-shadow .08s ease',
@@ -321,7 +189,7 @@ function ResultStep({ t }: { t: number }) {
   return (
     <>
       <div style={{ display: 'flex', alignItems: 'center', gap: fluid(8, 12), flexWrap: 'wrap', justifyContent: 'center' }}>
-        <div style={{ ...bigNumber, fontSize: fluid(36, 48), color: color.mutedStrong }}>
+        <div style={{ ...bigNumber, fontSize: stageSize(36, 18, 64), color: color.mutedStrong }}>
           {STOPPED_S.toFixed(2)}s
         </div>
         <div
@@ -331,7 +199,7 @@ function ResultStep({ t }: { t: number }) {
             borderRadius: 999,
             padding: '4px 12px',
             fontWeight: 900,
-            fontSize: fluid(12, 14),
+            fontSize: stageSize(12, 6, 17),
             letterSpacing: '0.08em',
             whiteSpace: 'nowrap',
             animation: 'pa-pop .4s cubic-bezier(.34,1.56,.64,1) both',
@@ -340,63 +208,10 @@ function ResultStep({ t }: { t: number }) {
           {offS.toFixed(2)}s OFF
         </div>
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, width: '100%', maxWidth: 320 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, width: '100%', maxWidth: stageSize(320, 130, 460) }}>
         <DemoRow place="1st" name="You" note={`${offS.toFixed(2)}s off`} gain="+1" highlight visible={since > 350} />
         <DemoRow place="2nd" name={RIVAL.name} note={`${RIVAL.offS.toFixed(2)}s off`} gain="—" visible={since > 650} />
       </div>
     </>
-  )
-}
-
-interface DemoRowProps {
-  place: string
-  name: string
-  note: string
-  gain: string
-  highlight?: boolean
-  visible: boolean
-}
-
-function DemoRow({ place, name, note, gain, highlight = false, visible }: DemoRowProps) {
-  return (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 10,
-        padding: '6px 12px',
-        borderRadius: 10,
-        border: border.thin,
-        background: highlight ? color.leaderBg : color.white,
-        opacity: visible ? 1 : 0,
-        transform: visible ? 'none' : 'translateY(8px)',
-        transition: 'opacity .3s ease, transform .3s ease',
-        textAlign: 'left',
-      }}
-    >
-      <span style={{ fontFamily: font.display, fontWeight: 700, fontSize: fluid(14, 16), color: color.mutedStrong, width: 30 }}>
-        {place}
-      </span>
-      <span style={{ flex: 1, minWidth: 0, fontWeight: 700, fontSize: fluid(14, 16), ...sharedStyles.ellipsis }}>
-        {name}
-      </span>
-      <span style={{ fontWeight: 700, fontSize: fluid(12, 13), color: color.mutedStrong, whiteSpace: 'nowrap' }}>
-        {note}
-      </span>
-      <span
-        style={{
-          fontFamily: font.display,
-          fontWeight: 700,
-          fontSize: fluid(16, 18),
-          color: color.red,
-          minWidth: 22,
-          textAlign: 'right',
-          // The point lands with a pop once its row is in.
-          animation: highlight && visible ? 'pa-pop .45s cubic-bezier(.34,1.56,.64,1) .25s both' : undefined,
-        }}
-      >
-        {gain}
-      </span>
-    </div>
   )
 }

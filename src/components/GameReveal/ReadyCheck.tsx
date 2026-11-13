@@ -37,7 +37,18 @@ export function ReadyCheck({
   )
 
   const status = (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0, flex: '1 1 220px' }}>
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 4,
+        minWidth: 0,
+        // Beside the button the basis is a minimum width. Under the host's
+        // controls it sits in a column, where a basis would be a height and
+        // leave a tall empty gap, so there it takes its content's height.
+        flex: hostControls ? 'none' : '1 1 220px',
+      }}
+    >
       <div
         style={{
           fontFamily: font.display,

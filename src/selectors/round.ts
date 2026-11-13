@@ -41,7 +41,11 @@ export function selectStartBlockedLine(room: RoomView, isOwner: boolean): string
       `Need ${room.minPlayers} players. ${describeCount(room)} so far.`,
     players_not_ready: () =>
       `Waiting on ${formatList(selectNames(room, room.lobby.waitingFor))}.`,
-    invalid_playlist: () => 'No playable games are available.',
+    // The owner cleared the pool: start stays off until they pick a game again.
+    invalid_playlist: () =>
+      room.lobby.playableGames.length === 0
+        ? 'No playable games are available.'
+        : 'Pick at least one game for the pool.',
   }
   const reason = room.lobby.blockedReason
   return reason ? reasons[reason]() : 'Everyone is in. Press it.'

@@ -42,7 +42,7 @@ export function canSpectate(gameId: GameId): boolean {
  * title over the top of it is only in the way.
  */
 export function hidesTitle(gameId: GameId): boolean {
-  return gameId === 'type-racer-roulette' || gameId === 'stop-the-clock'
+  return gameId === 'type-racer-roulette' || gameId === 'stop-the-clock' || gameId === 'cube-counter'
 }
 
 /**
@@ -51,7 +51,7 @@ export function hidesTitle(gameId: GameId): boolean {
  * as its parts come and go.
  */
 export function centersInPane(gameId: GameId): boolean {
-  return gameId === 'stop-the-clock'
+  return gameId === 'stop-the-clock' || gameId === 'cube-counter'
 }
 
 /**
@@ -67,5 +67,5 @@ export function hidesTitleOncePlaying(gameId: GameId): boolean {
  * written rules. Must match the cases `GameDemo` in `demos.tsx` renders.
  */
 export function hasDemo(gameId: GameId): boolean {
-  return gameId === 'stop-the-clock'
+  return gameId === 'stop-the-clock' || gameId === 'cube-counter'
 }
