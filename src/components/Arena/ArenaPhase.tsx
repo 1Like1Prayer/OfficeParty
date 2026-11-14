@@ -5,7 +5,6 @@ import {
   centersInPane,
   hasSurface,
   hidesTitle,
-  hidesTitleOncePlaying,
   isFullBleed,
 } from '../../games/playable.ts'
 import { beatsRemaining, useCountdown } from '../../hooks/index.ts'
@@ -51,6 +50,8 @@ interface ArenaPhaseProps {
   leaderboard: UseRoomResult['leaderboard']
   /** What each player is reporting live, for games that show the others. */
   progress: UseRoomResult['progress']
+  /** The round's shared world, for games played in one. */
+  shared: UseRoomResult['shared']
   /** Set once the round is decided and only the listed players are still playing. */
   closing: UseRoomResult['closing']
   /** The game's ending animation is playing, so its screen stays up past the results. */
@@ -71,6 +72,7 @@ export function ArenaPhase({
   results,
   leaderboard,
   progress,
+  shared,
   closing,
   isFinishing,
   nextStage,
@@ -207,10 +209,7 @@ export function ArenaPhase({
         cueBeats={round.phase === 'countdown' ? cueBeats : null}
         isFullBleed={isFullBleed(game.id)}
         isCentered={centersInPane(game.id)}
-        showTitle={
-          !hidesTitle(game.id) &&
-          !(hidesTitleOncePlaying(game.id) && (round.phase === 'playing' || round.phase === 'results'))
-        }
+        showTitle={!hidesTitle(game.id)}
       >
         {showSurface && (
           <GameSurface
@@ -228,6 +227,7 @@ export function ArenaPhase({
             players={selectRoundPlayers(room, round.participants)}
             selfPlayerId={playerId}
             progress={progress}
+            shared={shared}
             attemptKey={`${round.roundId}:${round.attempt}`}
             closingPlayerIds={
               closing !== null && closing.roundId === round.roundId && closing.attempt === round.attempt

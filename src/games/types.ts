@@ -32,6 +32,12 @@ export interface GameSurfaceProps {
    */
   progress: Record<string, Record<string, number>>
   /**
+   * The round's shared world: values the server owns under the game's own
+   * keys, the same for every player (Hex Drop: when each tile drops). Empty
+   * for games that keep none.
+   */
+  shared: Record<string, number>
+  /**
    * Changes whenever a fresh attempt begins — a new round, a tiebreaker, the
    * next stage — while this surface stays mounted. Anything a game keeps for
    * one attempt starts over when it changes.

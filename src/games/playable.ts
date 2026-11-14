@@ -12,7 +12,8 @@ export function hasSurface(gameId: GameId): boolean {
     gameId === 'crusher-escalator' ||
     gameId === 'type-racer-roulette' ||
     gameId === 'log-dodge' ||
-    gameId === 'minefield'
+    gameId === 'minefield' ||
+    gameId === 'hex-drop'
   )
 }
 
@@ -25,7 +26,8 @@ export function isFullBleed(gameId: GameId): boolean {
     gameId === 'crusher-escalator' ||
     gameId === 'type-racer-roulette' ||
     gameId === 'log-dodge' ||
-    gameId === 'minefield'
+    gameId === 'minefield' ||
+    gameId === 'hex-drop'
   )
 }
 
@@ -34,7 +36,7 @@ export function isFullBleed(gameId: GameId): boolean {
  * crushed early, say — keeps the arena and watches the rest of the round.
  */
 export function canSpectate(gameId: GameId): boolean {
-  return gameId === 'crusher-escalator'
+  return gameId === 'crusher-escalator' || gameId === 'hex-drop'
 }
 
 /**
@@ -42,7 +44,15 @@ export function canSpectate(gameId: GameId): boolean {
  * title over the top of it is only in the way.
  */
 export function hidesTitle(gameId: GameId): boolean {
-  return gameId === 'type-racer-roulette' || gameId === 'stop-the-clock' || gameId === 'cube-counter'
+  return (
+    gameId === 'type-racer-roulette' ||
+    gameId === 'stop-the-clock' ||
+    gameId === 'cube-counter' ||
+    gameId === 'minefield' ||
+    gameId === 'crusher-escalator' ||
+    gameId === 'log-dodge' ||
+    gameId === 'hex-drop'
+  )
 }
 
 /**
@@ -52,14 +62,6 @@ export function hidesTitle(gameId: GameId): boolean {
  */
 export function centersInPane(gameId: GameId): boolean {
   return gameId === 'stop-the-clock' || gameId === 'cube-counter'
-}
-
-/**
- * Games whose title is only worth showing while the round is being set up.
- * Once play begins it is in the way of the game, so it goes.
- */
-export function hidesTitleOncePlaying(gameId: GameId): boolean {
-  return gameId === 'log-dodge' || gameId === 'minefield'
 }
 
 /**
@@ -73,6 +75,7 @@ export function hasDemo(gameId: GameId): boolean {
     gameId === 'log-dodge' ||
     gameId === 'crusher-escalator' ||
     gameId === 'type-racer-roulette' ||
-    gameId === 'minefield'
+    gameId === 'minefield' ||
+    gameId === 'hex-drop'
   )
 }

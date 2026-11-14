@@ -42,7 +42,12 @@ const NAMEPLATE_SHARE_OF_HEIGHT = 0.13
 const NAMEPLATE_HEIGHT = 2.5
 
 /** The follow camera: high above and a little behind, looking ahead of the runner — top down, tilted. */
-const FOLLOW = { OFFSET: new Vector3(-2, 22, 11.5), LOOK: new Vector3(4.5, 0, -0.8) }
+/**
+ * Right behind the runner, looking along the field toward the finish (+x), so
+ * the screen is their point of view: up is forward and right is their right,
+ * as the controls are mapped.
+ */
+const FOLLOW = { OFFSET: new Vector3(-10, 14, 0), LOOK: new Vector3(3, 0, 0) }
 const SHAKE_DECAY_PER_SECOND = 5
 /**
  * How far past the frame React last handed over the player's own runner may

@@ -32,6 +32,7 @@ export function Arena() {
     results,
     leaderboard,
     progress,
+    shared,
     closing,
     nextStage,
     finishAnimationEndsAtLocalMs,
@@ -143,6 +144,7 @@ export function Arena() {
               results={results}
               leaderboard={leaderboard}
               progress={progress}
+              shared={shared}
               closing={closing}
               isFinishing={isFinishing}
               nextStage={nextStage}

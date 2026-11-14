@@ -150,6 +150,13 @@ export function toProgressByPlayer(state: PartyStateJson): ProgressByPlayer {
   )
 }
 
+/** Server-owned shared-world values for the running round (Hex Drop: when each tile drops). */
+export type SharedValues = Record<string, number>
+
+export function toSharedValues(state: PartyStateJson): SharedValues {
+  return { ...state.round.shared }
+}
+
 /** Points per player, for the scoreboard. */
 export function toScores(room: RoomView): Record<string, number> {
   return Object.fromEntries(room.players.map((player) => [player.playerId, player.points]))

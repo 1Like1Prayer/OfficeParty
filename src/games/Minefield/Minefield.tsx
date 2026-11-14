@@ -142,8 +142,16 @@ function MinefieldRun({
   )
   const lastScan = outcome.scans.at(-1)
   const sonarReadyAtMs = lastScan === undefined ? 0 : lastScan.atMs + MINEFIELD.SONAR_COOLDOWN_MS
+  // The keys and the stick both give a direction on screen (x right, y down).
+  // The camera rides behind the runner looking toward the finish, so that is
+  // turned into the runner's own: up is forward (toward the finish, +x), and
+  // right is the runner's right (+y across the field).
   const onMove = useCallback(
-    (dx: Axis, dy: Axis) => { addInput((atMs) => ({ kind: 'move', atMs, dx, dy })) },
+    (screenX: Axis, screenY: Axis) => {
+      const dx = -screenY as Axis
+      const dy = screenX
+      addInput((atMs) => ({ kind: 'move', atMs, dx, dy }))
+    },
     [addInput],
   )
   const onSonar = useCallback(() => {

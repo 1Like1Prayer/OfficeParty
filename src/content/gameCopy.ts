@@ -57,6 +57,12 @@ const COPY: Partial<Record<GameId, GameCopy>> = {
     rules:
       'Race across a field of hidden mines. Walk too close to one and it goes off, and the second blast takes you out. Space sends a sonar pulse that shows the mines nearby to everyone, but you stand still while it scans. First across the line wins.',
   },
+  'hex-drop': {
+    input: 'Arrow keys + Space',
+    length: '~1 min',
+    rules:
+      'Four floors of hexagon tiles, stacked. A tile drops two seconds after anyone stands on it, so keep moving. The top floor is islands: jump between them with Space. Fall through all four floors and you are out. Last one standing wins.',
+  },
 }
 
 export function gameCopy(gameId: GameId): GameCopy {

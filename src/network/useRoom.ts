@@ -16,7 +16,7 @@ import {
 import type { NextStageView } from '../types/index.ts'
 import { describeJoinError, describeRequestError } from './errors.ts'
 import { PartyConnection } from './partyConnection.ts'
-import { toScores, type ProgressByPlayer, type RoomView } from './roomView.ts'
+import { toScores, type ProgressByPlayer, type RoomView, type SharedValues } from './roomView.ts'
 import { clearSession, readSession, writeSession } from './session.ts'
 import { useLiveRound, type LiveRound } from './useLiveRound.ts'
 import { useNetwork, usePartySnapshot } from './useNetwork.ts'
@@ -79,6 +79,8 @@ export interface UseRoomResult {
   closing: RoundClosingPayload | null
   /** Live per-player progress for the running round, keyed by player id. */
   progress: ProgressByPlayer
+  /** The running round's shared world, as the server owns it. */
+  shared: SharedValues
   /** Set while a round goes on to another stage (heats -> final). */
   nextStage: NextStageView | null
   /** `performance.now()` value the game's ending animation runs until, if any. */
@@ -98,6 +100,7 @@ interface RaisedError {
 }
 
 const NO_PROGRESS: ProgressByPlayer = {}
+const NO_SHARED: SharedValues = {}
 
 /**
  * Everything this tab knows about the room it is in. One tab is one player.
@@ -187,6 +190,7 @@ export function useRoom(): UseRoomResult {
     leaderboard: events?.leaderboard ?? null,
     closing: events?.closing ?? null,
     progress: snapshot?.progress ?? NO_PROGRESS,
+    shared: snapshot?.shared ?? NO_SHARED,
     nextStage: events?.nextStage ?? null,
     finishAnimationEndsAtLocalMs: events?.finishAnimationEndsAtLocalMs ?? null,
     scores,

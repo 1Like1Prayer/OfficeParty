@@ -145,8 +145,10 @@ export function Hud({
         padding: '22px 24px 26px',
       }}
     >
-      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'flex-start', gap: 18 }}>
-        <div style={{ textAlign: 'right' }}>
+      {/* Three columns, so the clock sits in the middle of the row whatever is either side of it. */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'start', gap: 18 }}>
+        <div />
+        <div style={{ textAlign: 'center' }}>
           <div style={{ ...sharedStyles.microLabel, color: color.mutedSoft }}>TIME</div>
           <div
             style={{
@@ -161,9 +163,9 @@ export function Hud({
             {formatClock(remainingMs)}
           </div>
         </div>
-        <div style={{ textAlign: 'right' }}>
+        <div style={{ justifySelf: 'end', textAlign: 'right' }}>
           <div style={{ ...sharedStyles.microLabel, color: color.mutedSoft }}>LIVES</div>
-          <div style={{ display: 'flex', gap: 4, fontSize: 32, lineHeight: 1 }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 4, fontSize: 32, lineHeight: 1 }}>
             {Array.from({ length: LOG_DODGE.MAX_HITS }, (_, index) => (
               <span
                 key={index}
