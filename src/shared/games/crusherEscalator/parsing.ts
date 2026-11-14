@@ -31,14 +31,24 @@ export const parseCrusherEscalatorResult = (
     if (raw.inputs.length > CRUSHER_ESCALATOR.MAX_INPUTS) return null;
 
     const inputs: Input[] = [];
+    let lastReportedMs = 0;
     for (const rawInput of raw.inputs) {
         const input = parseInput(rawInput);
         if (input === null) return null;
 
         // Presses happen in order; a time that goes backwards is a bad report.
-        const previous = inputs[inputs.length - 1];
-        if (previous !== undefined && input.atMs < previous.atMs) return null;
-        inputs.push(input);
+        if (input.atMs < lastReportedMs) return null;
+        lastReportedMs = input.atMs;
+
+        // Presses closer together than humanly possible are spaced out rather
+        // than rejected, so a glitch costs nothing and a burst can't score at once.
+        const previous = inputs.at(-1);
+        const atMs =
+            previous === undefined
+                ? input.atMs
+                : Math.max(input.atMs, previous.atMs + CRUSHER_ESCALATOR.MIN_PRESS_INTERVAL_MS);
+        if (atMs > CRUSHER_ESCALATOR.MAX_RACE_MS) break; // Spaced past the end: can't count.
+        inputs.push({ direction: input.direction, atMs });
     }
     return { inputs, timingSuspect: raw.timingSuspect === true };
 };

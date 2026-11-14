@@ -19,9 +19,7 @@ import {
   BACKGROUND_COLOR,
   CAMERA_FIELD_OF_VIEW,
   CHANGEOVER,
-  INTRO,
   changeoverArrival,
-  introArrival,
   type ArrivalScript,
   HOLE_DEPTH,
   LANE_WIDTH,
@@ -34,8 +32,8 @@ import {
 import { BlackHoleMesh } from './BlackHoleMesh.ts'
 import { Starfield } from './Starfield.ts'
 import { EscalatorRamp } from './EscalatorRamp.ts'
-import { Nameplate } from '../../three/Nameplate.ts'
 import { RunnerFigure } from './RunnerFigure.ts'
+import { RUNNER_TAG_ASPECT, RunnerTag } from './RunnerTag.ts'
 import { Tweener } from '../../three/tweens.ts'
 import type { LaneView } from './types.ts'
 
@@ -43,9 +41,35 @@ interface Lane {
   player: RoundPlayerView
   ramp: EscalatorRamp
   runner: RunnerFigure
-  nameplate: Nameplate
+  nameplate: RunnerTag
   badge: CanvasTexture
+  /** Where a reflow is sliding this lane to, with its runner riding along; null once there. */
+  slideTo: { x: number; scale: number } | null
+  /** A neighbour come into view mid-race, waiting in the dark for the others to close up before rising. */
+  isWaitingToRise: boolean
 }
+
+/**
+ * How the line-up changes. A `changeover` (a fresh attempt) lifts every runner
+ * on a beam and sets them down in their new places. A `reflow` (mid-race, as
+ * runners are swallowed and neighbours come into view) just slides the
+ * escalators sideways to close up, with the runners riding along.
+ */
+export type RosterChange = 'changeover' | 'reflow'
+
+/** How quickly a reflowing escalator eases into its new place, and the fastest it slides, in units a second. */
+const REFLOW_RESPONSE_PER_SECOND = 2.6
+const REFLOW_MAX_SPEED = 9
+/**
+ * A neighbour coming into view mid-race rises into their place once the others
+ * are nearly settled — within this far of where they are going — so nobody is
+ * still standing there. Their runner is lowered on as the escalator lands.
+ */
+const REFLOW_SETTLED_DISTANCE = 1.2
+const REFLOW_RISE_SECONDS = 0.8
+const REFLOW_DROP_DELAY = 0.7
+/** Long enough to mean "not until told": a waiting newcomer's runner stays out of sight. */
+const HIDDEN_UNTIL_TOLD = 1e9
 
 /** A lane on its way off the screen: waiting for its runner to go, then sinking. */
 interface LeavingLane {
@@ -59,7 +83,8 @@ const lerp = (from: number, to: number, amount: number): number => from + (to - 
 /** A name tag takes this share of the gap between lanes; the rest is air between tags. */
 const LABEL_SHARE_OF_GAP = 0.92
 const MAX_LABEL_PIXELS = 260
-const MIN_LABEL_PIXELS = 90
+const MIN_LABEL_PIXELS = 80
+
 
 /** The sprite scale that draws a screen-sized sprite `pixels` wide, for a canvas this tall. */
 const labelWidthFor = (pixels: number, canvasHeight: number, fieldOfViewDegrees: number): number =>
@@ -74,6 +99,8 @@ const MIN_CAMERA_DISTANCE = 12
 const MAX_CAMERA_DISTANCE = 240
 const CAMERA_FIT_STEP = 0.5
 const FIT_PASSES = 4
+/** Refits allowed while making room for a second row of tags; each settles closer. */
+const LABEL_FIT_ATTEMPTS = 3
 /** Anything framed must land inside this fraction of the screen; the rest is breathing room. */
 const FRAMING_LIMIT = 0.92
 /** The hole's glow fades out toward its rim; this much of the radius is the part worth framing. */
@@ -114,6 +141,15 @@ export class ArenaScene {
   private labelOpacity = 1
   /** The width every name tag is drawn at, set so they never touch. */
   private labelWidth = 1
+  /**
+   * When lanes are too narrow for tags side by side, every other lane's tag
+   * floats this much higher (world units), so neighbours stack instead of colliding.
+   */
+  private labelRowOffset = 0
+  /** Extra headroom the framing leaves above the runners, for the score over each tag and any upper row. */
+  private framingLift = 0
+  /** How far a tag (its score above the pill) reaches above where it is anchored, in world units. */
+  private labelHeadroom = 0
 
   constructor(host: HTMLElement) {
     this.renderer = new WebGLRenderer({ antialias: true })
@@ -148,8 +184,9 @@ export class ArenaScene {
    * rise out of the dark with their runners lowered onto them, and any
    * escalator with nobody going on sinks away.
    */
-  setRoster(players: readonly RoundPlayerView[], { introduce = false }: { introduce?: boolean } = {}): void {
+  setRoster(players: readonly RoundPlayerView[], change: RosterChange = 'changeover'): void {
     const isFirst = this.lanes.length === 0 && this.leavingLanes.length === 0
+    const isReflow = change === 'reflow' && !isFirst
     const layout = layoutFor(players.length)
     const previous = new Map(this.lanes.map((lane) => [lane.player.playerId, lane]))
     const next: Lane[] = []
@@ -160,23 +197,31 @@ export class ArenaScene {
       previous.delete(player.playerId)
 
       if (existing === undefined) {
-        // On the first roster the lanes arrive with the opening animation if
-        // asked to; later ones arrive as part of the changeover.
-        const arrival = isFirst
-          ? introduce ? introArrival(index, players.length) : null
-          : changeoverArrival()
-        next.push(this.createLane(player, centerX, layout.laneScale, arrival))
+        // On the first roster the lanes are simply there; later ones arrive
+        // as part of the changeover.
+        const lane = this.createLane(player, centerX, layout.laneScale, isFirst || isReflow ? null : changeoverArrival())
+        if (isReflow) {
+          // Down in the dark, out of sight, until the others have made room.
+          lane.ramp.setHeightOffset(-CHANGEOVER.RISE_DEPTH)
+          lane.runner.dropIn(HIDDEN_UNTIL_TOLD)
+          lane.isWaitingToRise = true
+        }
+        next.push(lane)
+      } else if (isReflow) {
+        existing.slideTo = { x: centerX, scale: layout.laneScale }
+        next.push(existing)
       } else {
+        existing.slideTo = null
         this.relocateLane(existing, centerX, layout.laneScale, (index - (players.length - 1) / 2) * CHANGEOVER.WEAVE_SPACING)
         next.push(existing)
       }
     })
-    for (const leaving of previous.values()) this.retireLane(leaving)
+    for (const leaving of previous.values()) this.retireLane(leaving, !isReflow)
 
     this.lanes = next
     this.layout = layout
-    if (!isFirst) this.hideLabels(CHANGEOVER.LABELS_RETURN_DELAY, CHANGEOVER.LABELS_FADE_DURATION)
-    else if (introduce) this.hideLabels(INTRO.TOTAL_SECONDS - INTRO.LABELS_FADE_DURATION, INTRO.LABELS_FADE_DURATION)
+    // A reflow keeps the tags up: everyone stays on their feet, just shuffling sideways.
+    if (!isFirst && !isReflow) this.hideLabels(CHANGEOVER.LABELS_RETURN_DELAY, CHANGEOVER.LABELS_FADE_DURATION)
     this.blackHole.setSize(layout.hole.radius, layout.hole.centerZ, isFirst)
     this.fitCamera()
     if (isFirst) this.snapCamera()
@@ -204,13 +249,8 @@ export class ArenaScene {
       else if (view.isWinner === true) lane.runner.celebrate()
       // A swallowed runner leaves an empty escalator that keeps running.
       lane.ramp.setPowered(isRacing)
-      lane.nameplate.update({
-        name: lane.player.name,
-        score: view.score,
-        status: view.isFallen ? 'SWALLOWED' : view.isWinner === true ? 'WINNER!' : view.gap > 0 ? `−${view.gap} behind` : 'LEADING',
-        isYou: view.isYou,
-        isFallen: view.isFallen,
-      })
+      // Just the score and the name: where the runners stand shows who is ahead.
+      lane.nameplate.update({ name: lane.player.name, score: view.score, isYou: view.isYou })
       if (!view.isFallen) mostEndangered = Math.max(mostEndangered, view.slip)
     }
     this.blackHole.setHunger(mostEndangered)
@@ -234,14 +274,16 @@ export class ArenaScene {
     this.elapsedSeconds += deltaSeconds
 
     this.tweens.update(deltaSeconds)
-    for (const { ramp, runner, nameplate } of this.lanes) {
+    this.updateSlides(deltaSeconds)
+    for (const [index, { ramp, runner, nameplate }] of this.lanes.entries()) {
       ramp.update(deltaSeconds)
       runner.update(deltaSeconds, this.isRacing)
       // The tag rides above its runner, and is left behind when they fall.
-      nameplate.sprite.visible = runner.isOnRamp
+      nameplate.sprite.visible = runner.isOnRamp && runner.root.visible
       nameplate.setOpacity(this.labelOpacity)
       nameplate.setWidth(this.labelWidth)
-      nameplate.sprite.position.copy(runner.root.position).y += NAMEPLATE_HEIGHT * runner.root.scale.y
+      nameplate.sprite.position.copy(runner.root.position).y +=
+        NAMEPLATE_HEIGHT * runner.root.scale.y + (index % 2) * this.labelRowOffset
     }
     this.updateLeavingLanes(deltaSeconds)
     this.blackHole.update(deltaSeconds)
@@ -261,6 +303,40 @@ export class ArenaScene {
     )
     this.camera.lookAt(this.cameraTarget)
     this.renderer.render(this.scene, this.camera)
+  }
+
+  /** Eases reflowing escalators into their new places; their runners ride along. */
+  private updateSlides(deltaSeconds: number): void {
+    // Nobody closes up over an escalator that is still standing in the gap.
+    if (this.leavingLanes.some(({ isSinking }) => !isSinking)) return
+    const ease = 1 - Math.exp(-REFLOW_RESPONSE_PER_SECOND * deltaSeconds)
+    const maxStep = REFLOW_MAX_SPEED * deltaSeconds
+    for (const lane of this.lanes) {
+      const { slideTo, ramp, runner } = lane
+      if (slideTo === null) continue
+      const step = (slideTo.x - ramp.centerX) * ease
+      const x = ramp.centerX + Math.max(-maxStep, Math.min(maxStep, step))
+      const scale = lerp(ramp.laneScale, slideTo.scale, ease)
+      const isThere = Math.abs(slideTo.x - x) < 0.01 && Math.abs(slideTo.scale - scale) < 0.001
+      ramp.setLayout(isThere ? slideTo.x : x, isThere ? slideTo.scale : scale)
+      runner.setBaseScale((isThere ? slideTo.scale : scale) * RUNNER_SCALE)
+      if (isThere) lane.slideTo = null
+    }
+
+    // Once everyone is nearly in place, any newcomer rises into the room made for them.
+    const isSettled = this.lanes.every(
+      ({ slideTo, ramp }) => slideTo === null || Math.abs(slideTo.x - ramp.centerX) < REFLOW_SETTLED_DISTANCE,
+    )
+    if (!isSettled) return
+    for (const lane of this.lanes) {
+      if (!lane.isWaitingToRise) continue
+      lane.isWaitingToRise = false
+      const { ramp } = lane
+      this.tweens.add(0, REFLOW_RISE_SECONDS, (progress) => {
+        ramp.setHeightOffset(lerp(-CHANGEOVER.RISE_DEPTH, 0, progress))
+      })
+      lane.runner.dropIn(REFLOW_DROP_DELAY)
+    }
   }
 
   private addLights(): void {
@@ -287,6 +363,18 @@ export class ArenaScene {
    * ever cropped, whatever the window's shape. Re-run on every resize.
    */
   private fitCamera(): void {
+    // Tags stacked in two rows need headroom for the upper row, but how much
+    // depends on how far back the camera ends up, so fit, measure, and refit.
+    this.framingLift = 0
+    for (let attempt = 0; attempt < LABEL_FIT_ATTEMPTS; attempt++) {
+      this.fitOnce()
+      const needed = this.labelRowOffset + this.labelHeadroom
+      if (needed <= this.framingLift) break
+      this.framingLift = needed
+    }
+  }
+
+  private fitOnce(): void {
     const points = this.framingPoints()
     const center = new Box3().setFromPoints(points).getCenter(new Vector3())
     const viewDirection = new Vector3(0, Math.sin(CAMERA_ELEVATION), Math.cos(CAMERA_ELEVATION))
@@ -317,8 +405,13 @@ export class ArenaScene {
   private sizeLabels(center: Vector3, viewDirection: Vector3, distance: number): void {
     const { slotXs } = this.layout
     const canvasHeight = this.renderer.domElement.clientHeight
+    this.labelRowOffset = 0
+    const worldPerPixel = (2 * Math.tan((this.camera.fov * Math.PI) / 360) * distance) / (canvasHeight || 1)
+    // The pill is centred on the anchor; above it is half the pill and the whole score row.
+    const headroomFor = (pixels: number) => pixels * RUNNER_TAG_ASPECT * 0.72 * worldPerPixel
     if (slotXs.length < 2 || canvasHeight === 0) {
       this.labelWidth = labelWidthFor(MAX_LABEL_PIXELS, canvasHeight || 1, this.camera.fov)
+      this.labelHeadroom = headroomFor(MAX_LABEL_PIXELS)
       return
     }
 
@@ -332,8 +425,19 @@ export class ArenaScene {
     const right = EscalatorRamp.pointOn(slotXs[1]!, farthest, 0).project(this.camera)
     const gapPixels = Math.abs(right.x - left.x) * (this.renderer.domElement.clientWidth / 2)
 
-    const pixels = Math.min(MAX_LABEL_PIXELS, Math.max(MIN_LABEL_PIXELS, gapPixels * LABEL_SHARE_OF_GAP))
+    let pixels = Math.min(MAX_LABEL_PIXELS, Math.max(MIN_LABEL_PIXELS, gapPixels * LABEL_SHARE_OF_GAP))
+    if (gapPixels * LABEL_SHARE_OF_GAP < MIN_LABEL_PIXELS) {
+      // Too narrow to sit side by side at a readable size: alternate lanes go up a
+      // row, so a tag has two lanes' width to itself.
+      pixels = Math.min(MAX_LABEL_PIXELS, Math.max(MIN_LABEL_PIXELS, gapPixels * 1.7 * LABEL_SHARE_OF_GAP))
+      // Measured where the runners are, up the escalators, not at the scene's middle.
+      const runnerSpot = EscalatorRamp.pointOn(slotXs[0]!, farthest, NAMEPLATE_HEIGHT)
+      const runnerWorldPerPixel =
+        (2 * Math.tan((this.camera.fov * Math.PI) / 360) * this.camera.position.distanceTo(runnerSpot)) / canvasHeight
+      this.labelRowOffset = pixels * RUNNER_TAG_ASPECT * runnerWorldPerPixel * 1.15
+    }
     this.labelWidth = labelWidthFor(pixels, canvasHeight, this.camera.fov)
+    this.labelHeadroom = headroomFor(pixels)
   }
 
   /** Puts the camera at its goal at once, for the first frame and a resized window. */
@@ -396,7 +500,7 @@ export class ArenaScene {
           EscalatorRamp.pointOn(
             centerX,
             RUNNER_START_DISTANCE + FRAMED_DISTANCE_PAST_START,
-            NAMEPLATE_HEIGHT * laneScale * RUNNER_SCALE + 1,
+            NAMEPLATE_HEIGHT * laneScale * RUNNER_SCALE + 1 + this.framingLift,
           ).add(edge),
         )
       }
@@ -427,7 +531,7 @@ export class ArenaScene {
       badge,
       laneScale * RUNNER_SCALE,
     )
-    const nameplate = new Nameplate()
+    const nameplate = new RunnerTag()
     this.scene.add(ramp.group, runner.root, nameplate.sprite)
 
     if (arrival !== null) {
@@ -439,7 +543,7 @@ export class ArenaScene {
       })
       runner.dropIn(arrival.dropDelay)
     }
-    return { player, ramp, runner, nameplate, badge }
+    return { player, ramp, runner, nameplate, badge, slideTo: null, isWaitingToRise: false }
   }
 
   /** A player who stays: their escalator slides to its new place and they are carried to it. */
@@ -459,14 +563,20 @@ export class ArenaScene {
     if (runner.isOnRamp) {
       runner.liftAndCarry(LIFT_DELAY)
     } else {
-      // They were swallowed earlier; the next stage gives them a fresh start.
+      // They were swallowed earlier; the new attempt gives them a fresh start.
       runner.dropIn(NEWCOMER_DROP_DELAY)
     }
   }
 
-  /** A lane with nobody going on: whoever is still on it falls, and it sinks away. */
-  private retireLane(lane: Lane): void {
-    lane.runner.fall()
+  /**
+   * A lane leaving the screen sinks away. In a changeover whoever is still on
+   * it falls first. In a reflow only a swallowed runner falls (they already
+   * are); one simply out of view now — the screen turned to portrait, say —
+   * is still racing, so sinks out of sight on their escalator instead.
+   */
+  private retireLane(lane: Lane, dropRunner: boolean): void {
+    if (dropRunner) lane.runner.fall()
+    lane.slideTo = null
     this.leavingLanes.push({ lane, secondsWaited: 0, isSinking: false })
   }
 
@@ -478,7 +588,9 @@ export class ArenaScene {
       lane.nameplate.sprite.visible = false
       leaving.secondsWaited += deltaSeconds
 
-      const isReadyToSink = lane.runner.isGone || leaving.secondsWaited > CHANGEOVER.LEAVER_MAX_WAIT
+      // A runner still on their feet rides it down; a falling one is waited for.
+      const isReadyToSink =
+        lane.runner.isGone || lane.runner.isOnRamp || leaving.secondsWaited > CHANGEOVER.LEAVER_MAX_WAIT
       if (!isReadyToSink || leaving.isSinking) continue
       leaving.isSinking = true
       this.tweens.add(

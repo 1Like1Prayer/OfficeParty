@@ -28,7 +28,7 @@ export interface RoundContext {
     roundsPerGame: number;
     /**
      * The players this attempt is for. Games that give each player their own
-     * content (Crusher Escalator's arrow streams) build it from this; a
+     * content (Crusher Escalator's arrow seeds) build it from this; a
      * tiebreaker attempt lists only the tied players.
      */
     playerIds: readonly string[];

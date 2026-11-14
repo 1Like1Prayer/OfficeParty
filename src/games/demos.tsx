@@ -1,4 +1,5 @@
 import type { GameId } from '../shared/games/catalog.ts'
+import { CrusherEscalatorDemo } from './CrusherEscalator/CrusherEscalatorDemo.tsx'
 import { CubeCounterDemo } from './CubeCounter/CubeCounterDemo.tsx'
 import { LogDodgeDemo } from './LogDodge/LogDodgeDemo.tsx'
 import { StopTheClockDemo } from './StopTheClock/StopTheClockDemo.tsx'
@@ -12,6 +13,8 @@ export function GameDemo({ gameId }: { gameId: GameId }) {
       return <CubeCounterDemo />
     case 'log-dodge':
       return <LogDodgeDemo />
+    case 'crusher-escalator':
+      return <CrusherEscalatorDemo />
     default:
       return null
   }

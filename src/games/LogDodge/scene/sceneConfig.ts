@@ -21,6 +21,23 @@ export const LANE_SPACING = 2.5
 /** Bare belt either side of the outermost lane. */
 export const BELT_MARGIN = 2.2
 
+/**
+ * The wide shot takes in the player and this many neighbours either side,
+ * not the whole field: on a narrow screen a full belt would be specks in the
+ * haze. Fewer on a portrait screen, where there is less room across.
+ */
+export const OVERVIEW_NEIGHBOURS = { PORTRAIT: 1, LANDSCAPE: 2 } as const
+
+/**
+ * When a runner is knocked out the lanes close up: the others step sideways
+ * into the gap and the belt narrows under them. How quickly they ease over,
+ * and the fastest they sidestep, in units a second.
+ */
+export const LANE_CLOSE = {
+  RESPONSE_PER_SECOND: 2.4,
+  MAX_SPEED: 4,
+} as const
+
 export const BELT = {
   /** The belt's near end (under the camera) and far end (lost in the fog). */
   NEAR_Z: 12,

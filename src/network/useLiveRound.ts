@@ -11,7 +11,7 @@ export interface LiveRound extends RoundView {
   timingStartsAtLocalMs: number | null
   /**
    * How long this attempt's countdown runs, as the server scheduled it. Games
-   * can lengthen it (the heats do, to fit their opening animation).
+   * can lengthen it for an opening animation.
    */
   countdownMs: number | null
   /** Public round data, e.g. Stop the Clock's target. */

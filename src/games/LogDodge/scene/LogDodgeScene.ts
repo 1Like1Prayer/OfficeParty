@@ -29,8 +29,10 @@ import {
   CAMERA_FIELD_OF_VIEW,
   CONTACT_GRACE_MS,
   HORIZON_COLOR,
+  LANE_CLOSE,
   LANE_SPACING,
   LOG,
+  OVERVIEW_NEIGHBOURS,
 } from './sceneConfig.ts'
 import { Treadmill } from './Treadmill.ts'
 
@@ -65,11 +67,25 @@ interface RoundSetup {
   selfPlayerId: string
 }
 
+interface LabelLayout {
+  /** The tag's width, in screen-sized sprite units. */
+  width: number
+  /** How far the back row of tags sits from the front row, in world units; 0 for a single row. */
+  rowOffset: number
+}
+
 interface Entry {
   player: RoundPlayerView
+  /** Where they are across the belt right now; eases toward their lane as the lanes close up. */
   x: number
-  /** Place in the line, left to right. */
-  slot: number
+  /** Their lane among those still on the belt, left to right. */
+  lane: number
+  /** Which of the two tag rows they belong in, 0 or 1. */
+  row: number
+  /** Where their tag is between the rows, easing to `row` when it changes. */
+  tagRow: number
+  /** Their tag fades once they are out, so it does not sit over whoever closes up into their lane. */
+  tagOpacity: number
   contestant: Contestant
   nameplate: NameTag
   badge: CanvasTexture
@@ -94,6 +110,11 @@ const NAMEPLATE_HEIGHT = 2.75
  * late that the log it answered has already gone by.
  */
 const STALE_PRESS_MS = 600
+
+/** How fast a knocked-out runner's tag fades away, so it is gone in about a second. */
+const TAG_FADE_PER_SECOND = 3.5
+/** How fast a tag moves to its new row when the lanes close up. */
+const TAG_ROW_PER_SECOND = 7
 
 /** How long the logs still on their way take to fade once the round is decided. */
 const LOG_STOP_FADE_MS = 450
@@ -127,10 +148,21 @@ export class LogDodgeScene {
 
   private entries: Entry[] = []
   private status: StageStatus = { byPlayerId: new Map(), selfEnded: false, isRoundOver: false, survivorIds: null }
-  private labelWidth = 1
-  /** With a crowded field, tags alternate between two rows so neighbours never touch. */
-  private labelRowOffset = 0
-  private halfWidth = 6
+  /**
+   * How name tags are sized in each of the camera's two views. With a crowded
+   * field they alternate between two rows so neighbours never touch: in the
+   * overhead shot the back row sits further up the belt, and down behind the
+   * player, where depth hardly shows, it sits higher up instead.
+   */
+  private labelLayout: Record<'overview' | 'follow', LabelLayout> = {
+    overview: { width: 1, rowOffset: 0 },
+    follow: { width: 1, rowOffset: 0 },
+  }
+  /** The belt's width as drawn, easing toward `targetBeltWidth` as runners drop out. */
+  private beltWidth = 1
+  private targetBeltWidth = 1
+  /** How many are still on the belt, so the layout is only re-planned when that changes. */
+  private onBeltCount = -1
   private elapsedSeconds = 0
   /** The moment, in ms into the round, the screen found out the round was decided. */
   private stoppedAtMs: number | null = null
@@ -174,10 +206,11 @@ export class LogDodgeScene {
 
     const count = players.length
     const slotXs = players.map((_, index) => (index - (count - 1) / 2) * LANE_SPACING)
-    const width = Math.max(1, count) * LANE_SPACING + BELT_MARGIN * 2
-    this.halfWidth = width / 2 + 1
-    this.treadmill.setLayout(slotXs, width)
-    for (const log of this.logs) log.setSpan(width)
+    const width = beltWidthFor(count)
+    this.beltWidth = width
+    this.targetBeltWidth = width
+    this.onBeltCount = -1
+    // The belt only ever narrows from here, so the shadows are sized for it at its widest.
     this.sun.shadow.camera.left = -(width / 2 + 4)
     this.sun.shadow.camera.right = width / 2 + 4
     this.sun.shadow.camera.updateProjectionMatrix()
@@ -200,7 +233,10 @@ export class LogDodgeScene {
       return {
         player,
         x: slotXs[index]!,
-        slot: index,
+        lane: index,
+        row: index % 2,
+        tagRow: index % 2,
+        tagOpacity: 1,
         contestant,
         nameplate,
         badge,
@@ -210,7 +246,7 @@ export class LogDodgeScene {
         playedPressAtMs: Number.NEGATIVE_INFINITY,
       }
     })
-    this.sizeLabels()
+    this.updateLayout(0)
   }
 
   /** The latest standings. Cheap to call on every React render. */
@@ -252,6 +288,7 @@ export class LogDodgeScene {
     if (this.status.isRoundOver && this.stoppedAtMs === null) this.stoppedAtMs = nowMs
     this.treadmill.update(deltaSeconds)
     this.ocean.update(this.elapsedSeconds)
+    this.updateLayout(deltaSeconds)
     this.updateLogs(nowMs)
     for (const entry of this.entries) {
       this.updateEntry(entry, nowMs)
@@ -259,6 +296,53 @@ export class LogDodgeScene {
     }
     this.updateCamera(nowMs, deltaSeconds)
     this.renderer.render(this.scene, this.camera)
+  }
+
+  /**
+   * Closes the lanes up behind anyone knocked out: those still running step
+   * sideways into the gap and the belt narrows under them, so the field stays
+   * shoulder to shoulder however many are left.
+   */
+  private updateLayout(deltaSeconds: number): void {
+    const onBelt = this.entries.filter(({ contestant }) => !contestant.isOut)
+    const count = onBelt.length
+    if (count !== this.onBeltCount) {
+      this.onBeltCount = count
+      this.targetBeltWidth = beltWidthFor(count)
+      for (const [lane, entry] of onBelt.entries()) entry.lane = lane
+      // Closing a gap puts two same-row tags side by side, so one side of it has to swap
+      // rows: whichever side moves fewer tags.
+      const moves = (shift: number) => onBelt.filter((entry) => (entry.lane + shift) % 2 !== entry.row).length
+      const shift = moves(0) <= moves(1) ? 0 : 1
+      for (const entry of onBelt) entry.row = (entry.lane + shift) % 2
+      this.sizeLabels()
+    }
+
+    const ease = 1 - Math.exp(-LANE_CLOSE.RESPONSE_PER_SECOND * deltaSeconds)
+    const maxStep = LANE_CLOSE.MAX_SPEED * deltaSeconds
+    const approach = (from: number, to: number, limit: number): number =>
+      from + Math.max(-limit, Math.min(limit, (to - from) * ease))
+
+    for (const [lane, entry] of onBelt.entries()) {
+      entry.x = approach(entry.x, (lane - (count - 1) / 2) * LANE_SPACING, maxStep)
+      entry.contestant.root.position.x = entry.x
+      // With a crowded field the tags alternate rows; one whose lane changes drifts to its new row.
+      // Quicker than the sidestep, so a tag has changed rows before its neighbour arrives.
+      entry.tagRow += (entry.row - entry.tagRow) * (1 - Math.exp(-TAG_ROW_PER_SECOND * deltaSeconds))
+    }
+    // Both edges come in, so the width can close twice as fast as any one runner moves.
+    this.beltWidth = approach(this.beltWidth, this.targetBeltWidth, maxStep * 2)
+
+    // An "OUT" tag is shown for a moment, then fades as the others close up over it.
+    const fade = 1 - Math.exp(-TAG_FADE_PER_SECOND * deltaSeconds)
+    for (const entry of this.entries) {
+      if (entry.contestant.isOut) entry.tagOpacity += (0 - entry.tagOpacity) * fade
+    }
+
+    const dividers: number[] = []
+    for (let index = 1; index < count; index++) dividers.push((onBelt[index - 1]!.x + onBelt[index]!.x) / 2)
+    this.treadmill.setLayout(dividers, this.beltWidth)
+    for (const log of this.logs) log.setSpan(this.beltWidth)
   }
 
   private updateLogs(nowMs: number): void {
@@ -349,10 +433,17 @@ export class LogDodgeScene {
 
     // The tag floats above the contestant and is left behind when they are thrown off.
     nameplate.sprite.visible = !contestant.hasLeft
-    nameplate.setWidth(this.labelWidth)
+    // Sized and stacked for whichever view the camera is in, or between them on the swoop.
+    const blend = this.cameraBlend
+    const { overview, follow } = this.labelLayout
+    nameplate.setWidth(lerp(overview.width, follow.width, blend))
     // Out of the way once the camera is down behind the player, who can see their own lives in the HUD.
-    nameplate.setOpacity(isSelf ? 1 - this.cameraBlend : 1)
-    nameplate.sprite.position.set(entry.x, NAMEPLATE_HEIGHT, -1.2 - (entry.slot % 2) * this.labelRowOffset)
+    nameplate.setOpacity((isSelf ? 1 - this.cameraBlend : 1) * entry.tagOpacity)
+    nameplate.sprite.position.set(
+      entry.x,
+      NAMEPLATE_HEIGHT + entry.tagRow * follow.rowOffset * blend,
+      -1.2 - entry.tagRow * overview.rowOffset * (1 - blend),
+    )
     nameplate.update({
       name: player.name,
       lives: Math.max(0, LOG_DODGE.MAX_HITS - state.hits),
@@ -373,7 +464,8 @@ export class LogDodgeScene {
       this.cameraBlend = scheduled
     }
 
-    const overview = overviewPose(this.halfWidth, this.camera.fov, this.camera.aspect)
+    const frame = this.overviewFrame(this.beltWidth, self)
+    const overview = overviewPose(frame.halfWidth, this.camera.fov, this.camera.aspect, frame.centerX)
     const follow = followPose(self?.x ?? 0)
     const blend = this.cameraBlend
     this.cameraPosition.set(
@@ -422,22 +514,45 @@ export class LogDodgeScene {
    * between two rows, so even a full room of twelve never overlaps.
    */
   private sizeLabels(): void {
-    const canvasHeight = this.renderer.domElement.clientHeight
-    let pixels = NAMEPLATE_PIXELS
-    this.labelRowOffset = 0
-
-    if (this.entries.length > 1 && canvasHeight > 0) {
-      const pose = overviewPose(this.halfWidth, CAMERA_FIELD_OF_VIEW, this.camera.aspect)
-      const distance = Math.hypot(pose.position[1], pose.position[2] - pose.target[2])
-      const pixelsPerUnit = canvasHeight / 2 / (Math.tan((CAMERA_FIELD_OF_VIEW * Math.PI) / 360) * distance)
-      const lanePixels = LANE_SPACING * pixelsPerUnit
-      if (lanePixels * 0.94 < NAMEPLATE_PIXELS) {
-        pixels = Math.min(NAMEPLATE_PIXELS, Math.max(NAMEPLATE_MIN_PIXELS, lanePixels * 1.85))
-        // A tag's height, as a share of its width, in world units at the overview's scale.
-        this.labelRowOffset = ((pixels * NAME_TAG_ASPECT) / pixelsPerUnit) * 1.08
-      }
+    const canvasHeight = this.renderer.domElement.clientHeight || 1
+    const self = this.entries.find(({ player }) => player.playerId === this.round.selfPlayerId)
+    const { halfWidth } = this.overviewFrame(this.targetBeltWidth, self)
+    const pose = overviewPose(halfWidth, CAMERA_FIELD_OF_VIEW, this.camera.aspect)
+    const overviewDistance = Math.hypot(pose.position[1], pose.position[2] - pose.target[2])
+    const followDistance = Math.hypot(CAMERA.FOLLOW_HEIGHT - NAMEPLATE_HEIGHT, CAMERA.FOLLOW_BEHIND + 1.2)
+    const isCrowded = this.entries.length > 1
+    this.labelLayout = {
+      overview: this.layoutLabels(overviewDistance, canvasHeight, isCrowded),
+      follow: this.layoutLabels(followDistance, canvasHeight, isCrowded),
     }
-    this.labelWidth = labelWidthFor(pixels, canvasHeight || 1, CAMERA_FIELD_OF_VIEW)
+  }
+
+  /** Tag size, and the step between rows, for a camera `distance` from the tags. */
+  private layoutLabels(distance: number, canvasHeight: number, isCrowded: boolean): LabelLayout {
+    const pixelsPerUnit = canvasHeight / 2 / (Math.tan((CAMERA_FIELD_OF_VIEW * Math.PI) / 360) * distance)
+    const lanePixels = LANE_SPACING * pixelsPerUnit
+    let pixels = NAMEPLATE_PIXELS
+    let rowOffset = 0
+    if (isCrowded && lanePixels * 0.94 < NAMEPLATE_PIXELS) {
+      pixels = Math.min(NAMEPLATE_PIXELS, Math.max(NAMEPLATE_MIN_PIXELS, lanePixels * 1.85))
+      // A tag's height, as a share of its width, in world units at this distance.
+      rowOffset = ((pixels * NAME_TAG_ASPECT) / pixelsPerUnit) * 1.08
+    }
+    return { width: labelWidthFor(pixels, canvasHeight, CAMERA_FIELD_OF_VIEW), rowOffset }
+  }
+
+  /**
+   * What the wide shot takes in. A player sees themselves and their nearest
+   * neighbours, slid inward at the ends so it never frames empty sea; a
+   * spectator, with no place of their own, sees the whole belt.
+   */
+  private overviewFrame(beltWidth: number, self: Entry | undefined): { halfWidth: number; centerX: number } {
+    const beltHalf = beltWidth / 2 + 1
+    if (!self) return { halfWidth: beltHalf, centerX: 0 }
+    const neighbours = this.camera.aspect < 1 ? OVERVIEW_NEIGHBOURS.PORTRAIT : OVERVIEW_NEIGHBOURS.LANDSCAPE
+    const halfWidth = Math.min(beltHalf, beltWidthFor(neighbours * 2 + 1) / 2 + 1)
+    const room = beltHalf - halfWidth
+    return { halfWidth, centerX: Math.max(-room, Math.min(room, self.x)) }
   }
 
   private resize(host: HTMLElement): void {
@@ -456,6 +571,11 @@ export class LogDodgeScene {
     entry.nameplate.dispose()
     entry.badge.dispose()
   }
+}
+
+/** The belt for `lanes` runners, with bare margin either side. */
+function beltWidthFor(lanes: number): number {
+  return Math.max(1, lanes) * LANE_SPACING + BELT_MARGIN * 2
 }
 
 /**

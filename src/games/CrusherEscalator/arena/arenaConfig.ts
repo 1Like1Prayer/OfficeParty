@@ -4,7 +4,6 @@
  * and -Z, and the black hole sits below and in front of their lower ends.
  */
 
-import { CRUSHER_ESCALATOR } from '../../../shared/games/crusherEscalator/constants.ts'
 
 export const RAMP_ANGLE_RADIANS = (30 * Math.PI) / 180
 
@@ -26,6 +25,13 @@ export const SLIP_RESPONSE_PER_SECOND = 1.1
 
 /** No more lanes than this are ever drawn, so each one stays big enough to read. */
 export const MAX_VISIBLE_LANES = 6
+/**
+ * How many lanes a screen shows: the player and their nearest neighbours. A
+ * compact screen — upright, or a phone held sideways, too short to frame a
+ * wide row big enough — has room for only a few before the tags collide.
+ */
+export const VISIBLE_LANES = { COMPACT: 3, FULL: MAX_VISIBLE_LANES } as const
+export const COMPACT_SCREEN = '(orientation: portrait), (max-height: 520px)'
 /** With fewer lanes the whole lane — escalator, runner, tag — grows, up to this. */
 const MAX_LANE_SCALE = 1.8
 export const laneScaleFor = (laneCount: number): number =>
@@ -54,14 +60,13 @@ export function layoutFor(laneCount: number): ArenaLayout {
 }
 
 /**
- * The changeover between stages, as a script in seconds from the moment the
- * new line-up is known. It has to fit the server's pause (3 s), so the
- * finalists are standing in their new places when the next stage loads.
+ * The changeover when the line-up changes (a tiebreaker among some of the
+ * runners), as a script in seconds from the moment the new line-up is known.
  */
 export const CHANGEOVER = {
   /** Lets the last of the crushed players start falling before anyone is lifted. */
   LIFT_DELAY: 0.9,
-  /** The escalators slide into the new order while the finalists are in the air. */
+  /** The escalators slide into the new order while the runners are in the air. */
   RAMP_MOVE_DELAY: 1,
   RAMP_MOVE_DURATION: 1,
   /**
@@ -103,30 +108,3 @@ export const changeoverArrival = (): ArrivalScript => ({
   dropDelay: CHANGEOVER.NEWCOMER_DROP_DELAY,
   labelsReturnDelay: CHANGEOVER.LABELS_RETURN_DELAY,
 })
-
-/**
- * The opening animation of the heats: every lane rises out of the dark in
- * turn, left to right, and then every runner is lowered onto theirs the same
- * way. The server gives it `HEATS_EXTRA_ANIMATION_MS` before the usual
- * countdown, and it is paced to finish, name tags and all, inside that time.
- */
-export const INTRO = {
-  TOTAL_SECONDS: CRUSHER_ESCALATOR.HEATS_EXTRA_ANIMATION_MS / 1000,
-  LANE_STAGGER: 0.18,
-  RISE_DELAY: 0.2,
-  RISE_DURATION: 1.1,
-  /** A runner's lowering takes this long (see the runner), so it can end just before the tags return. */
-  DROP_DURATION: 1,
-  LABELS_FADE_DURATION: 0.5,
-} as const
-
-export const introArrival = (laneIndex: number, laneCount: number): ArrivalScript => {
-  const labelsReturnDelay = INTRO.TOTAL_SECONDS - INTRO.LABELS_FADE_DURATION
-  return {
-    riseDelay: INTRO.RISE_DELAY + laneIndex * INTRO.LANE_STAGGER,
-    riseDuration: INTRO.RISE_DURATION,
-    // The last lane's runner lands as the tags return; the others land just before it.
-    dropDelay: labelsReturnDelay - INTRO.DROP_DURATION - (laneCount - 1 - laneIndex) * INTRO.LANE_STAGGER,
-    labelsReturnDelay,
-  }
-}

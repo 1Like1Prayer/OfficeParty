@@ -37,7 +37,7 @@ const COPY: Partial<Record<GameId, GameCopy>> = {
     input: 'Arrow keys',
     length: '1 min',
     rules:
-      'Everyone runs up their own escalator. Press the arrow that is showing — every press moves on to the next one. Fall 8 points behind the leader and you slip into the black hole. Last one running wins.',
+      'Everyone runs up their own escalator. Press the arrow that is showing — every press moves on to the next one. Fall too far behind the leader and you slip into the black hole: 8 points at first, shrinking to just 3 as the race goes on. Last one running wins.',
   },
   'type-racer-roulette': {
     input: 'Keyboard',

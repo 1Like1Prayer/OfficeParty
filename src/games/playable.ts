@@ -31,7 +31,7 @@ export function isFullBleed(gameId: GameId): boolean {
 
 /**
  * Games whose screen is worth watching without playing. A player who is out —
- * crushed in the heats, say — keeps the arena and watches the rest of the round.
+ * crushed early, say — keeps the arena and watches the rest of the round.
  */
 export function canSpectate(gameId: GameId): boolean {
   return gameId === 'crusher-escalator'
@@ -67,5 +67,10 @@ export function hidesTitleOncePlaying(gameId: GameId): boolean {
  * written rules. Must match the cases `GameDemo` in `demos.tsx` renders.
  */
 export function hasDemo(gameId: GameId): boolean {
-  return gameId === 'stop-the-clock' || gameId === 'cube-counter' || gameId === 'log-dodge'
+  return (
+    gameId === 'stop-the-clock' ||
+    gameId === 'cube-counter' ||
+    gameId === 'log-dodge' ||
+    gameId === 'crusher-escalator'
+  )
 }

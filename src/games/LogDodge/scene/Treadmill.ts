@@ -9,7 +9,7 @@ import {
   RepeatWrapping,
   SRGBColorSpace,
 } from 'three'
-import { BELT } from './sceneConfig.ts'
+import { BELT, MAX_VISIBLE_CONTESTANTS } from './sceneConfig.ts'
 
 /** The rubber running belt itself is thin; the frame under it is what gives the deck its depth. */
 const BELT_THICKNESS = 0.14
@@ -134,6 +134,14 @@ export class Treadmill {
   private readonly markings: Group = new Group()
   private readonly disposables: { dispose: () => void }[] = []
   private width = 0
+  /** Built once at unit width, then stretched or moved by `setLayout`. */
+  private frame!: Mesh
+  private shroud!: Mesh
+  private shroudCap!: Mesh
+  private hazard!: Mesh
+  /** Everything down each edge — plates, housings, piers, edge line — placed from the belt's edge outward. */
+  private readonly sides: [Group, Group] = [new Group(), new Group()]
+  private readonly laneLines: Mesh[] = []
 
   constructor() {
     const length = BELT.NEAR_Z - BELT.FAR_Z
@@ -173,18 +181,36 @@ export class Treadmill {
     this.disposables.push(this.belt.geometry, this.roller.geometry, this.roller.material as MeshStandardMaterial)
 
     this.group.add(this.belt, this.roller, this.body, this.markings)
+    this.buildBody()
+    this.buildMarkings()
   }
 
-  /** Sizes the machine to its lanes and marks a line between each. */
-  setLayout(slotXs: readonly number[], width: number): void {
+  /**
+   * Sizes the machine to `width` and marks a line at each of `dividerXs`.
+   * Cheap enough to call every frame: it only moves and stretches what is
+   * already built, so the belt can narrow smoothly as runners drop out.
+   */
+  setLayout(dividerXs: readonly number[], width: number): void {
     this.width = width
     this.belt.scale.x = width
     this.roller.scale.y = width
     // The grain stays the same size however wide the belt is.
     this.beltTexture.repeat.x = width / BELT.STRIPE_PITCH
     this.reliefTexture.repeat.x = width / BELT.STRIPE_PITCH
-    this.buildBody(width)
-    this.buildMarkings(slotXs, width)
+
+    const overall = width + 2 * (SIDE_DECK_WIDTH + HOUSING_WIDTH)
+    this.frame.scale.x = overall
+    this.shroud.scale.x = overall
+    this.shroudCap.scale.x = overall - 0.3
+    this.hazard.scale.x = overall - 0.6
+    this.sides[0].position.x = -width / 2
+    this.sides[1].position.x = width / 2
+
+    for (const [index, line] of this.laneLines.entries()) {
+      const x = dividerXs[index]
+      line.visible = x !== undefined
+      if (x !== undefined) line.position.x = x
+    }
   }
 
   update(deltaSeconds: number): void {
@@ -207,11 +233,9 @@ export class Treadmill {
 
   /* ---------------- construction ---------------- */
 
-  private buildBody(width: number): void {
-    this.clear(this.body)
+  private buildBody(): void {
     const length = BELT.NEAR_Z - BELT.FAR_Z
     const centerZ = (BELT.NEAR_Z + BELT.FAR_Z) / 2
-    const overall = width + 2 * (SIDE_DECK_WIDTH + HOUSING_WIDTH)
 
     this.plateTexture.repeat.set(SIDE_DECK_WIDTH / 1.2, length / 1.2)
     const plate = new MeshStandardMaterial({ map: this.plateTexture, roughness: 0.6 })
@@ -225,61 +249,62 @@ export class Treadmill {
     const housingGeometry = new BoxGeometry(HOUSING_WIDTH, HOUSING_HEIGHT, length)
     const capGeometry = new BoxGeometry(HOUSING_WIDTH - 0.12, 0.07, length)
     const pierGeometry = new CylinderGeometry(0.42, 0.5, PIER_DEPTH, 12)
-    const frameGeometry = new BoxGeometry(overall, FRAME_DEPTH, length)
-    const shroudGeometry = new BoxGeometry(overall, SHROUD_HEIGHT, SHROUD_DEPTH)
-    const shroudCapGeometry = new BoxGeometry(overall - 0.3, 0.07, SHROUD_DEPTH - 0.3)
-    const warningGeometry = new BoxGeometry(overall - 0.6, 0.12, 0.12)
+    // The pieces that span the whole machine are unit-wide, stretched to fit by `setLayout`.
+    const frameGeometry = new BoxGeometry(1, FRAME_DEPTH, length)
+    const shroudGeometry = new BoxGeometry(1, SHROUD_HEIGHT, SHROUD_DEPTH)
+    const shroudCapGeometry = new BoxGeometry(1, 0.07, SHROUD_DEPTH - 0.3)
+    const warningGeometry = new BoxGeometry(1, 0.12, 0.12)
 
-    const owned: { dispose: () => void }[] = [
+    this.body.userData.owned = [
       plate, aluminium, cap, steel, pierSteel, warning,
       plateGeometry, housingGeometry, capGeometry, pierGeometry,
       frameGeometry, shroudGeometry, shroudCapGeometry, warningGeometry,
     ]
-    this.body.userData.owned = owned
 
     // The frame under the belt, which gives the deck its depth when seen from the side.
-    const frame = new Mesh(frameGeometry, steel)
-    frame.position.set(0, -BELT_THICKNESS - FRAME_DEPTH / 2 + 0.02, centerZ)
-    this.body.add(frame)
+    this.frame = new Mesh(frameGeometry, steel)
+    this.frame.position.set(0, -BELT_THICKNESS - FRAME_DEPTH / 2 + 0.02, centerZ)
+    this.body.add(this.frame)
 
+    // Each side is built at the belt's edge (x = 0 in its group), facing outward.
     const plateTop = SIDE_DECK_THICKNESS - BELT_THICKNESS
-    for (const side of [-1, 1]) {
-      const plateX = side * (width / 2 + SIDE_DECK_WIDTH / 2)
+    for (const [index, side] of ([-1, 1] as const).entries()) {
+      const group = this.sides[index]!
       const sidePlate = new Mesh(plateGeometry, plate)
-      sidePlate.position.set(plateX, plateTop - SIDE_DECK_THICKNESS / 2, centerZ)
+      sidePlate.position.set(side * (SIDE_DECK_WIDTH / 2), plateTop - SIDE_DECK_THICKNESS / 2, centerZ)
       sidePlate.receiveShadow = true
 
-      const housingX = side * (width / 2 + SIDE_DECK_WIDTH + HOUSING_WIDTH / 2)
+      const housingX = side * (SIDE_DECK_WIDTH + HOUSING_WIDTH / 2)
       const housing = new Mesh(housingGeometry, aluminium)
       housing.position.set(housingX, HOUSING_HEIGHT / 2 - BELT_THICKNESS, centerZ)
       housing.receiveShadow = true
       const housingCap = new Mesh(capGeometry, cap)
       housingCap.position.set(housingX, HOUSING_HEIGHT - BELT_THICKNESS + 0.03, centerZ)
-      this.body.add(sidePlate, housing, housingCap)
+      group.add(sidePlate, housing, housingCap)
 
       for (let z = BELT.NEAR_Z - 4; z > BELT.FAR_Z; z -= PIER_SPACING) {
         const pier = new Mesh(pierGeometry, pierSteel)
         pier.position.set(housingX, -BELT_THICKNESS - FRAME_DEPTH - PIER_DEPTH / 2 + 0.4, z)
         pier.castShadow = true
-        this.body.add(pier)
+        group.add(pier)
       }
+      this.body.add(group)
     }
 
     // The motor shroud closing off the near end, with a hazard strip across its front.
     const shroudZ = BELT.NEAR_Z + ROLLER_RADIUS + SHROUD_DEPTH / 2 - 0.05
-    const shroud = new Mesh(shroudGeometry, aluminium)
-    shroud.position.set(0, SHROUD_HEIGHT / 2 - BELT_THICKNESS, shroudZ)
-    shroud.castShadow = true
-    const shroudCap = new Mesh(shroudCapGeometry, cap)
-    shroudCap.position.set(0, SHROUD_HEIGHT - BELT_THICKNESS + 0.03, shroudZ)
-    const hazard = new Mesh(warningGeometry, warning)
-    hazard.position.set(0, 0.22, shroudZ + SHROUD_DEPTH / 2 + 0.01)
-    this.body.add(shroud, shroudCap, hazard)
+    this.shroud = new Mesh(shroudGeometry, aluminium)
+    this.shroud.position.set(0, SHROUD_HEIGHT / 2 - BELT_THICKNESS, shroudZ)
+    this.shroud.castShadow = true
+    this.shroudCap = new Mesh(shroudCapGeometry, cap)
+    this.shroudCap.position.set(0, SHROUD_HEIGHT - BELT_THICKNESS + 0.03, shroudZ)
+    this.hazard = new Mesh(warningGeometry, warning)
+    this.hazard.position.set(0, 0.22, shroudZ + SHROUD_DEPTH / 2 + 0.01)
+    this.body.add(this.shroud, this.shroudCap, this.hazard)
   }
 
   /** Painted lines: a yellow edge down each side of the belt, and a pale line between lanes. */
-  private buildMarkings(slotXs: readonly number[], width: number): void {
-    this.clear(this.markings)
+  private buildMarkings(): void {
     const length = BELT.NEAR_Z - BELT.FAR_Z
     const centerZ = (BELT.NEAR_Z + BELT.FAR_Z) / 2
     const laneLine = new MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.3 })
@@ -288,15 +313,19 @@ export class Treadmill {
     const edgeGeometry = new BoxGeometry(EDGE_LINE_WIDTH, 0.01, length)
     this.markings.userData.owned = [laneLine, edgeLine, laneGeometry, edgeGeometry]
 
-    for (let index = 1; index < slotXs.length; index++) {
+    // One for every gap a full field could have; the spare ones stay hidden.
+    for (let index = 0; index < MAX_VISIBLE_CONTESTANTS - 1; index++) {
       const line = new Mesh(laneGeometry, laneLine)
-      line.position.set((slotXs[index - 1]! + slotXs[index]!) / 2, 0.012, centerZ)
+      line.position.set(0, 0.012, centerZ)
+      line.visible = false
+      this.laneLines.push(line)
       this.markings.add(line)
     }
-    for (const side of [-1, 1]) {
+    // The edge lines ride with the sides.
+    for (const [index, side] of ([-1, 1] as const).entries()) {
       const edge = new Mesh(edgeGeometry, edgeLine)
-      edge.position.set(side * (width / 2 - EDGE_LINE_WIDTH / 2 - 0.05), 0.012, centerZ)
-      this.markings.add(edge)
+      edge.position.set(-side * (EDGE_LINE_WIDTH / 2 + 0.05), 0.012, centerZ)
+      this.sides[index]!.add(edge)
     }
   }
 

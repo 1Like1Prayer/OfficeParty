@@ -56,6 +56,82 @@ export function Hud({
   const lives = Math.max(0, LOG_DODGE.MAX_HITS - hits)
   const cooldownFill = Math.min(1, Math.max(0, 1 - (readyAtMs - elapsedMs) / LOG_DODGE.INPUT_COOLDOWN_MS))
 
+  const renderKey = (action: Action) => {
+    const info = ACTION_INFO[action]
+    const isPressed = lastPress?.action === action && elapsedMs - lastPress.atMs < PRESSED_MS
+    return (
+      <button
+        key={action}
+        type="button"
+        aria-label={info.label}
+        disabled={!onPress}
+        // Never focused, so Space and Enter go to the game's own keys
+        // rather than clicking whichever button was tapped last.
+        tabIndex={-1}
+        // On the way down, not on release: a dodge is all timing, and a
+        // click waits for the finger to lift.
+        onPointerDown={(event) => {
+          event.preventDefault()
+          onPress?.(action)
+        }}
+        style={{
+          flexShrink: 0,
+          minWidth: touch ? 112 : 72,
+          padding: touch ? '12px 18px 13px' : '4px 10px 5px',
+          borderRadius: touch ? 18 : 12,
+          border: `${touch ? 3 : 2}px solid ${color.ink}`,
+          background: isPressed ? color.cream : 'rgba(46, 42, 69, 0.55)',
+          color: isPressed ? color.ink : color.cream,
+          textAlign: 'center',
+          font: 'inherit',
+          opacity: isOut ? 0.4 : touch ? 0.95 : 0.85,
+          // The rest of the HUD lets clicks through to the stage; the buttons take them.
+          pointerEvents: onPress ? 'auto' : 'none',
+          cursor: onPress ? 'pointer' : 'default',
+          touchAction: 'manipulation',
+          userSelect: 'none',
+          WebkitUserSelect: 'none',
+          WebkitTapHighlightColor: 'transparent',
+          transform: isPressed ? 'translateY(2px)' : 'none',
+          transition: 'background .08s, color .08s, transform .08s',
+        }}
+      >
+        <div style={{ fontFamily: font.display, fontWeight: 700, fontSize: touch ? 30 : 18, lineHeight: 1.1 }}>
+          {info.glyph}
+        </div>
+        <div style={{ ...sharedStyles.microLabel, fontSize: touch ? 13 : 10, color: 'inherit', opacity: 0.8 }}>
+          {info.label.toUpperCase()}
+        </div>
+      </button>
+    )
+  }
+
+  // Fills as the cooldown ends: a press before it is full is ignored.
+  const cooldownBar = (
+    <div
+      style={{
+        // Between the two buttons on a phone, so it shrinks to whatever room they leave.
+        flex: touch ? '0 1 240px' : undefined,
+        width: touch ? undefined : 240,
+        maxWidth: touch ? undefined : '70%',
+        minWidth: 0,
+        alignSelf: 'center',
+        height: 5,
+        borderRadius: 3,
+        background: 'rgba(46, 42, 69, 0.35)',
+        overflow: 'hidden',
+      }}
+    >
+      <div
+        style={{
+          height: '100%',
+          width: `${cooldownFill * 100}%`,
+          background: cooldownFill >= 1 ? color.cream : color.mutedSoft,
+        }}
+      />
+    </div>
+  )
+
   return (
     <div
       style={{
@@ -124,83 +200,32 @@ export function Hud({
         )}
 
         {hasKeys && (
-          <>
-            <div
-              style={{
-                display: 'flex',
-                gap: touch ? 14 : 8,
-                opacity: isOut ? 0.4 : touch ? 0.95 : 0.85,
-                // The rest of the HUD lets clicks through to the stage; the buttons take them.
-                pointerEvents: onPress ? 'auto' : 'none',
-              }}
-            >
-              {ACTION_ORDER.map((action) => {
-                const info = ACTION_INFO[action]
-                const isPressed =
-                  lastPress?.action === action && elapsedMs - lastPress.atMs < PRESSED_MS
-                return (
-                  <button
-                    key={action}
-                    type="button"
-                    aria-label={info.label}
-                    disabled={!onPress}
-                    // Never focused, so Space and Enter go to the game's own keys
-                    // rather than clicking whichever button was tapped last.
-                    tabIndex={-1}
-                    // On the way down, not on release: a dodge is all timing, and a
-                    // click waits for the finger to lift.
-                    onPointerDown={(event) => {
-                      event.preventDefault()
-                      onPress?.(action)
-                    }}
-                    style={{
-                      minWidth: touch ? 112 : 72,
-                      padding: touch ? '12px 18px 13px' : '4px 10px 5px',
-                      borderRadius: touch ? 18 : 12,
-                      border: `${touch ? 3 : 2}px solid ${color.ink}`,
-                      background: isPressed ? color.cream : 'rgba(46, 42, 69, 0.55)',
-                      color: isPressed ? color.ink : color.cream,
-                      textAlign: 'center',
-                      font: 'inherit',
-                      cursor: onPress ? 'pointer' : 'default',
-                      touchAction: 'manipulation',
-                      userSelect: 'none',
-                      WebkitUserSelect: 'none',
-                      WebkitTapHighlightColor: 'transparent',
-                      transform: isPressed ? 'translateY(2px)' : 'none',
-                      transition: 'background .08s, color .08s, transform .08s',
-                    }}
-                  >
-                    <div style={{ fontFamily: font.display, fontWeight: 700, fontSize: touch ? 30 : 18, lineHeight: 1.1 }}>
-                      {info.glyph}
-                    </div>
-                    <div style={{ ...sharedStyles.microLabel, fontSize: touch ? 13 : 10, color: 'inherit', opacity: 0.8 }}>
-                      {info.label.toUpperCase()}
-                    </div>
-                  </button>
-                )
-              })}
-            </div>
-            {/* Fills as the cooldown ends: a press before it is full is ignored. */}
-            <div
-              style={{
-                width: 240,
-                maxWidth: '70%',
-                height: 5,
-                borderRadius: 3,
-                background: 'rgba(46, 42, 69, 0.35)',
-                overflow: 'hidden',
-              }}
-            >
-              <div
-                style={{
-                  height: '100%',
-                  width: `${cooldownFill * 100}%`,
-                  background: cooldownFill >= 1 ? color.cream : color.mutedSoft,
-                }}
-              />
-            </div>
-          </>
+          <div
+            style={{
+              display: 'flex',
+              // On a phone the buttons sit in the bottom corners, under the thumbs, and leave
+              // the middle clear: that is where the player runs and the low logs land. At a
+              // desk they are just a small reminder of the keys, so they stay together.
+              alignSelf: touch ? 'stretch' : 'center',
+              justifyContent: touch ? 'space-between' : 'center',
+              alignItems: touch ? 'flex-end' : 'center',
+              flexDirection: touch ? 'row' : 'column',
+              gap: 12,
+            }}
+          >
+            {touch ? (
+              <>
+                {renderKey(ACTION_ORDER[0]!)}
+                {cooldownBar}
+                {renderKey(ACTION_ORDER[1]!)}
+              </>
+            ) : (
+              <>
+                <div style={{ display: 'flex', gap: 8 }}>{ACTION_ORDER.map(renderKey)}</div>
+                {cooldownBar}
+              </>
+            )}
+          </div>
         )}
       </div>
     </div>

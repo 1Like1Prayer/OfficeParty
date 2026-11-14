@@ -18,13 +18,13 @@ export interface CameraPose {
   target: [number, number, number]
 }
 
-/** Above the belt, high enough to take in `halfWidth` either side of the middle. */
-export function overviewPose(halfWidth: number, verticalFov: number, aspect: number): CameraPose {
+/** Above the belt, high enough to take in `halfWidth` either side of `centerX`. */
+export function overviewPose(halfWidth: number, verticalFov: number, aspect: number, centerX = 0): CameraPose {
   const halfTan = Math.tan((verticalFov * Math.PI) / 360)
   const height = Math.max(15, (halfWidth + 1.5) / (halfTan * aspect)) * CAMERA.OVERVIEW_PULL_BACK
   return {
-    position: [0, height, height * CAMERA.OVERVIEW_TILT],
-    target: [0, 0, -1.5],
+    position: [centerX, height, height * CAMERA.OVERVIEW_TILT],
+    target: [centerX, 0, -1.5],
   }
 }
 

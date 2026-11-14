@@ -128,7 +128,7 @@ export function useRoom(): UseRoomResult {
         clearSession()
         setConnection(null)
         setScreen('title')
-        raise(code === KICKED_CODE ? 'The host removed you from the room.' : 'The room has closed.', null)
+        raise(code === KICKED_CODE ? 'The Admin has kicked you from the room.' : 'The room has closed.', null)
       })
       writeSession({
         roomCode: joined.roomId,
