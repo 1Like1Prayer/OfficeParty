@@ -33,7 +33,7 @@ import { BlackHoleMesh } from './BlackHoleMesh.ts'
 import { Starfield } from './Starfield.ts'
 import { EscalatorRamp } from './EscalatorRamp.ts'
 import { RunnerFigure } from './RunnerFigure.ts'
-import { RUNNER_TAG_ASPECT, RunnerTag } from './RunnerTag.ts'
+import { SCORE_TAG_ASPECT, ScoreTag } from '../../three/ScoreTag.ts'
 import { Tweener } from '../../three/tweens.ts'
 import type { LaneView } from './types.ts'
 
@@ -41,7 +41,7 @@ interface Lane {
   player: RoundPlayerView
   ramp: EscalatorRamp
   runner: RunnerFigure
-  nameplate: RunnerTag
+  nameplate: ScoreTag
   badge: CanvasTexture
   /** Where a reflow is sliding this lane to, with its runner riding along; null once there. */
   slideTo: { x: number; scale: number } | null
@@ -250,7 +250,7 @@ export class ArenaScene {
       // A swallowed runner leaves an empty escalator that keeps running.
       lane.ramp.setPowered(isRacing)
       // Just the score and the name: where the runners stand shows who is ahead.
-      lane.nameplate.update({ name: lane.player.name, score: view.score, isYou: view.isYou })
+      lane.nameplate.update({ name: lane.player.name, score: String(view.score), isYou: view.isYou })
       if (!view.isFallen) mostEndangered = Math.max(mostEndangered, view.slip)
     }
     this.blackHole.setHunger(mostEndangered)
@@ -408,7 +408,7 @@ export class ArenaScene {
     this.labelRowOffset = 0
     const worldPerPixel = (2 * Math.tan((this.camera.fov * Math.PI) / 360) * distance) / (canvasHeight || 1)
     // The pill is centred on the anchor; above it is half the pill and the whole score row.
-    const headroomFor = (pixels: number) => pixels * RUNNER_TAG_ASPECT * 0.72 * worldPerPixel
+    const headroomFor = (pixels: number) => pixels * SCORE_TAG_ASPECT * 0.72 * worldPerPixel
     if (slotXs.length < 2 || canvasHeight === 0) {
       this.labelWidth = labelWidthFor(MAX_LABEL_PIXELS, canvasHeight || 1, this.camera.fov)
       this.labelHeadroom = headroomFor(MAX_LABEL_PIXELS)
@@ -434,7 +434,7 @@ export class ArenaScene {
       const runnerSpot = EscalatorRamp.pointOn(slotXs[0]!, farthest, NAMEPLATE_HEIGHT)
       const runnerWorldPerPixel =
         (2 * Math.tan((this.camera.fov * Math.PI) / 360) * this.camera.position.distanceTo(runnerSpot)) / canvasHeight
-      this.labelRowOffset = pixels * RUNNER_TAG_ASPECT * runnerWorldPerPixel * 1.15
+      this.labelRowOffset = pixels * SCORE_TAG_ASPECT * runnerWorldPerPixel * 1.15
     }
     this.labelWidth = labelWidthFor(pixels, canvasHeight, this.camera.fov)
     this.labelHeadroom = headroomFor(pixels)
@@ -531,7 +531,7 @@ export class ArenaScene {
       badge,
       laneScale * RUNNER_SCALE,
     )
-    const nameplate = new RunnerTag()
+    const nameplate = new ScoreTag()
     this.scene.add(ramp.group, runner.root, nameplate.sprite)
 
     if (arrival !== null) {

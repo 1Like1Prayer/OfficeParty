@@ -14,13 +14,17 @@
  *
  * The die's randomness is injected (`rollFace`), because it needs a server
  * secret and this module is shared with the browser.
+ *
+ * Only the winner scores, so the round closes as soon as the server's replay
+ * shows it is decided (see `shouldCloseEarly`), and each player's replayed
+ * finish or knock-out is announced to the room (see `progressFromResult`).
  */
 
 import { assignSharedRanks } from '../ranking.js';
 import type { RandomSource } from '../random.js';
 import type { RankedEntry, ResultEntry, SelfTimedGameModule } from '../selfTimed.js';
 import { TYPE_RACER } from './constants.js';
-import { describeRoll } from './dice.js';
+import { describeRoll, skullsForRoll } from './dice.js';
 import { parseRollAction, parseTypeRacerProgress, parseTypeRacerResult } from './parsing.js';
 import { locateOnBar, totalCharacters } from './progress.js';
 import {
@@ -29,7 +33,8 @@ import {
     isSameRun,
     replayRun,
     type PlayerRun,
-    type PlayerRunEntry
+    type PlayerRunEntry,
+    type RunStatus
 } from './replay.js';
 import { createTypeRacerRound } from './roundData.js';
 import type { DieRoll, RollFace, TypeRacerResult, TypeRacerRound } from './types.js';
@@ -122,6 +127,57 @@ export const createTypeRacerModule = (
         );
     };
 
+    /**
+     * The race is decided, so the players still typing are told to stop and
+     * report, once either:
+     *  - someone's replay shows they finished every paragraph: only the winner
+     *    scores, and anyone who finished sooner would already have reported; or
+     *  - everyone but one player has reported, and every one of them was
+     *    knocked out: the one left is the last survivor.
+     * A player who merely dropped out is not counted as knocked out, so a brief
+     * disconnect never ends the race for everyone else.
+     */
+    const shouldCloseEarly = (
+        reported: readonly ResultEntry<TypeRacerResult>[],
+        participantCount: number,
+        round: TypeRacerRound
+    ): boolean => {
+        const statuses = reported.map(({ playerId, result }) => runOf(playerId, result, round).status);
+        if (statuses.includes('finished')) return true;
+        return (
+            reported.length >= 1 &&
+            participantCount - reported.length <= 1 &&
+            statuses.every((status) => status === 'eliminated')
+        );
+    };
+
+    /**
+     * When a player's result comes in, tell the room how their race ended,
+     * straight from the replay. Everyone sees a finish or a knock-out even if
+     * that player's own progress messages were lost or never sent, which is
+     * what lets the last player standing know they have won. Shaped like a
+     * progress report: chars, paragraph, strikes, skulls, status.
+     */
+    const STATUS_CODE: Partial<Record<RunStatus, number>> = { finished: 1, eliminated: 2 };
+    const progressFromResult = (
+        result: TypeRacerResult,
+        round: TypeRacerRound,
+        playerId: string
+    ): Record<string, number> | null => {
+        const run = runOf(playerId, result, round);
+        const status = STATUS_CODE[run.status];
+        // A player who simply stopped (the race was closed on them) says nothing new.
+        if (status === undefined) return null;
+        return {
+            chars: run.charsDone,
+            paragraph: Math.min(run.paragraphsDone, round.paragraphs.length),
+            // A skull comes on a third strike; the clock can run out on any number.
+            strikes: run.cause === 'skull' ? TYPE_RACER.STRIKES_TO_ROLL : 0,
+            skulls: skullsForRoll(run.rollsCast),
+            status
+        };
+    };
+
     /** The player asks for the outcome of a dice roll. */
     const handleAction = (
         round: TypeRacerRound,
@@ -144,6 +200,8 @@ export const createTypeRacerModule = (
         parseProgress: (raw, round) => parseTypeRacerProgress(raw, round),
         resultTimeoutMs,
         rank,
-        handleAction
+        handleAction,
+        shouldCloseEarly,
+        progressFromResult
     };
 };

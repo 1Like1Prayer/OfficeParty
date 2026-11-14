@@ -118,7 +118,7 @@ const progressFromResult = (
 
 /** Once everyone but one player has reported, the last one must stop and report too. */
 const shouldCloseEarly = (
-    reported: readonly LogDodgeResult[],
+    reported: readonly ResultEntry<LogDodgeResult>[],
     participantCount: number
 ): boolean =>
     participantCount >= 2 && reported.length >= 1 && participantCount - reported.length <= 1;

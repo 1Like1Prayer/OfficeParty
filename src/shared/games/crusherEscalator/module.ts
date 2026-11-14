@@ -89,7 +89,7 @@ const rank = (
  * they can't tell the race has ended except by watching others.
  */
 const shouldCloseEarly = (
-    reported: readonly CrusherEscalatorResult[],
+    reported: readonly ResultEntry<CrusherEscalatorResult>[],
     participantCount: number
 ): boolean => reported.length >= 1 && participantCount - reported.length <= 1;
 

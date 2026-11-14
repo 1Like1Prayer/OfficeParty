@@ -109,12 +109,6 @@ function RunStep({ t, step }: { t: number; step: number }) {
   const lives = LOG_DODGE.MAX_HITS - (hit ? 1 : 0)
   const pressed = action !== null && during(t, pressAt, PRESSED_MS) ? action : null
 
-  let caption: { text: string; tone: string; key: string } | null = null
-  if (action === 'jump' && t >= pressAt) caption = { text: 'Jump!', tone: color.ink, key: 'jump' }
-  if (action === 'duck' && t >= pressAt) caption = { text: 'Duck!', tone: color.ink, key: 'duck' }
-  // Short enough to sit beside the hearts on the narrowest phone.
-  if (hit) caption = { text: 'Ouch! −1 ♥', tone: color.red, key: 'hit' }
-
   return (
     <>
       <svg
@@ -129,40 +123,6 @@ function RunStep({ t, step }: { t: number; step: number }) {
       </svg>
 
       <Hearts lives={lives} popIndex={hit ? lives : null} />
-
-      {caption && (
-        <div
-          key={caption.key}
-          style={{
-            position: 'absolute',
-            top: stageSize(10, 6, 22),
-            left: 0,
-            right: 0,
-            display: 'flex',
-            justifyContent: 'center',
-            pointerEvents: 'none',
-          }}
-        >
-          {/* A pill, so it reads against the light sky. */}
-          <span
-            style={{
-              padding: `${stageSize(2, 1, 4)} ${stageSize(10, 5, 16)}`,
-              borderRadius: 999,
-              border: `2px solid ${color.ink}`,
-              background: color.white,
-              fontFamily: font.display,
-              fontWeight: 700,
-              fontSize: stageSize(15, 7.5, 26),
-              lineHeight: 1.2,
-              whiteSpace: 'nowrap',
-              color: caption.tone,
-              animation: 'pa-pop .35s cubic-bezier(.34,1.56,.64,1)',
-            }}
-          >
-            {caption.text}
-          </span>
-        </div>
-      )}
 
       <Keys pressed={pressed} />
     </>
@@ -367,17 +327,6 @@ function StandingsStep({ t }: { t: number }) {
         <DemoRow place="1st" name="You" note="still running" gain="+1" highlight visible={since > 300} />
         <DemoRow place="2nd" name="Sam" note="thrown off at 0:52" gain="—" visible={since > 600} />
         <DemoRow place="3rd" name="Alex" note="thrown off at 0:31" gain="—" visible={since > 900} />
-      </div>
-      <div
-        style={{
-          fontWeight: 700,
-          fontSize: stageSize(12, 6, 15),
-          color: color.mutedStrong,
-          opacity: since > 1400 ? 1 : 0,
-          transition: 'opacity .3s ease',
-        }}
-      >
-        Three hits and you’re thrown off the back.
       </div>
     </>
   )

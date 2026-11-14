@@ -17,8 +17,8 @@ interface DemoCardProps {
   step: number
   progress: number
   ariaLabel: string
-  /** One line under the stage for the rule the loop cannot show. */
-  footnote: ReactNode
+  /** One line under the stage for the rule the loop cannot show; left out, there is none. */
+  footnote?: ReactNode
   children: ReactNode
 }
 
@@ -78,9 +78,11 @@ export function DemoCard({ steps, step, progress, ariaLabel, footnote, children 
         {children}
       </div>
 
-      <div style={{ fontSize: fluid(13, 16), fontWeight: 700, color: color.muted, lineHeight: 1.4 }}>
-        {footnote}
-      </div>
+      {footnote !== undefined && (
+        <div style={{ fontSize: fluid(13, 16), fontWeight: 700, color: color.muted, lineHeight: 1.4 }}>
+          {footnote}
+        </div>
+      )}
     </div>
   )
 }

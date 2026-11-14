@@ -9,7 +9,7 @@ import {
 } from 'three'
 import type { RoundPlayerView } from '../../../types/index.ts'
 import { createAvatarTexture } from '../../three/avatarTexture.ts'
-import { Nameplate, type NameplateContent } from '../../three/Nameplate.ts'
+import { ScoreTag, type ScoreTagContent } from '../../three/ScoreTag.ts'
 import { LightBeam } from '../../three/LightBeam.ts'
 import { Crown } from './Crown.ts'
 import { Die } from './Die.ts'
@@ -59,7 +59,7 @@ export interface RollView {
 export class Station {
   readonly root = new Group()
   readonly player: RoundPlayerView
-  readonly nameplate = new Nameplate()
+  readonly nameplate = new ScoreTag()
   private readonly platform = new Group()
   private readonly block: WoodBlock
   private readonly typewriter = new Typewriter()
@@ -146,7 +146,7 @@ export class Station {
     return this.foamRadius
   }
 
-  setLabel(content: NameplateContent): void {
+  setLabel(content: ScoreTagContent): void {
     this.nameplate.update(content)
   }
 

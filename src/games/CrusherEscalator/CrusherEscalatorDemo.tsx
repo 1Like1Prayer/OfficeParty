@@ -132,12 +132,12 @@ export function CrusherEscalatorDemo() {
       ariaLabel="How it works: everyone runs up their own escalator over a black hole. Press the arrow that is showing to score. Wrong presses let the leader pull away and you slip down; fall a whole gap behind the leader and the black hole swallows you. The last one running wins."
       footnote={`Arrow keys or WASD. The arrow moves on after every press, right or wrong. The gap that sends you in shrinks from ${GAP} to ${CRUSHER_ESCALATOR.ELIMINATION_GAP_MIN} as the race goes on.`}
     >
-      {step === 3 ? <StandingsStep t={t} /> : <RaceStep t={t} step={step} />}
+      {step === 3 ? <StandingsStep t={t} /> : <RaceStep t={t} />}
     </DemoCard>
   )
 }
 
-function RaceStep({ t, step }: { t: number; step: number }) {
+function RaceStep({ t }: { t: number }) {
   const yourScore = countAt(correctTimes, t)
   const samScore = countAt(SAM_SCORES, t)
   const smoothGap = smoothScore(SAM_SCORES, t) - smoothScore(correctTimes, t)
@@ -154,13 +154,6 @@ function RaceStep({ t, step }: { t: number; step: number }) {
   const isFeedback = last !== undefined && t - last.atMs < FEEDBACK_MS
   const feedback = isFeedback ? (last.shown === last.pressed ? 'correct' : 'wrong') : null
   const arrow = isFeedback ? last.shown : (PRESSES[madeSoFar.length]?.shown ?? NEXT_ARROW)
-
-  let caption: { text: string; tone: string; key: string } | null = null
-  if (step === 0 && t >= 700) caption = { text: 'Match it: +1', tone: color.ink, key: 'match' }
-  if (step === 1 && t >= 4_000) caption = { text: 'Wrong! No point', tone: color.red, key: 'wrong' }
-  if (step === 2 && t >= 6_800) caption = { text: 'Pull away…', tone: color.ink, key: 'pull' }
-  // Short enough to fit the narrowest phone.
-  if (isSamGone) caption = { text: 'Sam’s swallowed!', tone: color.red, key: 'gone' }
 
   return (
     <>
@@ -201,40 +194,6 @@ function RaceStep({ t, step }: { t: number; step: number }) {
         pressed={isFeedback ? { direction: last.pressed, isRight: feedback === 'correct' } : null}
       />
       <GapBadge />
-
-      {caption && (
-        <div
-          key={caption.key}
-          style={{
-            // Down over the hole, where nothing else is: the runners' tags are up top.
-            position: 'absolute',
-            bottom: stageSize(10, 6, 24),
-            left: 0,
-            right: 0,
-            display: 'flex',
-            justifyContent: 'center',
-            pointerEvents: 'none',
-          }}
-        >
-          <span
-            style={{
-              padding: `${stageSize(2, 1, 4)} ${stageSize(10, 5, 16)}`,
-              borderRadius: 999,
-              border: `2px solid ${color.ink}`,
-              background: color.white,
-              fontFamily: font.display,
-              fontWeight: 700,
-              fontSize: stageSize(14, 7, 24),
-              lineHeight: 1.2,
-              whiteSpace: 'nowrap',
-              color: caption.tone,
-              animation: 'pa-pop .35s cubic-bezier(.34,1.56,.64,1)',
-            }}
-          >
-            {caption.text}
-          </span>
-        </div>
-      )}
 
     </>
   )
@@ -564,17 +523,6 @@ function StandingsStep({ t }: { t: number }) {
         <DemoRow place="1st" name="You" note="still running" gain="+1" highlight visible={since > 300} />
         <DemoRow place="2nd" name="Sam" note="swallowed at 0:24" gain="—" visible={since > 600} />
         <DemoRow place="3rd" name="Alex" note="swallowed at 0:11" gain="—" visible={since > 900} />
-      </div>
-      <div
-        style={{
-          fontWeight: 700,
-          fontSize: stageSize(12, 6, 15),
-          color: color.mutedStrong,
-          opacity: since > 1400 ? 1 : 0,
-          transition: 'opacity .3s ease',
-        }}
-      >
-        Fall {GAP} behind the leader and the hole takes you.
       </div>
     </>
   )

@@ -11,6 +11,7 @@ import {
 import { beatsRemaining, useCountdown } from '../../hooks/index.ts'
 import {
   selectChampionLine,
+  selectChampionName,
   selectChampionNote,
   selectCurrentGame,
   selectFloaters,
@@ -175,7 +176,8 @@ export function ArenaPhase({
   if (room.phase === 'leaderboard') {
     return (
       <FinalStandings
-        championLine={leaderboard ? selectChampionLine(room, leaderboard) : 'That’s the run.'}
+        championLine={leaderboard ? selectChampionLine(leaderboard) : 'That’s the run.'}
+        championName={leaderboard ? selectChampionName(room, leaderboard) : null}
         championNote={
           leaderboard ? selectChampionNote(room, leaderboard) : 'Counting the last round…'
         }

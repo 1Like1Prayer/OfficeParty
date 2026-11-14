@@ -41,17 +41,26 @@ export function GameReveal({
   hostControls,
 }: GameRevealProps) {
   return (
-    <section style={{ ...sharedStyles.phasePane, gap: fluid(16, 24) }}>
+    <section
+      style={{
+        ...sharedStyles.phasePane,
+        // Tighter on a short screen, so the title, demo and ready check fit without scrolling.
+        paddingTop: `max(12px, min(${fluid(24, 40)}, 3vh))`,
+        paddingBottom: `max(12px, min(${fluid(24, 40)}, 3vh))`,
+        gap: `max(10px, min(${fluid(16, 24)}, 2vh))`,
+      }}
+    >
       {isTiebreak && <div style={sharedStyles.eyebrow}>TIEBREAK</div>}
       <h1
         style={{
           ...sharedStyles.displayHeading,
           margin: 0,
-          fontSize: fluid(44, 92),
+          // As big as the width allows, but never so tall that the screen has to
+          // scroll: on a wide screen the name fits on one line.
+          fontSize: `max(34px, min(${fluid(44, 92)}, 8vh))`,
           lineHeight: 0.92,
           letterSpacing: '-0.035em',
           color: color.red,
-          maxWidth: '13ch',
           animation: 'pa-rise .6s ease-out',
         }}
       >

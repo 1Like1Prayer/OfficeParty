@@ -310,14 +310,12 @@ export class TypeRacerScene {
 
   private labelStation(station: Station, view: StationView): void {
     const isYou = station.player.playerId === this.selfPlayerId
+    // Just the name in the pill, and how far through the race they are above it.
     station.setLabel({
       name: station.player.name,
-      score: Math.round(view.fraction * 100),
-      unit: '%',
-      status:
-        view.status === 'out' ? 'OUT' : view.status === 'finished' ? 'DONE!' : view.strikes > 0 ? `${view.strikes} STRIKE${view.strikes > 1 ? 'S' : ''}` : '',
+      score: `${Math.round(view.fraction * 100)}%`,
       isYou,
-      isFallen: view.status === 'out',
+      isFaded: view.status === 'out',
     })
   }
 

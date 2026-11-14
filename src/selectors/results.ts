@@ -21,7 +21,7 @@ export function selectResultRows(
     initial: initialOf(nameOf(room, entry.playerId)),
     color: playerColor(entry.playerId),
     avatar: avatarOf(room, entry.playerId),
-    note: describeDetail(entry.detail),
+    note: describeDetail(results.gameId, entry.detail),
     gain: results.isFinal && entry.playerId === results.winnerId ? '+1' : '—',
     isYou: entry.playerId === playerId,
   }))
@@ -49,11 +49,19 @@ function avatarOf(room: RoomView, playerId: string): string {
   return selectPlayer(room, playerId)?.avatar ?? ''
 }
 
+/** Games whose results rows show just the place and the name: the order says it all. */
+const PLAIN_RESULT_GAMES: ReadonlySet<string> = new Set(['log-dodge'])
+
 /**
  * Games describe their own results, so this formats the keys it knows and
  * falls back to printing whatever else a game chose to send.
  */
-function describeDetail(detail: Record<string, number | string | boolean>): string {
+function describeDetail(gameId: string, detail: Record<string, number | string | boolean>): string {
+  if (PLAIN_RESULT_GAMES.has(gameId)) return ''
+  // Crusher Escalator: just how far they climbed, one step for every arrow they matched.
+  if (gameId === 'crusher-escalator' && typeof detail['score'] === 'number') {
+    return `survived ${detail['score']} ${detail['score'] === 1 ? 'step' : 'steps'}`
+  }
   const parts: string[] = []
 
   // Type Racer Roulette: how the race went for this player.
@@ -125,19 +133,26 @@ export function selectResultEyebrow(results: RoundResultsPayload): string {
 /* Final standings                                                    */
 /* ---------------------------------------------------------------- */
 
-export function selectChampionLine(
-  room: RoomView,
-  leaderboard: LeaderboardPayload,
-): string {
+export function selectChampionLine(leaderboard: LeaderboardPayload): string {
   if (leaderboard.rows.length === 0) return 'Nobody wins the night.'
-  if (leaderboard.tied) return 'Dead heat.'
-  return `${nameOf(room, leaderboard.rows[0].playerId)} wins the night.`
+  if (leaderboard.tied) return 'It’s a Tie!!!'
+  return 'We Have a Winner!!!'
 }
 
+/** The overall winner, crowned, to go under the headline; null when nobody won outright. */
+export function selectChampionName(
+  room: RoomView,
+  leaderboard: LeaderboardPayload,
+): string | null {
+  if (leaderboard.rows.length === 0 || leaderboard.tied) return null
+  return `${nameOf(room, leaderboard.rows[0].playerId)} 👑`
+}
+
+/** The line under a tie or an empty night; a clear winner needs nothing more than their name. */
 export function selectChampionNote(
   room: RoomView,
   leaderboard: LeaderboardPayload,
-): string {
+): string | null {
   const top = leaderboard.rows.filter((row) => row.rank === 1)
   if (top.length === 0) return 'The room emptied before anyone scored.'
 
@@ -146,9 +161,5 @@ export function selectChampionNote(
     return `${names} finished level on ${top[0].points}. There is no overall tiebreaker, so argue about it yourselves.`
   }
 
-  const points = top[0].points
-  const games = room.playlist.length
-  return `${points} ${points === 1 ? 'point' : 'points'} across ${games} ${
-    games === 1 ? 'game' : 'games'
-  }. Everyone else can take it up with HR.`
+  return null
 }

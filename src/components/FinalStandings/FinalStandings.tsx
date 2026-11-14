@@ -4,7 +4,10 @@ import { PushButton } from '../ui/index.ts'
 
 interface FinalStandingsProps {
   championLine: string
-  championNote: string
+  /** The overall winner, crowned, shown big under the headline; null for a tie or an empty night. */
+  championName: string | null
+  /** A line of explanation, or null when the headline and name say it all. */
+  championNote: string | null
   /** Null on a screen that does not own the room. */
   onBackToLobby: (() => void) | null
 }
@@ -12,6 +15,7 @@ interface FinalStandingsProps {
 /** End of the run: who won, with the table itself living in the rail. */
 export function FinalStandings({
   championLine,
+  championName,
   championNote,
   onBackToLobby,
 }: FinalStandingsProps) {
@@ -31,9 +35,23 @@ export function FinalStandings({
       >
         {championLine}
       </h1>
-      <p style={{ margin: 0, fontSize: fluid(17, 22), color: color.muted, maxWidth: '40ch', lineHeight: 1.5, textWrap: 'pretty' }}>
-        {championNote}
-      </p>
+      {championName !== null && (
+        <div
+          style={{
+            ...sharedStyles.displayHeading,
+            fontSize: fluid(34, 72),
+            color: color.ink,
+            animation: 'pa-pop .5s cubic-bezier(.34,1.56,.64,1) .2s both',
+          }}
+        >
+          {championName}
+        </div>
+      )}
+      {championNote !== null && (
+        <p style={{ margin: 0, fontSize: fluid(17, 22), color: color.muted, maxWidth: '40ch', lineHeight: 1.5, textWrap: 'pretty' }}>
+          {championNote}
+        </p>
+      )}
       {onBackToLobby && (
         <div style={{ alignSelf: compact ? 'stretch' : 'flex-start' }}>
           <PushButton fullWidth={compact} onClick={onBackToLobby}>Run it back</PushButton>

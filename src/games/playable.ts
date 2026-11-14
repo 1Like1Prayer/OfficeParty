@@ -71,6 +71,7 @@ export function hasDemo(gameId: GameId): boolean {
     gameId === 'stop-the-clock' ||
     gameId === 'cube-counter' ||
     gameId === 'log-dodge' ||
-    gameId === 'crusher-escalator'
+    gameId === 'crusher-escalator' ||
+    gameId === 'type-racer-roulette'
   )
 }

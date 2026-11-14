@@ -14,14 +14,16 @@ interface RaceProgressBarProps {
   runners: readonly BarRunner[]
   /** Where each paragraph ends, as a fraction of the bar. The last is 1. */
   checkpoints: readonly number[]
+  /** A phone: smaller markers and a thinner track, so the text to type keeps the room. */
+  isCompact?: boolean
 }
 
 /** Markers closer than this share of the bar would overlap, so one is raised. */
 const OVERLAP_FRACTION = 0.04
-const LEVEL_HEIGHT = 17
-const TRACK_HEIGHT = 16
-const MARKER_SIZE = 26
-const YOU_MARKER_SIZE = 36
+const SIZES = {
+  regular: { LEVEL_HEIGHT: 17, TRACK_HEIGHT: 16, MARKER_SIZE: 26, YOU_MARKER_SIZE: 36 },
+  compact: { LEVEL_HEIGHT: 11, TRACK_HEIGHT: 10, MARKER_SIZE: 18, YOU_MARKER_SIZE: 24 },
+} as const
 
 /** Raises markers that would sit on top of a neighbour, the fewest levels it takes. */
 function assignLevels(runners: readonly BarRunner[]): Map<string, number> {
@@ -50,7 +52,8 @@ const STATUS_BADGE: Record<BarRunner['status'], string | null> = {
  * as the paragraphs they stand for, so a short paragraph's checkpoint comes
  * earlier. Players who are out stay where they fell, greyed with a skull.
  */
-export function RaceProgressBar({ runners, checkpoints }: RaceProgressBarProps) {
+export function RaceProgressBar({ runners, checkpoints, isCompact = false }: RaceProgressBarProps) {
+  const { LEVEL_HEIGHT, TRACK_HEIGHT, MARKER_SIZE, YOU_MARKER_SIZE } = SIZES[isCompact ? 'compact' : 'regular']
   const levels = assignLevels(runners)
   const you = runners.find((runner) => runner.isYou)
   const tallest = Math.max(0, ...levels.values())
@@ -60,7 +63,7 @@ export function RaceProgressBar({ runners, checkpoints }: RaceProgressBarProps) 
     <div
       style={{
         position: 'relative',
-        height: markerAreaHeight + TRACK_HEIGHT + 22,
+        height: markerAreaHeight + TRACK_HEIGHT + (isCompact ? 16 : 22),
         padding: '0 22px',
       }}
     >
@@ -189,12 +192,12 @@ export function RaceProgressBar({ runners, checkpoints }: RaceProgressBarProps) 
                 <div
                   style={{
                     position: 'absolute',
-                    top: -18,
+                    top: isCompact ? -13 : -18,
                     left: '50%',
                     transform: 'translateX(-50%)',
                     fontFamily: font.display,
                     fontWeight: 700,
-                    fontSize: 12,
+                    fontSize: isCompact ? 10 : 12,
                     color: color.yellow,
                     textShadow: `0 1px 0 ${color.ink}`,
                   }}

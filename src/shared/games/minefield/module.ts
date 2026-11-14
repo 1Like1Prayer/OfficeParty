@@ -114,13 +114,13 @@ const rank = (
  * stop and not a verdict: the final ranking replays everyone.
  */
 const shouldCloseEarly = (
-    reported: readonly MinefieldResult[],
+    reported: readonly ResultEntry<MinefieldResult>[],
     _participantCount: number,
     round: MinefieldRound
 ): boolean =>
     simulateRace(
         round.map,
-        reported.map((result, index) => ({ playerId: String(index), inputs: result.inputs }))
+        reported.map(({ playerId, result }) => ({ playerId, inputs: result.inputs }))
     ).winners.length > 0;
 
 export const minefieldModule: SelfTimedGameModule<MinefieldRound, MinefieldResult> = {
