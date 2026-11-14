@@ -1,19 +1,27 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
 import { CUBE_COUNTER, MAX_POSSIBLE_BOX_COUNT } from '../../shared/games/cubeCounter/constants.ts'
 import { countBlocks } from '../../shared/games/cubeCounter/sceneValidation.ts'
 import type { Answer, CubeCounterRound } from '../../shared/games/cubeCounter/types.ts'
-import { border, color, font, sharedStyles } from '../../theme/index.ts'
+import { PushButton } from '../../components/ui/index.ts'
+import { border, color, fluid, font, sharedStyles } from '../../theme/index.ts'
 import type { GameSurfaceProps } from '../types.ts'
 import { useElapsed } from '../StopTheClock/useElapsed.ts'
 import { IsoScene } from './IsoScene.tsx'
 import { SCENE_ASPECT } from './projection.ts'
 
 /**
- * Sizes follow the viewport height, because height is what the round runs out
- * of: the scene and the answer area share one screen.
+ * The scene is sized by the screen's height, because height is what the round
+ * runs out of: it takes what is left once the play screen's padding, cue and
+ * status line and this game's label and answer area have their room. That
+ * room grows with the screen's width, like the rest of the theme, which is why
+ * it is a `fluid()` too. Capped by the width as well, so it never spills off a
+ * phone held upright, and never shrinks past readable.
  */
-const fluid = (minPx: number, vh: number, maxPx: number): string =>
-  `clamp(${minPx}px, ${vh}vh, ${maxPx}px)`
+const SCENE_MAX_VH = 46
+const SCENE_RESERVED = fluid(330, 470)
+const SCENE_MIN_HEIGHT_PX = 150
+const SCENE_MAX_PX = 520
+const sceneHeight = `max(${SCENE_MIN_HEIGHT_PX}px, min(${SCENE_MAX_VH}vh, 100dvh - ${SCENE_RESERVED}))`
 
 const isRound = (data: unknown): data is CubeCounterRound =>
   typeof data === 'object' &&
@@ -119,21 +127,54 @@ export function CubeCounter({
   const correct = puzzle ? countBlocks(puzzle.boxes) : 0
   const showScene = stage === 'flash' || stage === 'pause'
 
-  let headline = 'COUNT THE BLOCKS'
+  // Blank until the first puzzle; its box keeps its height so nothing moves.
+  let headline = ''
   if (playing && !done) headline = `PUZZLE ${Math.min(index + 1, puzzles.length)} / ${puzzles.length}`
   if (done) headline = 'ALL DONE'
 
+  const message: CSSProperties = {
+    fontFamily: font.display,
+    fontWeight: 700,
+    fontSize: fluid(20, 30),
+    lineHeight: 1.2,
+    textWrap: 'balance',
+    maxWidth: '100%',
+  }
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
-      <div style={{ ...sharedStyles.microLabel, letterSpacing: '0.22em', fontSize: 15, height: 20 }}>
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: fluid(10, 16),
+        width: '100%',
+        maxWidth: 640,
+        textAlign: 'center',
+      }}
+    >
+      <div
+        style={{
+          ...sharedStyles.microLabel,
+          letterSpacing: '0.22em',
+          fontSize: playing ? fluid(14, 17) : fluid(12, 15),
+          color: playing ? color.ink : color.mutedStrong,
+          // A fixed height, because the type size changes and the scene sits below it.
+          height: fluid(22, 28),
+          whiteSpace: 'nowrap',
+          display: 'flex',
+          alignItems: 'center',
+        }}
+      >
         {headline}
       </div>
 
+      {/* Reserved whether or not a scene is showing, so the parts around it
+          never move as the round goes from flash to answer and back. */}
       <div
         style={{
           position: 'relative',
-          // About 38% of the screen's height, never wider than the screen.
-          width: `min(90vw, calc(38vh * ${SCENE_ASPECT}))`,
+          width: `min(100%, calc(${sceneHeight} * ${SCENE_ASPECT}), ${SCENE_MAX_PX}px)`,
           aspectRatio: String(SCENE_ASPECT),
         }}
       >
@@ -151,7 +192,8 @@ export function CubeCounter({
               justifyContent: 'center',
               fontFamily: font.display,
               fontWeight: 700,
-              fontSize: fluid(64, 12, 120),
+              // Scaled to the scene box it stands in for.
+              fontSize: `min(${fluid(64, 120)}, calc(${sceneHeight} * 0.35))`,
               color: color.mutedSoft,
             }}
           >
@@ -160,33 +202,33 @@ export function CubeCounter({
         )}
       </div>
 
-      <div style={{ minHeight: fluid(96, 14, 140), display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+      {/* Reserved from the start: the answer box appearing must not push the
+          scene up the screen. Sized for the tallest thing it holds, the answer. */}
+      <div
+        style={{
+          minHeight: fluid(112, 136),
+          width: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: fluid(8, 12),
+        }}
+      >
         {playing && done && (
-          <div
-            style={{
-              fontFamily: font.display,
-              fontWeight: 700,
-              fontSize: fluid(20, 3.2, 30),
-              color: color.mutedStrong,
-              animation: 'pa-pulse 2s ease-in-out infinite',
-            }}
-          >
+          <div style={{ ...message, color: color.mutedStrong, animation: 'pa-pulse 2s ease-in-out infinite' }}>
             Locked in. Waiting for everyone else…
           </div>
         )}
 
         {playing && !done && stage === 'flash' && (
-          <div style={{ fontFamily: font.display, fontWeight: 700, fontSize: fluid(20, 3.2, 30), color: color.ink }}>
-            Remember them all!
-          </div>
+          <div style={{ ...message, color: color.ink }}>Remember them all!</div>
         )}
 
         {playing && !done && stage === 'pause' && (
           <div
             style={{
-              fontFamily: font.display,
-              fontWeight: 700,
-              fontSize: fluid(22, 3.6, 34),
+              ...message,
               color: lastAnswer === correct ? color.mintInk : color.red,
               animation: 'pa-pop .35s cubic-bezier(.34,1.56,.64,1)',
             }}
@@ -201,39 +243,63 @@ export function CubeCounter({
 
         {playing && !done && stage === 'answer' && (
           <>
-            <div style={{ width: 'min(60vw, 320px)', height: 10, borderRadius: 5, border: border.thin, overflow: 'hidden', background: color.white }}>
+            <div
+              style={{
+                width: fluid(220, 300),
+                maxWidth: '100%',
+                height: 10,
+                borderRadius: 5,
+                border: border.thin,
+                overflow: 'hidden',
+                background: color.white,
+              }}
+            >
               <div style={{ width: `${timeLeft * 100}%`, height: '100%', background: timeLeft < 0.3 ? color.red : color.mint }} />
             </div>
-            <input
-              // Mounted only while answering, so it takes focus the moment the
-              // scene hides and the player can type straight away.
-              autoFocus
-              value={typed}
-              inputMode="numeric"
-              autoComplete="off"
-              aria-label="How many blocks?"
-              placeholder="how many?"
-              onChange={(event) => {
-                setTyped(event.target.value.replace(/\D/g, '').slice(0, MAX_DIGITS))
-              }}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') submitTyped()
-              }}
-              style={{
-                width: 'min(70vw, 260px)',
-                boxSizing: 'border-box',
-                textAlign: 'center',
-                fontFamily: font.display,
-                fontWeight: 700,
-                fontSize: fluid(30, 5, 48),
-                padding: '0.2em 0.3em',
-                color: color.ink,
-                background: color.white,
-                border: border.medium,
-                borderRadius: 16,
-                outline: 'none',
-              }}
-            />
+            <div style={{ display: 'flex', alignItems: 'center', gap: fluid(8, 12), maxWidth: '100%' }}>
+              <input
+                // Mounted only while answering, so it takes focus the moment the
+                // scene hides and the player can type straight away.
+                autoFocus
+                value={typed}
+                inputMode="numeric"
+                enterKeyHint="done"
+                autoComplete="off"
+                aria-label="How many blocks?"
+                onChange={(event) => {
+                  setTyped(event.target.value.replace(/\D/g, '').slice(0, MAX_DIGITS))
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') submitTyped()
+                }}
+                style={{
+                  width: fluid(140, 200),
+                  minWidth: 0,
+                  flexShrink: 1,
+                  boxSizing: 'border-box',
+                  textAlign: 'center',
+                  fontFamily: font.display,
+                  fontWeight: 700,
+                  fontSize: fluid(28, 40),
+                  padding: '0.15em 0.3em',
+                  color: color.ink,
+                  background: color.white,
+                  border: border.medium,
+                  borderRadius: 16,
+                  outline: 'none',
+                }}
+              />
+              {/* A phone's number pad has no Enter key, so the answer needs a
+                  button of its own to be sent from a touch screen. */}
+              <div style={{ flexShrink: 0 }}>
+                <PushButton size="sm" variant="success" disabled={typed === ''} onClick={submitTyped}>
+                  OK
+                </PushButton>
+              </div>
+            </div>
+            <div style={{ fontFamily: font.mono, fontSize: fluid(11, 13), color: color.mutedStrong }}>
+              TYPE IT, THEN HIT ENTER OR OK
+            </div>
           </>
         )}
       </div>

@@ -1,4 +1,5 @@
-import { LOG_DODGE } from '../../shared/games/logDodge/constants.ts'
+import { ACTIONS, LOG_DODGE } from '../../shared/games/logDodge/constants.ts'
+import type { Action } from '../../shared/games/logDodge/types.ts'
 import type { RankedEntry } from '../../shared/games/selfTimed.ts'
 import type { RoundPlayerView } from '../../types/index.ts'
 import type { ContestantStatus } from './scene/LogDodgeScene.ts'
@@ -27,7 +28,7 @@ export function collectStatuses({
 
   for (const { playerId } of players) {
     if (playerId === selfPlayerId) {
-      statuses.set(playerId, { hits: selfHits, isOut: selfIsOut })
+      statuses.set(playerId, { hits: selfHits, isOut: selfIsOut, lastPress: null })
       continue
     }
     const ranked = finalRanking?.find((entry) => entry.playerId === playerId)
@@ -36,13 +37,38 @@ export function collectStatuses({
       statuses.set(playerId, {
         hits: typeof hits === 'number' ? hits : 0,
         isOut: ranked.detail.survived === false,
+        lastPress: pressOf(progress[playerId]),
       })
       continue
     }
     const hits = progress[playerId]?.hits ?? 0
-    statuses.set(playerId, { hits, isOut: hits >= LOG_DODGE.MAX_HITS })
+    statuses.set(playerId, {
+      hits,
+      isOut: hits >= LOG_DODGE.MAX_HITS,
+      lastPress: pressOf(progress[playerId]),
+    })
   }
   return statuses
+}
+
+/** A player's latest press, from their progress report (see `pressReport`). */
+function pressOf(report: Record<string, number> | undefined): { action: Action; atMs: number } | null {
+  const action = report?.pressAction === undefined ? undefined : ACTIONS[report.pressAction]
+  const atMs = report?.pressAtMs
+  return action === undefined || atMs === undefined ? null : { action, atMs }
+}
+
+/**
+ * What a player reports for other screens: their hits, and their latest press
+ * as an index into ACTIONS and a round time, so the others can play it.
+ */
+export function pressReport(
+  hits: number,
+  lastPress: { action: Action; atMs: number } | null,
+): Record<string, number> {
+  return lastPress === null
+    ? { hits }
+    : { hits, pressAction: ACTIONS.indexOf(lastPress.action), pressAtMs: lastPress.atMs }
 }
 
 /**

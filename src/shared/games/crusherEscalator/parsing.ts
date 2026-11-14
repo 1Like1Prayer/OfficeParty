@@ -3,8 +3,8 @@
  * is dropped by the runner; nothing here throws.
  */
 
-import { CRUSHER_ESCALATOR, DIRECTIONS } from './constants';
-import type { CrusherEscalatorResult, Direction, Input } from './types';
+import { CRUSHER_ESCALATOR, DIRECTIONS } from './constants.js';
+import type { CrusherEscalatorResult, Direction, Input } from './types.js';
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
     typeof value === 'object' && value !== null;

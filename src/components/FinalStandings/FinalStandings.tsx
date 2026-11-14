@@ -1,4 +1,5 @@
-import { color, sharedStyles } from '../../theme/index.ts'
+import { useMediaQuery } from '../../hooks/index.ts'
+import { breakpoint, color, fluid, sharedStyles } from '../../theme/index.ts'
 import { PushButton } from '../ui/index.ts'
 
 interface FinalStandingsProps {
@@ -14,14 +15,15 @@ export function FinalStandings({
   championNote,
   onBackToLobby,
 }: FinalStandingsProps) {
+  const compact = useMediaQuery(breakpoint.compact)
+
   return (
-    <section style={{ ...sharedStyles.phasePane, gap: 28 }}>
-      <div style={sharedStyles.eyebrow}>RUN COMPLETE</div>
+    <section style={{ ...sharedStyles.phasePane, gap: fluid(18, 28) }}>
       <h1
         style={{
           ...sharedStyles.displayHeading,
           margin: 0,
-          fontSize: 96,
+          fontSize: fluid(44, 96),
           lineHeight: 0.92,
           letterSpacing: '-0.035em',
           color: color.red,
@@ -29,12 +31,12 @@ export function FinalStandings({
       >
         {championLine}
       </h1>
-      <p style={{ margin: 0, fontSize: 22, color: color.muted, maxWidth: '40ch', lineHeight: 1.5 }}>
+      <p style={{ margin: 0, fontSize: fluid(17, 22), color: color.muted, maxWidth: '40ch', lineHeight: 1.5, textWrap: 'pretty' }}>
         {championNote}
       </p>
       {onBackToLobby && (
-        <div style={{ alignSelf: 'flex-start' }}>
-          <PushButton onClick={onBackToLobby}>Run it back</PushButton>
+        <div style={{ alignSelf: compact ? 'stretch' : 'flex-start' }}>
+          <PushButton fullWidth={compact} onClick={onBackToLobby}>Run it back</PushButton>
         </div>
       )}
     </section>

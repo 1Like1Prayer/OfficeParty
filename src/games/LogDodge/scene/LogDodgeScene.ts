@@ -16,9 +16,10 @@ import { COUNTER_ACTION, LOG_DODGE } from '../../../shared/games/logDodge/consta
 import type { Action, Log } from '../../../shared/games/logDodge/types.ts'
 import type { RoundPlayerView } from '../../../types/index.ts'
 import { createAvatarTexture } from '../../three/avatarTexture.ts'
-import { labelWidthFor, Nameplate } from '../../three/Nameplate.ts'
+import { labelWidthFor } from '../../three/Nameplate.ts'
 import { followPose, overviewPose, zoomProgress } from './cameraPath.ts'
 import { Contestant } from './Contestant.ts'
+import { NAME_TAG_ASPECT, NameTag } from './NameTag.ts'
 import { Ocean } from './Ocean.ts'
 import { RollingLog, LogShared } from './RollingLog.ts'
 import { Sky } from './Sky.ts'
@@ -39,6 +40,12 @@ export interface ContestantStatus {
   hits: number
   /** Knocked out, and on their way off the belt. */
   isOut: boolean
+  /**
+   * Their latest press, `atMs` into the round, so this screen can play it.
+   * Null for the player themselves, whose presses reach the scene directly
+   * through `press`, and for anyone who has not pressed yet.
+   */
+  lastPress: { action: Action; atMs: number } | null
 }
 
 export interface StageStatus {
@@ -64,20 +71,29 @@ interface Entry {
   /** Place in the line, left to right. */
   slot: number
   contestant: Contestant
-  nameplate: Nameplate
+  nameplate: NameTag
   badge: CanvasTexture
   /** Hits already shown, so a new one is only reacted to once. */
   shownHits: number
   /** The next log whose contact has yet to be checked. */
   nextContact: number
+  /** Logs this contestant has dodged so far, by index, as far as this screen has seen. */
+  dodged: Set<number>
+  /** When the last press played for this contestant was made, so each one plays once. */
+  playedPressAtMs: number
 }
 
 /** The widest a name tag is drawn, in screen pixels, and the narrowest it is allowed to shrink to. */
 const NAMEPLATE_PIXELS = 150
 const NAMEPLATE_MIN_PIXELS = 84
-/** A tag is 360 by 130 on its canvas. */
-const NAME_TAG_ASPECT = 130 / 360
 const NAMEPLATE_HEIGHT = 2.75
+
+/**
+ * Another player's press reaches this screen a little after they made it. One
+ * older than this is not played: it is from before this screen joined, or so
+ * late that the log it answered has already gone by.
+ */
+const STALE_PRESS_MS = 600
 
 /** How long the logs still on their way take to fade once the round is decided. */
 const LOG_STOP_FADE_MS = 450
@@ -92,8 +108,8 @@ const lerp = (from: number, to: number, amount: number): number => from + (to - 
  * everyone and swoops in behind the player. Each log is placed purely from
  * the round's clock, so the picture is the schedule and nothing here decides
  * who got hit — the server does that. The player's own dodges are drawn from
- * their presses; opponents only run in place, and react when the hits they
- * report go up.
+ * their presses as they make them; everyone else's from the presses they
+ * report, a moment later, and they react when the hits they report go up.
  */
 export class LogDodgeScene {
   private readonly renderer: WebGLRenderer
@@ -111,8 +127,6 @@ export class LogDodgeScene {
 
   private entries: Entry[] = []
   private status: StageStatus = { byPlayerId: new Map(), selfEnded: false, isRoundOver: false, survivorIds: null }
-  /** The player's own logs they have dodged so far, by index. */
-  private readonly dodged = new Set<number>()
   private labelWidth = 1
   /** With a crowded field, tags alternate between two rows so neighbours never touch. */
   private labelRowOffset = 0
@@ -177,7 +191,7 @@ export class LogDodgeScene {
       })
       const contestant = new Contestant(player.color, badge)
       contestant.root.position.set(slotXs[index]!, 0, 0)
-      const nameplate = new Nameplate()
+      const nameplate = new NameTag()
       this.scene.add(contestant.root, nameplate.sprite)
 
       // A screen that joins the round part-way starts from where it has got to.
@@ -192,6 +206,8 @@ export class LogDodgeScene {
         badge,
         shownHits: 0,
         nextContact: next,
+        dodged: new Set<number>(),
+        playedPressAtMs: Number.NEGATIVE_INFINITY,
       }
     })
     this.sizeLabels()
@@ -209,19 +225,7 @@ export class LogDodgeScene {
   press(action: Action, atMs: number): void {
     const self = this.entries.find(({ player }) => player.playerId === this.round.selfPlayerId)
     if (!self) return
-
-    // The same rule the server judges by: the earliest undodged log of the
-    // right height whose window holds the press.
-    const index = this.round.logs.findIndex(
-      (log, i) =>
-        !this.dodged.has(i) &&
-        COUNTER_ACTION[log.height] === action &&
-        Math.abs(atMs - log.arriveAtMs) <= LOG_DODGE.HIT_WINDOW_MS,
-    )
-    if (index !== -1) this.dodged.add(index)
-
-    const untilArrivalMs = index === -1 ? 0 : this.round.logs[index]!.arriveAtMs - atMs
-    self.contestant.perform(action, holdFor(action, untilArrivalMs))
+    this.playPress(self, action, atMs, atMs)
   }
 
   dispose(): void {
@@ -289,10 +293,30 @@ export class LogDodgeScene {
     }
   }
 
+  /**
+   * Plays a press made `atMs` into the round, now that it is `nowMs`. The log
+   * it answers is found by the same rule the server judges by: the earliest
+   * undodged log of the right height whose window holds the press. The move is
+   * held so it is still in force when that log arrives, which for another
+   * player's press, arriving late, is sooner than it was for them.
+   */
+  private playPress(entry: Entry, action: Action, atMs: number, nowMs: number): void {
+    const index = this.round.logs.findIndex(
+      (log, i) =>
+        !entry.dodged.has(i) &&
+        COUNTER_ACTION[log.height] === action &&
+        Math.abs(atMs - log.arriveAtMs) <= LOG_DODGE.HIT_WINDOW_MS,
+    )
+    if (index !== -1) entry.dodged.add(index)
+
+    const untilArrivalMs = index === -1 ? 0 : this.round.logs[index]!.arriveAtMs - nowMs
+    entry.contestant.perform(action, holdFor(action, untilArrivalMs))
+  }
+
   private updateEntry(entry: Entry, nowMs: number): void {
     const { player, contestant, nameplate } = entry
     const isSelf = player.playerId === this.round.selfPlayerId
-    const state = this.status.byPlayerId.get(player.playerId) ?? { hits: 0, isOut: false }
+    const state = this.status.byPlayerId.get(player.playerId) ?? { hits: 0, isOut: false, lastPress: null }
     const logs = this.round.logs
 
     if (state.isOut) contestant.knockOut()
@@ -304,17 +328,22 @@ export class LogDodgeScene {
         const isCutOff = this.stoppedAtMs !== null && logs[entry.nextContact]!.arriveAtMs > this.stoppedAtMs
         // The last one standing has won: nothing touches them any more.
         const hasWon = this.status.survivorIds?.has(player.playerId) === true
-        if (!this.dodged.has(entry.nextContact) && !contestant.isOut && !isCutOff && !hasWon) {
+        if (!entry.dodged.has(entry.nextContact) && !contestant.isOut && !isCutOff && !hasWon) {
           contestant.zap()
           this.shake = 1
         }
         entry.nextContact++
       }
-    } else if (state.hits > entry.shownHits) {
-      // The server only tells other screens how many hits a player has taken,
-      // never what they pressed, so an opponent just runs in place — idle, as
-      // far as anyone can tell — until their own report says a log hit them.
-      contestant.zap()
+    } else {
+      // Everyone else's presses arrive in their reports, a moment after they
+      // made them, and play as soon as they do.
+      const press = state.lastPress
+      if (press !== null && press.atMs > entry.playedPressAtMs) {
+        entry.playedPressAtMs = press.atMs
+        if (nowMs - press.atMs <= STALE_PRESS_MS) this.playPress(entry, press.action, press.atMs, nowMs)
+      }
+      // Their own judging decides whether a log hit them; their report says so.
+      if (state.hits > entry.shownHits) contestant.zap()
     }
     entry.shownHits = Math.max(entry.shownHits, state.hits)
 
@@ -326,12 +355,9 @@ export class LogDodgeScene {
     nameplate.sprite.position.set(entry.x, NAMEPLATE_HEIGHT, -1.2 - (entry.slot % 2) * this.labelRowOffset)
     nameplate.update({
       name: player.name,
-      score: Math.max(0, LOG_DODGE.MAX_HITS - state.hits),
-      unit: '♥',
-      // Nothing to say until someone has actually been hit: everyone is simply playing.
-      status: state.isOut ? 'OUT' : state.hits === 0 ? '' : `${state.hits} HIT${state.hits === 1 ? '' : 'S'}`,
+      lives: Math.max(0, LOG_DODGE.MAX_HITS - state.hits),
       isYou: isSelf,
-      isFallen: state.isOut,
+      isOut: state.isOut,
     })
   }
 

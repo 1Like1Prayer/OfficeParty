@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { border, color, font } from '../../theme/index.ts'
+import { border, color, fluid, font } from '../../theme/index.ts'
 
 interface CodeBoxesProps {
   entry: string
@@ -32,15 +32,16 @@ export function CodeBoxes({
 
   return (
     <div style={{ position: 'relative' }}>
-      <div style={{ display: 'flex', gap: 10 }}>
+      <div style={{ display: 'flex', gap: fluid(6, 10) }}>
         {Array.from({ length }, (_, index) => (
           <div
             key={index}
             style={{
               flex: 1,
+              minWidth: 0,
               aspectRatio: '1',
               border: border.heavy,
-              borderRadius: 14,
+              borderRadius: fluid(10, 14),
               background: invalid
                 ? color.pinkSoft
                 : entry[index]
@@ -51,7 +52,7 @@ export function CodeBoxes({
               justifyContent: 'center',
               fontFamily: font.display,
               fontWeight: 700,
-              fontSize: 40,
+              fontSize: fluid(26, 40),
             }}
           >
             {entry[index] ?? ''}
@@ -81,6 +82,8 @@ export function CodeBoxes({
           border: 'none',
           background: 'transparent',
           cursor: 'text',
+          // Below 16px, iOS zooms the page in when the field takes focus.
+          fontSize: 16,
         }}
       />
     </div>

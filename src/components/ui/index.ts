@@ -1,5 +1,7 @@
 export { Avatar } from './Avatar/index.ts'
 export { BigButton } from './BigButton/index.ts'
+export { ConfirmButton } from './ConfirmButton/index.ts'
+export type { ConfirmButtonTone } from './ConfirmButton/index.ts'
 export { Panel } from './Panel/index.ts'
 export { Pill } from './Pill/index.ts'
 export type { PillVariant } from './Pill/index.ts'

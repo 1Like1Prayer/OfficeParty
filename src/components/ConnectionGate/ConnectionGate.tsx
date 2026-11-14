@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
-import { color, font, sharedStyles } from '../../theme/index.ts'
-import type { ConnectionStatus } from '../../socket/index.ts'
+import { color, fluid, font, sharedStyles } from '../../theme/index.ts'
+import type { ConnectionStatus } from '../../network/index.ts'
 
 interface ConnectionGateProps {
   status: ConnectionStatus
@@ -11,7 +11,7 @@ interface ConnectionGateProps {
 
 const MESSAGES: Record<ConnectionStatus, { eyebrow: string; line: string }> = {
   connecting: { eyebrow: 'CONNECTING', line: 'Finding the party server…' },
-  disconnected: { eyebrow: 'OFFLINE', line: 'Lost the party server. Retrying…' },
+  reconnecting: { eyebrow: 'OFFLINE', line: 'Lost the party server. Retrying…' },
   connected: { eyebrow: '', line: '' },
 }
 
@@ -24,7 +24,7 @@ export function ConnectionGate({ status, error, children }: ConnectionGateProps)
   return (
     <div
       style={{
-        minHeight: '100vh',
+        minHeight: '100dvh',
         background: color.cream,
         color: color.ink,
         fontFamily: font.body,
@@ -40,12 +40,12 @@ export function ConnectionGate({ status, error, children }: ConnectionGateProps)
           justifyContent: 'center',
           alignItems: 'center',
           gap: 14,
-          padding: 52,
+          padding: fluid(24, 52),
           textAlign: 'center',
         }}
       >
         <div style={sharedStyles.eyebrow}>{error ? 'ERROR' : message.eyebrow}</div>
-        <div style={{ ...sharedStyles.displayHeading, fontSize: 56, maxWidth: '18ch' }}>
+        <div style={{ ...sharedStyles.displayHeading, fontSize: fluid(34, 56), maxWidth: '18ch' }}>
           {error ?? message.line}
         </div>
       </div>

@@ -3,8 +3,8 @@
  * is dropped by the runner; nothing here throws.
  */
 
-import { CUBE_COUNTER, MAX_POSSIBLE_BOX_COUNT } from './constants';
-import type { Answer, CubeCounterResult } from './types';
+import { CUBE_COUNTER, MAX_POSSIBLE_BOX_COUNT } from './constants.js';
+import type { Answer, CubeCounterResult } from './types.js';
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
     typeof value === 'object' && value !== null;

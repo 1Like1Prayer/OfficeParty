@@ -1,10 +1,10 @@
 import { Arena } from './components/Arena/index.ts'
-import { SocketProvider } from './socket/index.ts'
+import { NetworkProvider } from './network/index.ts'
 
 export default function App() {
   return (
-    <SocketProvider>
+    <NetworkProvider>
       <Arena />
-    </SocketProvider>
+    </NetworkProvider>
   )
 }

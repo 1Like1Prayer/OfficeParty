@@ -4,10 +4,10 @@
  * is a separate question, answered in visibility.ts.
  */
 
-import { CUBE_COUNTER } from './constants';
-import { footprintCells } from './footprint';
-import { buildOccupancy } from './occupancy';
-import type { Box } from './types';
+import { CUBE_COUNTER } from './constants.js';
+import { footprintCells } from './footprint.js';
+import { buildOccupancy } from './occupancy.js';
+import type { Box } from './types.js';
 
 const { GRID_SIZE, MAX_LEVELS, MAX_FOOTPRINT_SIDE } = CUBE_COUNTER;
 

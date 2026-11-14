@@ -1,5 +1,5 @@
 import { ROOM } from '../../shared/constants.ts'
-import { color, sharedStyles } from '../../theme/index.ts'
+import { color, fluid, sharedStyles } from '../../theme/index.ts'
 import { PushButton, TextField } from '../ui/index.ts'
 import { AvatarPicker } from './AvatarPicker.tsx'
 import { CodeBoxes } from './CodeBoxes.tsx'
@@ -41,7 +41,7 @@ export function JoinScreen({
 
   return (
     <EntryCard label="JOIN A PARTY" onBack={onBack}>
-      <div style={{ ...sharedStyles.displayHeading, fontSize: 38, lineHeight: 1.05 }}>
+      <div style={{ ...sharedStyles.displayHeading, fontSize: fluid(28, 38), lineHeight: 1.05 }}>
         Name yourself, then the code
       </div>
       <TextField
@@ -62,14 +62,14 @@ export function JoinScreen({
         onSubmit={submit}
       />
       {error && (
-        <div style={{ fontWeight: 900, fontSize: 13, letterSpacing: '0.12em', color: color.red }}>
+        <div style={{ fontWeight: 900, fontSize: fluid(12, 13), letterSpacing: '0.12em', color: color.red, overflowWrap: 'break-word' }}>
           {error.toUpperCase()}
         </div>
       )}
-      <PushButton size="sm" onClick={submit} disabled={!ready}>
+      <PushButton size="sm" fullWidth onClick={submit} disabled={!ready}>
         {busy ? 'Joining…' : 'Join the party'}
       </PushButton>
-      <div style={{ fontSize: 14, color: color.muted, fontWeight: 700 }}>
+      <div style={{ fontSize: fluid(13, 14), color: color.muted, fontWeight: 700 }}>
         Type or paste the code, then press Enter.
       </div>
     </EntryCard>

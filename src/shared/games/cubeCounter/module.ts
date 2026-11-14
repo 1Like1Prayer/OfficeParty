@@ -7,13 +7,13 @@
  * latency can't change what anyone sees or how long they took.
  */
 
-import { assignSharedRanks } from '../ranking';
-import type { RankedEntry, ResultEntry, SelfTimedGameModule } from '../selfTimed';
-import { CUBE_COUNTER } from './constants';
-import { parseCubeCounterProgress, parseCubeCounterResult } from './parsing';
-import { generatePuzzles } from './sceneGenerator';
-import { compareScores, isSameScore, scoreResult } from './scoring';
-import type { CubeCounterResult, CubeCounterRound } from './types';
+import { assignSharedRanks } from '../ranking.js';
+import type { RankedEntry, ResultEntry, SelfTimedGameModule } from '../selfTimed.js';
+import { CUBE_COUNTER } from './constants.js';
+import { parseCubeCounterProgress, parseCubeCounterResult } from './parsing.js';
+import { generatePuzzles } from './sceneGenerator.js';
+import { compareScores, isSameScore, scoreResult } from './scoring.js';
+import type { CubeCounterResult, CubeCounterRound } from './types.js';
 
 const createRoundData = (): CubeCounterRound => ({ puzzles: generatePuzzles() });
 

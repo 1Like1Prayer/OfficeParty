@@ -2,7 +2,7 @@
  * Splitting a crowd into heats.
  */
 
-import { shuffled, type RandomSource } from '../random';
+import { shuffled, type RandomSource } from '../random.js';
 
 /**
  * Two groups as even as possible, assigned at random: 7 players become 4 + 3,

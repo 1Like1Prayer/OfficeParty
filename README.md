@@ -16,17 +16,16 @@ takes a paste, so sharing a room is copy in one window and paste in the next.
 
 ```bash
 npm install
-cp .env.example .env   # points at http://localhost:3000/game
+cp .env.example .env   # points at http://localhost:2567
 npm run dev
 ```
 
-The backend (`../OfficePartyBE`) must be running: `npm run dev` there listens on
-`PORT` from `.env.development` and mounts the game on the `/game` namespace, so
-`VITE_SOCKET_URL` includes it.
+The Colyseus server (`../OfficePartyV2`) must be running: `npm start` there
+listens on port 2567.
 
 | Variable | Meaning |
 | --- | --- |
-| `VITE_SOCKET_URL` | Backend origin **including** `/game`. Empty uses the page origin. |
+| `VITE_SERVER_URL` | The Colyseus server's HTTP(S) origin, e.g. `http://localhost:2567`. |
 | `VITE_ROOM_CODE` | Rejoin this room on load instead of showing the title card. Normally empty. |
 
 ## Testing locally
@@ -43,12 +42,12 @@ players are recorded as no-shows.
 
 ```
 src/
-  shared/       COPY of OfficePartyBE/src/shared — the wire contract
+  shared/       COPY of OfficePartyV2/src/shared — the wire contract and game rules
   types/        client-only view models
   theme/        design tokens + reusable style fragments
   content/      per-game copy, and the avatar catalogue
-  socket/       connection, session, useRoom / useLiveRound / useConnectionStatus
-  selectors/    RoomStatePayload -> view models
+  network/      Colyseus connection: PartyConnection, RoomView, useRoom / useLiveRound
+  selectors/    RoomView -> view models
   games/        the playable surfaces, one folder per game
   hooks/        generic hooks
   components/
@@ -64,7 +63,7 @@ src/
 
 The server owns the rules; the client owns the surface. To make a catalogued
 game playable, add a module on the server (`shared/games/`, registered in
-`game/registry.ts`), then here:
+`server/games/registry.ts`), then here:
 
 1. A component under `src/games/<Game>/` taking `GameSurfaceProps` — the public
    round data, the local time the clock starts, and callbacks to submit a
@@ -107,42 +106,44 @@ if the tab was hidden mid-round.
 
 ## Server contract
 
-`src/shared/` is copied verbatim from the backend and is the single source of
-truth for message shapes. Re-copy it whenever the backend's changes:
+`src/shared/` is copied verbatim from the server and is the single source of
+truth for message shapes, the synced state's shape and the game rules.
+Re-copy it whenever the server's changes:
 
 ```bash
-cp -R ../OfficePartyBE/src/shared/{constants.ts,protocol.ts,games} src/shared/
+rsync -a --delete --exclude '*.test.ts' --exclude README.md \
+  ../OfficePartyV2/src/shared/ src/shared/
 ```
 
-Three things about the protocol shape the client:
+Everything that talks to the server lives in `src/network/`. Screens never
+touch the Colyseus SDK:
 
-**The handshake carries a version.** `PROTOCOL_VERSION` goes in socket.io's `auth`;
-a mismatch is refused at the namespace with `protocol:mismatch`, which surfaces
-as a `connect_error` rather than a normal event.
-
-**Intents are acknowledged, not broadcast back.** Every client event takes an ack
-returning `{ok: true, data}` or `{ok: false, code, message}`. Joining is how a
-player learns their own `playerId`, which is kept in `sessionStorage` so a reload
-rejoins the same slot — and with it their score and any ownership — rather than
-taking a second one.
-
-**`room:state` is not re-sent on every round transition.** Its `round` view and
-its `players[].points` are accurate when sent, but the server does not broadcast
-state as a round moves ready-check → starting → countdown → playing → results,
-nor when a round awards a point. Both would otherwise sit a round behind:
-
-- `useLiveRound` folds `competition:gameStarting`, `round:data`,
-  `round:readyState`, `round:startAt` and `round:results` on top of the last
-  snapshot's round view. The countdown runs off `startAt`'s own `serverTimeMs`,
-  so no clock sync is needed.
-- `useRoom` folds `round:results` and `competition:scores` into a live score
-  map the scoreboard prefers over the snapshot. Awards only ever go up inside a
-  competition, so this can never show less than the snapshot does.
+- **Joining.** `client.create('party', …)` hosts and `client.joinById(code, …)`
+  joins; the room code is the Colyseus room id. The join options carry
+  `PROTOCOL_VERSION`, and an outdated page is refused with
+  `PROTOCOL_MISMATCH_CODE`, which `ConnectionGate` shows as "please reload".
+- **State.** `PartyConnection` subscribes to the room's synced state and turns
+  it into a `RoomView` (`roomView.ts`), the shape the selectors render. Players,
+  lobby, round phase, points and live progress all arrive this way, so nothing
+  sits a round behind. A view is replaced only when its content changed, and
+  React reads it through `useSyncExternalStore`.
+- **Messages.** Round data, results, the closing notice and the leaderboard are
+  one-off events, folded in by `roundEvents.ts`.
+- **Requests.** Every intent is `room.request(...)`; a refusal carries the
+  server's `{ code, message }`, shown as a notice until the room next changes.
+- **Time.** `PartyConnection` pings the server and keeps a `ClockSync`
+  estimate. When a start is scheduled, its local time is fixed once for that
+  attempt (games measure their player from it), and `useLiveRound` flips the
+  phase to `countdown` and `playing` at exactly those local instants.
+- **Reloads.** The seat's `reconnectionToken` is kept in `sessionStorage`. A
+  reload resumes it with `client.reconnect`; if the server has let the seat go,
+  it joins the same room again. A dropped connection is retried by the SDK
+  while the server holds the seat, and `ConnectionGate` says so.
 
 ### Avatars
 
 Players pick a face on the way in, and it has to reach everyone else, so it
-travels through `room:state` like everything else: `PlayerView.avatar`.
+travels through the synced state like everything else: `PlayerView.avatar`.
 
 What travels is a **seed, never a URL**. The client turns the seed into a
 DiceBear image in `src/content/avatars.ts`; the server stores an opaque token
@@ -156,10 +157,19 @@ slow response degrades to the letter instead of an empty square.
 
 ### Who can do what
 
-Owner-only intents (`lobby:start`, `competition:skip`, `lobby:setMode`,
-`lobby:setRounds`) are refused server-side for anyone else, so those controls
-render read-only unless `room.ownerId` is this player. Everyone else gets a
-ready button instead; the owner is held ready by the server.
+Owner-only intents (`lobby:start`, `lobby:setMode`, `competition:skip`,
+`competition:skipGame`, `competition:toLobby`, `room:kick`) are refused
+server-side for anyone else, so those controls render read-only unless
+`room.ownerId` is this player. Everyone else gets a ready button instead; the
+owner is held ready by the server.
+
+During a run the owner gets a floating host bar (`HostControls`): **Next game**
+abandons the current game (the unfinished round scores nothing) and starts the
+next one, or shows the final scores after the last game; **Back to lobby** ends
+the run. The owner can also remove a player with the × on their avatar in the
+lobby or their scoreboard row. Each of these asks for a second press. A removed
+player is disconnected with `KICKED_CODE`, their stored seat is forgotten, and
+the title screen tells them why.
 
 Someone who joins mid-run is a spectator until the room returns to the lobby —
 they are not in `round.participants`, so they get no play surface and the round

@@ -1,4 +1,5 @@
-import { sharedStyles } from '../../theme/index.ts'
+import { useMediaQuery } from '../../hooks/index.ts'
+import { breakpoint, fluid, sharedStyles } from '../../theme/index.ts'
 import type { ResultRowView } from '../../types/index.ts'
 import { PushButton } from '../ui/index.ts'
 import { ResultRow } from './ResultRow.tsx'
@@ -20,11 +21,13 @@ export function RoundResults({
   skipLabel,
   onSkip,
 }: RoundResultsProps) {
+  const compact = useMediaQuery(breakpoint.compact)
+
   return (
-    <section style={{ ...sharedStyles.phasePane, padding: '36px 52px', gap: 22 }}>
+    <section style={{ ...sharedStyles.phasePane, gap: fluid(16, 22) }}>
       <div>
         <div style={{ ...sharedStyles.eyebrow, marginBottom: 8 }}>{eyebrow}</div>
-        <h1 style={{ ...sharedStyles.displayHeading, margin: 0, fontSize: 62, lineHeight: 1 }}>
+        <h1 style={{ ...sharedStyles.displayHeading, margin: 0, fontSize: fluid(34, 62), lineHeight: 1 }}>
           {headline}
         </h1>
       </div>
@@ -46,8 +49,8 @@ export function RoundResults({
         ))}
       </ol>
       {skipLabel && (
-        <div style={{ alignSelf: 'flex-start' }}>
-          <PushButton onClick={onSkip}>{skipLabel}</PushButton>
+        <div style={{ alignSelf: compact ? 'stretch' : 'flex-start' }}>
+          <PushButton fullWidth={compact} onClick={onSkip}>{skipLabel}</PushButton>
         </div>
       )}
     </section>

@@ -2,75 +2,88 @@
  * The wire protocol. Both sides import this file, so a message shape can
  * only change in one place.
  *
- * Envelope: every round-scoped message carries `roundId` (a counter that
- * increments each scoring round) and `attempt` (which tiebreaker within that
- * round). Together they let the server throw away a message from a round the
- * room has already moved past, instead of letting it confuse the current one.
- * The server knows who sent a message from the socket, so nothing carries a
- * sender.
+ * The protocol uses a hybrid split (netcode guide: "snapshots for what's true,
+ * events for what happened"):
+ *
+ * - **State** (Colyseus schema, delta-synced, resynced on reconnect): players,
+ *   owner, lobby, playlist, scores, the round lifecycle and live progress.
+ *   See `server/rooms/party/schema/`.
+ * - **Reliable messages** (one-off events): round data, results, closing
+ *   notices, the leaderboard. Payload types are below.
+ * - **Requests** (`room.request`, the reply is the return value): every client
+ *   action that needs an answer. A refused request rejects with an Error
+ *   whose `reason` is a `RequestError`.
+ *
+ * Round-scoped messages carry `roundId` (increments each scoring round) and
+ * `attempt` (which stage or tiebreaker within it), so a late message from a
+ * round the room has moved past is thrown away instead of confusing the
+ * current one.
  */
 
-import type { GameId, GameMeta } from './games/catalog';
-import type { RankedEntry } from './games/selfTimed';
+import type { GameId } from './games/catalog.js';
+import type { RankedEntry } from './games/selfTimed.js';
 
-export const GAME_NAMESPACE = '/game';
+/** The Colyseus room name clients create and join. */
+export const PARTY_ROOM_NAME = 'party';
 
-/** Client -> server. */
-export const ClientEvent = {
-    CreateRoom: 'room:create',
-    JoinRoom: 'room:join',
-    LeaveRoom: 'room:leave',
+/** Close code for a client running an outdated build. It should reload. */
+export const PROTOCOL_MISMATCH_CODE = 4100;
+
+/** Close code for a player the room owner removed. The client should not rejoin by itself. */
+export const KICKED_CODE = 4102;
+
+/* ------------------------------------------------------------------ */
+/* Message names                                                        */
+/* ------------------------------------------------------------------ */
+
+/** Client -> server, answered: send with `room.request(type, payload)`. */
+export const ClientRequest = {
     SetName: 'room:setName',
-    RequestState: 'room:requestState',
     SetMode: 'lobby:setMode',
     SetReady: 'lobby:ready',
     StartCompetition: 'lobby:start',
     SkipResults: 'competition:skip',
-    Ready: 'round:ready',
-    Progress: 'round:progress',
+    /** Owner: abandon the current game and go to the next (or the final leaderboard). */
+    SkipGame: 'competition:skipGame',
+    /** Owner: end the competition and take everyone back to the lobby. */
+    ReturnToLobby: 'competition:toLobby',
+    /** Owner: remove a player from the room. */
+    KickPlayer: 'room:kick',
+    ReadyForRound: 'round:ready',
     SubmitResult: 'round:result',
     /** A mid-round request the game answers (e.g. casting the dice). */
     RoundAction: 'round:action',
     Ping: 'time:ping'
 } as const;
 
-/** Server -> client. */
-export const ServerEvent = {
-    RoomState: 'room:state',
-    PlayerJoined: 'room:playerJoined',
-    PlayerLeft: 'room:playerLeft',
-    PlayerReconnected: 'room:playerReconnected',
-    OwnerChanged: 'room:ownerChanged',
-    RoomClosed: 'room:closed',
-    Playlist: 'competition:playlist',
-    GameStarting: 'competition:gameStarting',
-    Scores: 'competition:scores',
-    Leaderboard: 'competition:leaderboard',
-    RoundData: 'round:data',
-    ReadyState: 'round:readyState',
-    StartAt: 'round:startAt',
-    RoundProgress: 'round:progress',
-    RoundClosing: 'round:closing',
-    RoundResults: 'round:results',
-    ProtocolMismatch: 'protocol:mismatch',
-    Error: 'error'
+/** Client -> server, fire and forget: send with `room.send(type, payload)`. */
+export const ClientMessage = {
+    /** Display-only, ~5 Hz. Dropping one costs nothing. */
+    Progress: 'round:progress'
 } as const;
 
-export type ClientEventName = (typeof ClientEvent)[keyof typeof ClientEvent];
-export type ServerEventName = (typeof ServerEvent)[keyof typeof ServerEvent];
+/** Server -> client, reliable and ordered. */
+export const ServerMessage = {
+    GameStarting: 'competition:gameStarting',
+    RoundData: 'round:data',
+    RoundClosing: 'round:closing',
+    RoundResults: 'round:results',
+    Leaderboard: 'competition:leaderboard'
+} as const;
 
 /* ------------------------------------------------------------------ */
-/* Acknowledgements                                                     */
+/* Joining and replies                                                  */
 /* ------------------------------------------------------------------ */
 
-export type Ack<T> =
-    | { ok: true; data: T }
-    | { ok: false; code: ErrorCode; message: string };
+/** Options for `client.create(PARTY_ROOM_NAME, …)` and `client.joinById(code, …)`. */
+export interface JoinOptions {
+    protocolVersion: number;
+    name?: string;
+    /** Avatar seed. See AVATAR in constants. */
+    avatar?: string;
+}
 
 export type ErrorCode =
-    | 'room_not_found'
-    | 'room_full'
-    | 'competition_in_progress'
     | 'not_owner'
     | 'not_in_room'
     | 'not_enough_players'
@@ -80,22 +93,52 @@ export type ErrorCode =
     | 'wrong_phase'
     | 'stale_round'
     | 'duplicate_result'
-    | 'rate_limited'
-    | 'internal';
+    | 'competition_in_progress'
+    | 'invalid_target';
+
+/** A refused request's reason: the rejected Error's `reason` property on the client. */
+export interface RequestError {
+    code: ErrorCode;
+    message: string;
+}
+
+/*
+ * Reply types. Colyseus's `validate()` types a validated handler's reply as
+ * void on the client, so the replies are spelled out here.
+ */
+export interface SetNameReply {
+    name: string;
+}
+
+export interface SetModeReply {
+    mode: PlaylistMode;
+    playlist: GameId[];
+}
+
+export interface SetReadyReply {
+    ready: boolean;
+}
+
+export interface StartCompetitionReply {
+    playlist: GameId[];
+}
+
+export interface PingReply {
+    /** Room timeline: monotonic milliseconds since the room was created. */
+    serverTimeMs: number;
+}
 
 /* ------------------------------------------------------------------ */
-/* Room                                                                 */
+/* Phases (mirrored in the schema state as strings)                     */
 /* ------------------------------------------------------------------ */
 
 export type RoomPhase = 'lobby' | 'competition' | 'leaderboard';
 
 /**
- * The round's own lifecycle, from section 6:
- * Loading -> ReadyCheck -> Start -> Playing -> Results.
+ * The round's own lifecycle: Loading -> ReadyCheck -> Start -> Playing -> Results.
  *
  * `countdown` is the 3, 2, 1 the client shows between the scheduled start and
- * the clock running. Nothing is timed during it and results are not accepted
- * yet — the round is not counting.
+ * the clock running. Nothing is timed during it and results are not accepted.
  */
 export type RoundPhase =
     | 'idle'
@@ -108,95 +151,13 @@ export type RoundPhase =
 
 export type PlaylistMode = 'random' | 'custom';
 
-export interface PlayerView {
-    playerId: string;
-    name: string;
-    /** Avatar seed the player picked. See AVATAR in constants. */
-    avatar: string;
-    connected: boolean;
-    isOwner: boolean;
-    /** Joined after the competition started, so they watch rather than play. */
-    isSpectator: boolean;
-    /**
-     * Pressed ready in the lobby. The owner is always ready — they start the
-     * match, so there is nothing for them to signal.
-     */
-    ready: boolean;
-    points: number;
-}
-
-/**
- * Everything the lobby screen needs to render itself: who the room is waiting
- * on, whether start is available, and the settings the owner can change.
- */
-export interface LobbyView {
-    /** Connected players who are ready. Always includes the owner. */
-    ready: string[];
-    /** Connected players the room is still waiting on. */
-    waitingFor: string[];
-    allReady: boolean;
-    /** True when the owner can press start right now. */
-    canStart: boolean;
-    /** Why start is unavailable, or null when it is. */
-    blockedReason: StartBlockedReason | null;
-    /** How many scoring rounds each playable game is played for. */
-    roundsByGame: RoundsByGame;
-    /** The set list the owner picks from — games that are actually built. */
-    playableGames: GameId[];
-}
-
-/** Scoring rounds per game. Each game decides its own count. */
-export type RoundsByGame = Partial<Record<GameId, number>>;
-
 export type StartBlockedReason =
     | 'not_enough_players'
     | 'players_not_ready'
     | 'invalid_playlist';
 
-export interface RoundView {
-    phase: RoundPhase;
-    roundId: number;
-    attempt: number;
-    gameId: GameId | null;
-    /** Which game of the playlist, 1-based, and which of its two rounds. */
-    gameIndex: number;
-    totalGames: number;
-    roundInGame: number;
-    roundsPerGame: number;
-    isTiebreak: boolean;
-    participants: string[];
-    ready: string[];
-    waitingFor: string[];
-    /** Server monotonic time the round starts at, once scheduled. */
-    startAtServerMs: number | null;
-}
-
-export interface RoomStatePayload {
-    roomCode: string;
-    phase: RoomPhase;
-    ownerId: string;
-    players: PlayerView[];
-    mode: PlaylistMode;
-    playlist: GameId[];
-    catalog: GameMeta[];
-    lobby: LobbyView;
-    round: RoundView;
-    /** Current server monotonic time, so a late joiner can sync its offset. */
-    serverTimeMs: number;
-    minPlayers: number;
-    maxPlayers: number;
-}
-
-export interface JoinAckData {
-    playerId: string;
-    roomCode: string;
-    state: RoomStatePayload;
-    /** True when this join reclaimed an existing slot rather than taking a new one. */
-    reconnected: boolean;
-}
-
 /* ------------------------------------------------------------------ */
-/* Round messages                                                       */
+/* Request payloads                                                     */
 /* ------------------------------------------------------------------ */
 
 export interface RoundEnvelope {
@@ -204,21 +165,59 @@ export interface RoundEnvelope {
     attempt: number;
 }
 
+export interface SetNameRequest {
+    name: string;
+}
+
+export interface SetModeRequest {
+    mode: PlaylistMode;
+    gameIds?: GameId[];
+}
+
+export interface SetReadyRequest {
+    ready: boolean;
+}
+
+export interface KickPlayerRequest {
+    playerId: string;
+}
+
+export interface SubmitResultRequest extends RoundEnvelope {
+    /** Game-specific; validated by the game module. */
+    result: unknown;
+}
+
+export interface RoundActionRequest extends RoundEnvelope {
+    /** Game-specific; validated by the game module. */
+    action: unknown;
+}
+
+export interface ProgressMessage extends RoundEnvelope {
+    /** Game-specific; validated by the game module. */
+    progress: unknown;
+}
+
+/* ------------------------------------------------------------------ */
+/* Server message payloads                                              */
+/* ------------------------------------------------------------------ */
+
+export interface GameStartingPayload extends RoundEnvelope {
+    gameId: GameId;
+    title: string;
+    gameIndex: number;
+    totalGames: number;
+    roundInGame: number;
+    /** How many scoring rounds this game has in total. */
+    roundsPerGame: number;
+}
+
 export interface RoundDataPayload<TRound = unknown> extends RoundEnvelope {
     gameId: GameId;
-    /** Public round data only — see section 10 on hidden state. */
+    /** Public round data only: it must contain nothing a player shouldn't see. */
     data: TRound;
     isTiebreak: boolean;
     participants: string[];
     resultTimeoutMs: number;
-    gameIndex: number;
-    totalGames: number;
-    roundInGame: number;
-    /**
-     * Only on a snapshot for a reconnecting client: the latest progress each
-     * player sent, so a shared progress display can be drawn straight away.
-     */
-    progress?: Record<string, Record<string, number>>;
 }
 
 /**
@@ -233,34 +232,9 @@ export interface RoundClosingPayload extends RoundEnvelope {
     graceMs: number;
 }
 
-export interface ReadyStatePayload extends RoundEnvelope {
-    ready: string[];
-    waitingFor: string[];
-    /** When the ready check gives up and starts without the stragglers. */
-    deadlineServerMs: number;
-}
-
-export interface StartAtPayload extends RoundEnvelope {
-    /**
-     * Server monotonic time the round starts and the countdown begins. The
-     * client converts it to a local time using its own measured offset — that
-     * conversion is the only thing ping is for.
-     */
-    startAtServerMs: number;
-    /** How long the client shows "3, 2, 1" for. */
-    countdownMs: number;
-    /**
-     * When the clock actually runs: startAtServerMs + countdownMs. This is the
-     * zero the client measures its elapsed time from, and the moment the
-     * server starts counting toward the result deadline.
-     */
-    timingStartsAtServerMs: number;
-    serverTimeMs: number;
-}
-
-export interface ProgressPayload extends RoundEnvelope {
+export interface ScoreRow {
     playerId: string;
-    progress: Record<string, number>;
+    points: number;
 }
 
 export interface RoundResultsPayload extends RoundEnvelope {
@@ -284,52 +258,20 @@ export interface RoundResultsPayload extends RoundEnvelope {
     stageBreakMs: number;
     /**
      * Milliseconds clients have to play the ending animation before the
-     * results screen's own display time starts. Zero for most games, and
-     * always zero when `isFinal` is false: a tiebreaker or a stage break is
-     * not an ending, so it never carries an ending animation.
+     * results screen's own display time starts. Always zero when `isFinal` is
+     * false: a tiebreaker or a stage break is not an ending.
      */
     finishAnimationMs: number;
+    /** Room-timeline time the next round loads, when one is scheduled. */
     nextRoundAtServerMs: number | null;
-}
-
-export interface ScoreRow {
-    playerId: string;
-    points: number;
 }
 
 export interface LeaderboardRow extends ScoreRow {
     rank: number;
 }
 
-export interface PlaylistPayload {
-    mode: PlaylistMode;
-    playlist: GameId[];
-    /** Scoring rounds for each game in the playlist. */
-    roundsByGame: RoundsByGame;
-    totalRounds: number;
-}
-
-export interface GameStartingPayload extends RoundEnvelope {
-    gameId: GameId;
-    title: string;
-    gameIndex: number;
-    totalGames: number;
-    roundInGame: number;
-    /** How many scoring rounds this game has in total. */
-    roundsPerGame: number;
-}
-
 export interface LeaderboardPayload {
     rows: LeaderboardRow[];
     /** Tied final scores are left tied; there is no overall tiebreaker. */
     tied: boolean;
-}
-
-export interface PingAckData {
-    serverTimeMs: number;
-}
-
-export interface ErrorPayload {
-    code: ErrorCode;
-    message: string;
 }

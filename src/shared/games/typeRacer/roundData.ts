@@ -1,9 +1,9 @@
 /** Building the paragraphs for one race. */
 
-import { randomInt, shuffled, type RandomSource } from '../random';
-import { TYPE_RACER } from './constants';
-import { EASY_PARAGRAPHS, PARAGRAPH_CATEGORIES } from './texts';
-import type { Paragraph, TypeRacerRound } from './types';
+import { randomInt, shuffled, type RandomSource } from '../random.js';
+import { TYPE_RACER } from './constants.js';
+import { EASY_PARAGRAPHS, PARAGRAPH_CATEGORIES } from './texts.js';
+import type { Paragraph, TypeRacerRound } from './types.js';
 
 const NONCE_LENGTH = 24;
 const HEX = '0123456789abcdef';

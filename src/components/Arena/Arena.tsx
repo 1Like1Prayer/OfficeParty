@@ -9,7 +9,7 @@ import {
   selectScoreboardRows,
 } from '../../selectors/index.ts'
 import { ROOM } from '../../shared/constants.ts'
-import { useConnectionStatus, useRoom } from '../../socket/index.ts'
+import { useConnectionStatus, useRoom } from '../../network/index.ts'
 import { ArenaLayout } from '../ArenaLayout/index.ts'
 import { ScreenTransition } from '../ScreenTransition/index.ts'
 import { ConnectionGate } from '../ConnectionGate/index.ts'
@@ -66,6 +66,7 @@ export function Arena() {
     isFinishing,
     nextStage,
   })
+  const isOwner = inRoom && playerId !== null && room.ownerId === playerId
   const showScoreboard =
     inRoom &&
     !playing &&
@@ -77,12 +78,15 @@ export function Arena() {
         <ArenaLayout
           roundLabel={inRoom ? selectRoundLabel(room, round) : ''}
           showHeader={inRoom && !playing}
-          notice={inRoom ? error : null}
+          // The title shows why a room ended (closed, or the host removed you).
+          notice={inRoom || stage === 'title' ? error : null}
           aside={
             showScoreboard && (
               <Scoreboard
                 rows={selectScoreboardRows(room, round, scores, playerId)}
                 playerCountLabel={selectPlayerCountLabel(room)}
+                selfId={playerId}
+                onKick={isOwner ? actions.kick : null}
               />
             )
           }

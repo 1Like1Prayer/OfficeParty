@@ -1,7 +1,7 @@
 import type { Floater } from '../components/Lobby/ConnectedCard.tsx'
 import type { PoolChipView } from '../components/Lobby/GamePoolCard.tsx'
 import { GAME_CATALOG, GAME_IDS, type GameId } from '../shared/games/catalog.ts'
-import type { RoomStatePayload } from '../shared/protocol.ts'
+import type { RoomView } from '../network/index.ts'
 import { initialOf, playerColor, selectPlayers } from './players.ts'
 
 /**
@@ -23,7 +23,7 @@ function spot(index: number, total: number) {
   }
 }
 
-export function selectFloaters(room: RoomStatePayload): Floater[] {
+export function selectFloaters(room: RoomView): Floater[] {
   const players = selectPlayers(room).filter((player) => player.connected)
   return players.map((player, index) => ({
     id: player.playerId,
@@ -36,7 +36,7 @@ export function selectFloaters(room: RoomStatePayload): Floater[] {
 }
 
 /** Games the server will actually accept in a playlist. */
-export function selectPlayableGames(room: RoomStatePayload): GameId[] {
+export function selectPlayableGames(room: RoomView): GameId[] {
   return room.lobby.playableGames
 }
 
@@ -44,11 +44,11 @@ export function selectPlayableGames(room: RoomStatePayload): GameId[] {
  * What the pool is currently set to. In random mode the server draws from
  * everything playable, so that is what the chips show.
  */
-export function selectSelectedGames(room: RoomStatePayload): GameId[] {
+export function selectSelectedGames(room: RoomView): GameId[] {
   return room.mode === 'random' ? room.lobby.playableGames : room.playlist
 }
 
-export function selectPoolChips(room: RoomStatePayload): PoolChipView[] {
+export function selectPoolChips(room: RoomView): PoolChipView[] {
   const playable = new Set(room.lobby.playableGames)
   const selected = new Set(selectSelectedGames(room))
 
@@ -60,16 +60,16 @@ export function selectPoolChips(room: RoomStatePayload): PoolChipView[] {
   }))
 }
 
-export function selectToggleAllLabel(room: RoomStatePayload): string {
+export function selectToggleAllLabel(room: RoomView): string {
   const selected = selectSelectedGames(room)
   return selected.length >= room.lobby.playableGames.length ? 'CLEAR ALL' : 'SELECT ALL'
 }
 
-export function selectSetupSummary(room: RoomStatePayload): string {
+export function selectSetupSummary(room: RoomView): string {
   const games = selectSelectedGames(room).length
   return `${games} GAME${games === 1 ? '' : 'S'} IN THE POOL`
 }
 
-export function selectLobbyEmptyLine(room: RoomStatePayload): string {
+export function selectLobbyEmptyLine(room: RoomView): string {
   return `Nobody yet. Open the room code ${room.roomCode} on a phone to join.`
 }

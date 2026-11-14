@@ -7,9 +7,9 @@
  *  - every player gets a different stream.
  */
 
-import { randomInt, type RandomSource } from '../random';
-import { CRUSHER_ESCALATOR, DIRECTIONS } from './constants';
-import type { ArrowStream, Direction } from './types';
+import { randomInt, type RandomSource } from '../random.js';
+import { CRUSHER_ESCALATOR, DIRECTIONS } from './constants.js';
+import type { ArrowStream, Direction } from './types.js';
 
 /** Picks any direction except the ones listed. Always possible: there are four. */
 const pickDirectionExcluding = (

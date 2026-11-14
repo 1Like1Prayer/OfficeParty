@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Party Arena</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -16,6 +16,14 @@
         margin: 0;
         padding: 0;
         background: #fff1d0;
+        /* Entrance animations slide in from the side; never let them add a scrollbar. */
+        overflow-x: hidden;
+        -webkit-text-size-adjust: 100%;
+        text-size-adjust: 100%;
+      }
+      button {
+        -webkit-tap-highlight-color: transparent;
+        touch-action: manipulation;
       }
       * {
         box-sizing: border-box;
@@ -161,6 +169,11 @@
         60% { transform: translateX(-5px); }
         80% { transform: translateX(3px); }
         100% { background: rgba(229, 56, 47, 0); transform: translateX(0); }
+      }
+      /* Stop the Clock demo: the tap on the STOP button. */
+      @keyframes pa-demo-ripple {
+        from { transform: scale(0.4); opacity: 1; }
+        to { transform: scale(1.6); opacity: 0; }
       }
       @keyframes pa-bob {
         0%,

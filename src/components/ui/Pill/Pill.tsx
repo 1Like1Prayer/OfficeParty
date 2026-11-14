@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode } from 'react'
-import { border, color, font } from '../../../theme/index.ts'
+import { border, color, fluid, font } from '../../../theme/index.ts'
 
 export type PillVariant = 'round' | 'tag' | 'outline'
 
@@ -12,17 +12,17 @@ const VARIANTS: Record<PillVariant, CSSProperties> = {
   /** Phase indicator in the header. */
   round: {
     background: color.white,
-    padding: '8px 18px',
+    padding: `${fluid(5, 8)} ${fluid(12, 18)}`,
     fontFamily: font.display,
     fontWeight: 600,
-    fontSize: 17,
+    fontSize: fluid(13, 17),
   },
   /** Filled metadata chip on the reveal screen. */
   tag: {
     background: color.white,
-    padding: '9px 18px',
+    padding: `${fluid(7, 9)} ${fluid(12, 18)}`,
     fontWeight: 900,
-    fontSize: 13,
+    fontSize: fluid(11, 13),
   },
   /** Hollow chip on the lobby screen. */
   outline: {
@@ -41,6 +41,7 @@ export function Pill({ children, variant = 'tag' }: PillProps) {
         borderRadius: 999,
         border: border.medium,
         letterSpacing: '0.12em',
+        whiteSpace: 'nowrap',
         ...VARIANTS[variant],
       }}
     >

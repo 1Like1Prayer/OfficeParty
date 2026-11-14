@@ -1,12 +1,12 @@
 import { GAME_CATALOG } from '../shared/games/catalog.ts'
-import type { RoomStatePayload, RoundView } from '../shared/protocol.ts'
+import type { RoomView, RoundView } from '../network/index.ts'
 import { color } from '../theme/index.ts'
 import type { PlaylistRowView, ScoreboardRowView } from '../types/index.ts'
 import { initialOf, playerColor, selectPlayers } from './players.ts'
 
 /** Standings, highest first, with lobby readiness folded into the status. */
 export function selectScoreboardRows(
-  room: RoomStatePayload,
+  room: RoomView,
   round: RoundView,
   /** Points from the round events, which run ahead of the last snapshot. */
   scores: Record<string, number>,
@@ -42,8 +42,8 @@ export function selectScoreboardRows(
 }
 
 function statusFor(
-  player: RoomStatePayload['players'][number],
-  room: RoomStatePayload,
+  player: RoomView['players'][number],
+  room: RoomView,
   round: RoundView,
   points: number,
 ): string {
@@ -57,7 +57,7 @@ function statusFor(
   return points === 1 ? '1 POINT' : `${points} POINTS`
 }
 
-export function selectPlayerCountLabel(room: RoomStatePayload): string {
+export function selectPlayerCountLabel(room: RoomView): string {
   const players = selectPlayers(room).filter((p) => !p.isSpectator)
   return players.length === 1 ? '1 PLAYER' : `${players.length} PLAYERS`
 }
@@ -73,7 +73,7 @@ const PLAYLIST_COLORS = {
  * starts, so nothing is marked current in the lobby.
  */
 export function selectPlaylistRows(
-  room: RoomStatePayload,
+  room: RoomView,
   round: RoundView,
 ): PlaylistRowView[] {
   const currentIndex = room.phase === 'competition' ? round.gameIndex : 0

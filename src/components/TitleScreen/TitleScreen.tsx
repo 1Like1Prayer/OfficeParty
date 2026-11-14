@@ -1,4 +1,4 @@
-import { color, font, pegboard } from '../../theme/index.ts'
+import { color, fluid, font, pegboard } from '../../theme/index.ts'
 import { BigButton } from '../ui/index.ts'
 
 interface TitleScreenProps {
@@ -26,8 +26,8 @@ export function TitleScreen({
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '40px 52px',
-        gap: 40,
+        padding: `${fluid(28, 40)} ${fluid(16, 52)}`,
+        gap: fluid(28, 40),
         position: 'relative',
         overflow: 'hidden',
         animation: 'pa-swoop .45s ease-out',
@@ -46,13 +46,14 @@ export function TitleScreen({
             margin: 0,
             fontFamily: font.display,
             fontWeight: 700,
-            fontSize: 168,
+            // Bound by height too, so a phone on its side still fits the buttons.
+            fontSize: 'min(clamp(80px, 22vw, 168px), 24dvh)',
             lineHeight: 0.86,
             letterSpacing: '-0.04em',
             color: color.red,
-            WebkitTextStroke: `6px ${color.ink}`,
+            WebkitTextStroke: `${fluid(4, 6)} ${color.ink}`,
             paintOrder: 'stroke fill',
-            textShadow: `12px 12px 0 ${color.yellow}`,
+            textShadow: `${fluid(6, 12)} ${fluid(6, 12)} 0 ${color.yellow}`,
           }}
         >
           Office
@@ -60,7 +61,7 @@ export function TitleScreen({
           Party
         </h1>
       </div>
-      <div style={{ position: 'relative', display: 'flex', gap: 22, flexWrap: 'wrap', justifyContent: 'center' }}>
+      <div style={{ position: 'relative', display: 'flex', gap: fluid(14, 22), flexWrap: 'wrap', justifyContent: 'center' }}>
         <BigButton onClick={onHost} disabled={busy}>
           {busy ? 'Opening…' : 'Host'}
         </BigButton>
@@ -72,7 +73,7 @@ export function TitleScreen({
         style={{
           position: 'relative',
           fontWeight: 900,
-          fontSize: 13,
+          fontSize: fluid(11, 13),
           letterSpacing: '0.24em',
           color: color.mutedStrong,
         }}

@@ -1,6 +1,6 @@
-import { findStructureProblem } from './geometry';
-import { findVisibilityProblem } from './visibility';
-import type { Box } from './types';
+import { findStructureProblem } from './geometry.js';
+import { findVisibilityProblem } from './visibility.js';
+import type { Box } from './types.js';
 
 /**
  * Every rule a scene must satisfy before it can be sent to players:

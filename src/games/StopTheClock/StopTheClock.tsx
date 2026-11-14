@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { StopTheClockRound } from '../../shared/games/stopTheClock.ts'
-import { color, font, sharedStyles } from '../../theme/index.ts'
+import { color, fluid, font, sharedStyles } from '../../theme/index.ts'
 import { PushButton } from '../../components/ui/index.ts'
 import type { GameSurfaceProps } from '../types.ts'
 import { useElapsed } from './useElapsed.ts'
@@ -93,7 +93,17 @@ export function StopTheClock({
       : 1
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 18 }}>
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: fluid(12, 18),
+        width: '100%',
+        maxWidth: 640,
+        textAlign: 'center',
+      }}
+    >
       <div
         style={{
           ...sharedStyles.microLabel,
@@ -101,9 +111,10 @@ export function StopTheClock({
           // The target is the thing being played against, so it stays legible
           // from across the desk once the clock is running. The box is a fixed
           // height because the type size changes and the number sits below it.
-          fontSize: playing ? 26 : 15,
+          fontSize: playing ? fluid(18, 26) : fluid(12, 15),
           color: playing ? color.ink : color.mutedStrong,
-          height: 34,
+          height: fluid(26, 34),
+          whiteSpace: 'nowrap',
           display: 'flex',
           alignItems: 'center',
         }}
@@ -118,8 +129,9 @@ export function StopTheClock({
         style={{
           fontFamily: font.display,
           fontWeight: 700,
-          fontSize: 128,
+          fontSize: fluid(68, 128),
           lineHeight: 1,
+          whiteSpace: 'nowrap',
           letterSpacing: '-0.02em',
           color: spinning ? color.mutedSoft : done ? color.mutedStrong : color.ink,
           animation: spinning || playing ? undefined : 'pa-pop .35s cubic-bezier(.34,1.56,.64,1)',
@@ -137,12 +149,13 @@ export function StopTheClock({
           push the target up the screen. */}
       <div
         style={{
-          minHeight: 112,
+          minHeight: fluid(96, 112),
+          width: '100%',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          gap: 12,
+          gap: fluid(10, 12),
         }}
       >
         {playing &&
@@ -151,7 +164,9 @@ export function StopTheClock({
               style={{
                 fontFamily: font.display,
                 fontWeight: 700,
-                fontSize: 30,
+                fontSize: fluid(20, 30),
+                lineHeight: 1.2,
+                textWrap: 'balance',
                 color: color.mutedStrong,
                 animation: 'pa-pulse 2s ease-in-out infinite',
               }}
@@ -160,10 +175,13 @@ export function StopTheClock({
             </div>
           ) : (
             <>
-              <PushButton size="lg" variant="success" onClick={stop}>
-                STOP
-              </PushButton>
-              <div style={{ fontFamily: font.mono, fontSize: 13, color: color.mutedStrong }}>
+              {/* Wide enough to hit without looking, on a phone as much as a desk. */}
+              <div style={{ width: fluid(200, 260), maxWidth: '100%' }}>
+                <PushButton size="lg" variant="success" fullWidth onClick={stop}>
+                  STOP
+                </PushButton>
+              </div>
+              <div style={{ fontFamily: font.mono, fontSize: fluid(11, 13), color: color.mutedStrong }}>
                 CLICK, TAP, OR HIT SPACE
               </div>
             </>

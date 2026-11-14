@@ -1,12 +1,11 @@
 /**
- * Platform-wide tunables. These are the answers to section 17 of the
- * architecture plan ("decisions to make before building"). They live in
- * shared/ because the client needs several of them to render honestly
- * (how long a ready check waits, how long results stay up).
+ * Platform-wide tunables. They live in shared/ because the client needs
+ * several of them to render honestly (how long a ready check waits, how long
+ * results stay up, how often to ping).
  */
 
-/** Bumped whenever a message shape changes. Mismatched clients are asked to reload. */
-export const PROTOCOL_VERSION = 14;
+/** Bumped whenever a message or state shape changes. Mismatched clients are asked to reload. */
+export const PROTOCOL_VERSION = 16;
 
 /**
  * Avatars are chosen by the player and drawn from a seed, never a URL. The
@@ -25,26 +24,27 @@ export const AVATAR = {
 } as const;
 
 export const ROOM = {
-    /** Room codes are 4 characters from an unambiguous alphabet. */
+    /** Room codes are 4 characters from an unambiguous alphabet (no 0/O, 1/I). */
     CODE_LENGTH: 4,
     CODE_ALPHABET: 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789',
     MIN_PLAYERS: 2,
     MAX_PLAYERS: 12,
     /** Name length bound, so a runaway client cannot post a novel. */
     MAX_NAME_LENGTH: 24,
-    /** A disconnected player keeps their slot this long before being dropped. */
-    DISCONNECT_GRACE_MS: 30_000,
-    /** An empty room is reaped after this long. */
-    EMPTY_TTL_MS: 5 * 60_000,
-    /** How often the manager sweeps for empty/expired rooms. */
-    SWEEP_INTERVAL_MS: 30_000
+    /** A dropped player keeps their slot this long (Colyseus `allowReconnection`). */
+    DISCONNECT_GRACE_SECONDS: 30,
+    /**
+     * Self-protection: several rooms share one process, so a runaway browser
+     * loop is disconnected rather than allowed to starve the room next to it.
+     * Normal play peaks around 10 messages a second (progress + pings).
+     */
+    MAX_MESSAGES_PER_SECOND: 40
 } as const;
 
 export const COMPETITION = {
     /*
      * How many scoring rounds a game gets is the game's own business: each
-     * game module declares `roundsPerGame` (Stop the Clock 4, Cube Counter 1).
-     * Each scoring round is worth one point.
+     * game module declares `roundsPerGame`. Each scoring round is worth one point.
      */
     /** How many games random mode picks (capped by how many are implemented). */
     RANDOM_PLAYLIST_SIZE: 5,
@@ -58,10 +58,8 @@ export const COMPETITION = {
 export const SELF_TIMED = {
     /**
      * How far ahead a start is scheduled once everyone is ready. Long enough to
-     * absorb normal latency, short enough not to feel like a stall.
-     *
-     * It is also the room's window to count the round in before handing the
-     * screen over to it.
+     * absorb normal latency and the state patch interval, short enough not to
+     * feel like a stall.
      */
     START_LEAD_MS: 4_500,
     /**
@@ -72,13 +70,12 @@ export const SELF_TIMED = {
     /**
      * The window the round owns before the clock runs, and which the server
      * does not count against anyone: the game builds up in the first part of
-     * it — Stop the Clock spins its target — and the last part is the
-     * "get ready, set, start!" the client counts down.
+     * it and the last part is the "get ready, set, start!" the client counts down.
      */
     COUNTDOWN_MS: 7_500,
     /** Clients send progress at roughly this rate, purely for display. */
     PROGRESS_HZ: 5,
-    /** Server-side floor on the gap between progress messages from one player. */
+    /** Server-side floor on the gap between progress updates from one player. */
     PROGRESS_MIN_INTERVAL_MS: 120,
     /**
      * Once a game says the round is decided (see `shouldCloseEarly`), players
@@ -86,5 +83,26 @@ export const SELF_TIMED = {
      */
     CLOSING_GRACE_MS: 5_000,
     /** A scoring round runs at most this many tiebreakers before coin-flipping. */
-    MAX_TIEBREAK_ATTEMPTS: 3
+    MAX_TIEBREAK_ATTEMPTS: 3,
+    /** How long the "it's a tie" screen shows before the tiebreaker loads. */
+    TIEBREAK_DELAY_MS: 4_000
+} as const;
+
+/**
+ * Clock sync (Cristian's algorithm, netcode guide section 2). The server time
+ * is only ever used to turn a scheduled server instant into a local one for
+ * countdowns and animations; it never touches a reported result.
+ */
+export const CLOCK_SYNC = {
+    /** Pings sent back to back right after joining, so the first estimate is good. */
+    BURST_SIZE: 5,
+    BURST_INTERVAL_MS: 100,
+    /** Steady-state re-sync cadence. */
+    INTERVAL_MS: 2_000,
+    /** How many recent samples to keep; the lowest round trip among them wins. */
+    SAMPLE_WINDOW: 16,
+    /** The estimate eases toward a new offset at most this fast (5 % of elapsed time). */
+    MAX_SLEW_RATE: 0.05,
+    /** Errors larger than this are a real jump (sleep, tab freeze): snap instead of easing. */
+    SNAP_THRESHOLD_MS: 250
 } as const;

@@ -2,8 +2,8 @@ import { SESSION_KEY } from './config.ts'
 import type { ArenaSession } from './types.ts'
 
 /**
- * This tab's slot, so a reload rejoins as the same player rather than taking a
- * second one. It lives in `sessionStorage`, not `localStorage`, because one
+ * This tab's seat, so a reload rejoins as the same player rather than taking
+ * a second one. It lives in `sessionStorage`, not `localStorage`, because one
  * player is one tab: two tabs on the same machine are two people sitting at
  * two desks, and they must not share an identity.
  */
@@ -16,7 +16,7 @@ export function readSession(): ArenaSession | null {
       typeof parsed === 'object' &&
       parsed !== null &&
       typeof (parsed as ArenaSession).roomCode === 'string' &&
-      typeof (parsed as ArenaSession).playerId === 'string'
+      typeof (parsed as ArenaSession).reconnectionToken === 'string'
     ) {
       return parsed as ArenaSession
     }
@@ -30,7 +30,7 @@ export function writeSession(session: ArenaSession): void {
   try {
     sessionStorage.setItem(SESSION_KEY, JSON.stringify(session))
   } catch {
-    // Storage is a convenience here; a lost session just means a new slot.
+    // Storage is a convenience here; a lost session just means a new seat.
   }
 }
 

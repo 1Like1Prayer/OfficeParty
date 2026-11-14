@@ -1,4 +1,5 @@
-import type { RoomStatePayload, RoundResultsPayload, RoundView } from '../shared/protocol.ts'
+import type { RoomView, RoundView } from '../network/index.ts'
+import type { RoundResultsPayload } from '../shared/protocol.ts'
 import type { NextStageView } from '../types/index.ts'
 import { selectGameScreenIsUp } from './round.ts'
 
@@ -29,7 +30,7 @@ export function selectScreenKey({
   nextStage,
 }: {
   stage: 'title' | 'host' | 'join' | 'room'
-  room: RoomStatePayload | null
+  room: RoomView | null
   round: RoundView
   results: RoundResultsPayload | null
   isParticipant: boolean

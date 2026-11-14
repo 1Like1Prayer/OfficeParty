@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
-import { color, font } from '../../theme/index.ts'
+import { useMediaQuery } from '../../hooks/index.ts'
+import { breakpoint, color, font } from '../../theme/index.ts'
 import { ArenaHeader } from './ArenaHeader.tsx'
 import { ArenaNotice } from './ArenaNotice.tsx'
 
@@ -23,11 +24,14 @@ export function ArenaLayout({
   children,
   aside,
 }: ArenaLayoutProps) {
+  // Too narrow for a side rail: the scoreboard follows the phase pane instead.
+  const stacked = useMediaQuery(breakpoint.narrow)
+
   return (
     <div
       style={{
         width: '100%',
-        minHeight: '100vh',
+        minHeight: '100dvh',
         background: color.cream,
         color: color.ink,
         fontFamily: font.body,
@@ -36,7 +40,14 @@ export function ArenaLayout({
       }}
     >
       {showHeader && <ArenaHeader roundLabel={roundLabel} />}
-      <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
+      <div
+        style={{
+          flex: 1,
+          display: 'flex',
+          flexDirection: stacked ? 'column' : 'row',
+          minHeight: 0,
+        }}
+      >
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
           {notice && <ArenaNotice message={notice} />}
           {children}

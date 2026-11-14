@@ -1,4 +1,4 @@
-import { border, color } from '../../theme/index.ts'
+import { border, color, fluid } from '../../theme/index.ts'
 
 interface ArenaNoticeProps {
   message: string
@@ -9,13 +9,14 @@ export function ArenaNotice({ message }: ArenaNoticeProps) {
   return (
     <div
       style={{
-        margin: '16px 52px 0',
-        padding: '10px 18px',
+        margin: `${fluid(12, 16)} ${fluid(16, 52)} 0`,
+        padding: `${fluid(8, 10)} ${fluid(12, 18)}`,
         borderRadius: 12,
         border: border.medium,
         background: color.yellow,
         fontWeight: 700,
-        fontSize: 15,
+        fontSize: fluid(14, 15),
+        overflowWrap: 'break-word',
       }}
     >
       {message}

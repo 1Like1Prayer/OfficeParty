@@ -18,7 +18,7 @@
  * Plain functions over plain data.
  */
 
-import type { Paragraph } from './types';
+import type { Paragraph } from './types.js';
 
 export const paragraphLength = (paragraph: Paragraph): number =>
     paragraph.reduce((sum, line) => sum + line.length, 0);

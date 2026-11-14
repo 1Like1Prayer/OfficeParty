@@ -1,4 +1,4 @@
-import { border, color, font } from '../../theme/index.ts'
+import { border, color, fluid, font } from '../../theme/index.ts'
 import { Pill } from '../ui/index.ts'
 
 interface ArenaHeaderProps {
@@ -12,7 +12,9 @@ export function ArenaHeader({ roundLabel }: ArenaHeaderProps) {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: '20px 44px',
+        flexWrap: 'wrap',
+        gap: '8px 16px',
+        padding: `${fluid(12, 20)} ${fluid(16, 44)}`,
         borderBottom: border.heavy,
         flexShrink: 0,
       }}
@@ -21,7 +23,8 @@ export function ArenaHeader({ roundLabel }: ArenaHeaderProps) {
         style={{
           fontFamily: font.display,
           fontWeight: 700,
-          fontSize: 32,
+          fontSize: fluid(22, 32),
+          whiteSpace: 'nowrap',
           letterSpacing: '-0.02em',
           color: color.red,
         }}

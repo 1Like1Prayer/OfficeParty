@@ -54,3 +54,26 @@ export const pegboard = (dotColor: string = color.dot, size = 46) => ({
   backgroundImage: `radial-gradient(${dotColor} 3px, transparent 3px)`,
   backgroundSize: `${size}px ${size}px`,
 })
+
+/** Viewport widths the fluid sizes scale between: a small phone up to a laptop. */
+const FLUID_MIN_VW = 360
+const FLUID_MAX_VW = 1280
+
+/**
+ * A length that grows with the viewport: `min` px on a small phone, `max` px
+ * from a laptop up, linear in between. Use it for type, padding and gaps so a
+ * screen keeps its proportions instead of overflowing on a phone.
+ */
+export const fluid = (min: number, max: number): string => {
+  const slope = (max - min) / (FLUID_MAX_VW - FLUID_MIN_VW)
+  const intercept = min - slope * FLUID_MIN_VW
+  return `clamp(${min}px, ${intercept.toFixed(2)}px + ${(slope * 100).toFixed(3)}vw, ${max}px)`
+}
+
+/** Layout breakpoints, as media queries. */
+export const breakpoint = {
+  /** The scoreboard rail drops below the phase pane. */
+  narrow: '(max-width: 900px)',
+  /** Phone-sized: rows restack and controls go full width. */
+  compact: '(max-width: 600px)',
+} as const

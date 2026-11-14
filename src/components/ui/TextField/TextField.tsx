@@ -1,4 +1,4 @@
-import { border, color, font } from '../../../theme/index.ts'
+import { border, color, fluid, font } from '../../../theme/index.ts'
 
 interface TextFieldProps {
   value: string
@@ -36,13 +36,14 @@ export function TextField({
       style={{
         width: '100%',
         border: border.heavy,
-        borderRadius: 16,
-        padding: '14px 18px',
+        borderRadius: fluid(12, 16),
+        padding: `${fluid(10, 14)} ${fluid(14, 18)}`,
         background: color.white,
         color: color.ink,
         fontFamily: font.display,
         fontWeight: 700,
-        fontSize: 30,
+        fontSize: fluid(22, 30),
+        minWidth: 0,
         outline: 'none',
       }}
     />

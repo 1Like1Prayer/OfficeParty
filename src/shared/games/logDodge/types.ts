@@ -1,4 +1,4 @@
-import type { ACTIONS, LOG_HEIGHTS } from './constants';
+import type { ACTIONS, LOG_HEIGHTS } from './constants.js';
 
 export type LogHeight = (typeof LOG_HEIGHTS)[number];
 export type Action = (typeof ACTIONS)[number];

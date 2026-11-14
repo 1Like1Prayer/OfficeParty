@@ -1,10 +1,10 @@
 import type { CSSProperties } from 'react'
-import { border, color, font, lift } from './tokens.ts'
+import { border, color, fluid, font, lift } from './tokens.ts'
 
 /** Small uppercase label that introduces a section. */
 export const eyebrow: CSSProperties = {
   fontWeight: 900,
-  fontSize: 13,
+  fontSize: fluid(11, 13),
   letterSpacing: '0.24em',
   color: color.orange,
 }
@@ -22,6 +22,8 @@ export const displayHeading: CSSProperties = {
   fontWeight: 700,
   letterSpacing: '-0.03em',
   lineHeight: 0.95,
+  overflowWrap: 'break-word',
+  textWrap: 'balance',
 }
 
 /** Fills the area beside the scoreboard; every phase screen uses it. */
@@ -30,7 +32,8 @@ export const phasePane: CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
   justifyContent: 'center',
-  padding: '40px 52px',
+  padding: `${fluid(24, 40)} ${fluid(16, 52)}`,
+  minWidth: 0,
   animation: 'pa-swoop .7s ease-out',
 }
 
@@ -51,6 +54,9 @@ export const inlineAction: CSSProperties = {
   fontSize: 11,
   letterSpacing: '0.14em',
   color: color.red,
+  // A comfortable tap target without changing how the label looks.
+  minHeight: 32,
+  minWidth: 44,
 }
 
 export const ellipsis: CSSProperties = {

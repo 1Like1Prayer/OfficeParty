@@ -16,7 +16,7 @@
  * Between them they use every punctuation mark the game promises: , . ! ? : - '
  */
 
-import type { Paragraph } from './types';
+import type { Paragraph } from './types.js';
 
 /** Easy warm-up text: short, simple words, and only the odd comma or full stop. */
 export const EASY_PARAGRAPHS: readonly Paragraph[] = [
