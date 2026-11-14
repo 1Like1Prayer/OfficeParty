@@ -1,8 +1,9 @@
 /**
- * Lays out a minefield. Mines are scattered across the field, thin near the
- * start and thick near the finish, then the field is checked for a route
- * through: it must be possible to get across without setting anything off,
- * even if hard to find without scanning.
+ * Lays out a minefield. The field is sized to the number of players, mines
+ * are scattered across it, thin near the start and thick near the finish, and
+ * every player gets their own spot on the start line. The field is then
+ * checked for a route through: it must be possible to get across without
+ * setting anything off, even if hard to find without scanning.
  */
 
 import type { RandomSource } from '../random.js';
@@ -23,17 +24,46 @@ export const densityAt = (x: number): number => {
     return lerp(MINEFIELD.EASIEST_DENSITY, MINEFIELD.HARDEST_DENSITY, progress);
 };
 
-/** How many mines the field would have at full strength. */
-const targetMineCount = (): number => {
+/** Rows across the field for this many players. Never narrower than for two. */
+export const fieldHeightFor = (playerCount: number): number =>
+    MINEFIELD.BASE_HEIGHT +
+    MINEFIELD.HEIGHT_PER_PLAYER * Math.min(Math.max(playerCount, 2), MINEFIELD.MAX_HEIGHT - MINEFIELD.BASE_HEIGHT);
+
+/** How many mines a field this wide would have at full strength. */
+const targetMineCount = (height: number): number => {
     const { from, to } = mineZone();
     let total = 0;
     for (let column = from; column < to; column++) {
-        total += densityAt(column + 0.5) * MINEFIELD.HEIGHT;
+        total += densityAt(column + 0.5) * height;
     }
     return Math.round(total);
 };
 
-const layMines = (count: number, random: RandomSource): Mine[] => {
+/**
+ * Everyone's spot on the start line, side by side around its middle, in a
+ * random order so nobody always gets the same side.
+ */
+export const startPositions = (
+    playerIds: readonly string[],
+    height: number,
+    random: RandomSource
+): Record<string, number> => {
+    const order = [...playerIds];
+    for (let index = order.length - 1; index > 0; index--) {
+        const other = Math.floor(random() * (index + 1));
+        [order[index], order[other]] = [order[other]!, order[index]!];
+    }
+    const spacing = Math.min(MINEFIELD.START_SPACING, (height - 2) / Math.max(order.length - 1, 1));
+    const middle = height / 2;
+    return Object.fromEntries(
+        order.map((playerId, index) => [
+            playerId,
+            Math.round((middle + (index - (order.length - 1) / 2) * spacing) * 100) / 100
+        ])
+    );
+};
+
+const layMines = (count: number, height: number, random: RandomSource): Mine[] => {
     const { from, to } = mineZone();
     const mines: Mine[] = [];
     const minSpacingSquared = MINEFIELD.MIN_MINE_SPACING ** 2;
@@ -42,7 +72,7 @@ const layMines = (count: number, random: RandomSource): Mine[] => {
         const x = from + random() * (to - from);
         // Thicker towards the finish: accept a spot in proportion to its density.
         if (random() >= densityAt(x) / MINEFIELD.HARDEST_DENSITY) continue;
-        const y = 0.5 + random() * (MINEFIELD.HEIGHT - 1);
+        const y = 0.5 + random() * (height - 1);
         if (mines.some((mine) => (mine.x - x) ** 2 + (mine.y - y) ** 2 < minSpacingSquared)) {
             continue;
         }
@@ -54,6 +84,8 @@ const layMines = (count: number, random: RandomSource): Mine[] => {
 /**
  * Is there a route from the start to the finish line that stays outside every
  * mine's trigger radius (plus a little clearance)? A search over a fine grid.
+ * It starts from the middle of the start line: there are no mines near the
+ * start, so every spot on it can reach the middle.
  */
 export const hasSafeRoute = (map: MinefieldMap): boolean => {
     const resolution = MINEFIELD.SAFE_PATH_GRID;
@@ -110,22 +142,27 @@ export const hasSafeRoute = (map: MinefieldMap): boolean => {
     return false;
 };
 
-const emptyMap = (mines: Mine[]): MinefieldMap => ({
-    width: MINEFIELD.WIDTH,
-    height: MINEFIELD.HEIGHT,
-    startX: MINEFIELD.START_X,
-    startY: MINEFIELD.START_Y,
-    finishX: MINEFIELD.FINISH_X,
-    mines
-});
+export const generateMap = (
+    playerIds: readonly string[],
+    random: RandomSource = Math.random
+): MinefieldMap => {
+    const height = fieldHeightFor(playerIds.length);
+    const field = (mines: Mine[]): MinefieldMap => ({
+        width: MINEFIELD.WIDTH,
+        height,
+        startX: MINEFIELD.START_X,
+        startY: height / 2,
+        starts: startPositions(playerIds, height, random),
+        finishX: MINEFIELD.FINISH_X,
+        mines
+    });
 
-export const generateMap = (random: RandomSource = Math.random): MinefieldMap => {
-    let count = targetMineCount();
+    let count = targetMineCount(height);
     for (let attempt = 0; attempt < MINEFIELD.MAX_GENERATION_ATTEMPTS; attempt++) {
-        const map = emptyMap(layMines(count, random));
+        const map = field(layMines(count, height, random));
         if (hasSafeRoute(map)) return map;
         // Too dense to cross: lay a thinner field next time.
         count = Math.max(0, Math.floor(count * 0.9));
     }
-    return emptyMap([]);
+    return field([]);
 };

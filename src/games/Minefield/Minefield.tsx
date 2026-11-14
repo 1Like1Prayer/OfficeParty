@@ -2,13 +2,16 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTabWasHidden } from '../../hooks/useTabWasHidden.ts'
 import { useThrottledReport } from '../../hooks/useThrottledReport.ts'
 import { MINEFIELD } from '../../shared/games/minefield/constants.ts'
-import { revealedMines, simulateRun, type Scan } from '../../shared/games/minefield/simulate.ts'
+import { revealedMines, simulateRun, startYOf, type Scan } from '../../shared/games/minefield/simulate.ts'
 import type { Axis, Input, MinefieldRound } from '../../shared/games/minefield/types.ts'
+import { useMediaQuery } from '../../hooks/index.ts'
 import { color, font, sharedStyles } from '../../theme/index.ts'
 import type { GameSurfaceProps } from '../types.ts'
 import { useRoundElapsed } from '../LogDodge/useRoundElapsed.ts'
 import type { Blast, FieldFrame, Racer } from './fieldFrame.ts'
 import { MinefieldStage } from './MinefieldStage.tsx'
+import { REMOTE_DELAY_MS } from './remoteTrack.ts'
+import { TouchControls } from './TouchControls.tsx'
 import { useHeldKeys } from './useHeldKeys.ts'
 
 const isRound = (data: unknown): data is MinefieldRound =>
@@ -40,7 +43,10 @@ const formatClock = (ms: number): string => {
  * press with a time; the server replays everyone together with the same code
  * (`simulateRun` here), so what this screen shows of your own run is the
  * result, and what it shows of the others is a preview built from their
- * reports.
+ * reports. Rivals are drawn `REMOTE_DELAY_MS` in the past, between two of
+ * their reports, and what they do (their scans, the mines they set off) is
+ * shown on that same delayed clock, so a blast goes off as their runner gets
+ * there and not before.
  */
 export function Minefield(props: GameSurfaceProps) {
   const round = isRound(props.data) ? props.data : null
@@ -74,13 +80,15 @@ function MinefieldRun({
 
   // A mine another runner set off is gone for this one too, and their scans show
   // everyone what they found. Both arrive as progress reports, noted once each as
-  // they appear.
+  // they appear. `atMs` is when to show them: when they happened, on the delayed
+  // clock the rivals are drawn on.
   const [blastLog, setBlastLog] = useState<{ index: number; atMs: number }[]>([])
   const [scanLog, setScanLog] = useState<SeenScan[]>([])
   const newBlasts = others.flatMap(({ playerId }) => {
-    const index = (progress[playerId]?.mine ?? 0) - 1
+    const reported = progress[playerId]
+    const index = (reported?.mine ?? 0) - 1
     return index >= 0 && !blastLog.some((blast) => blast.index === index)
-      ? [{ index, atMs: raceMs }]
+      ? [{ index, atMs: (reported?.mineT ?? raceMs) + REMOTE_DELAY_MS }]
       : []
   })
   if (newBlasts.length > 0) setBlastLog([...blastLog, ...newBlasts])
@@ -89,7 +97,13 @@ function MinefieldRun({
     const count = reported?.scans ?? 0
     const seen = scanLog.filter((scan) => scan.playerId === playerId).length
     return reported !== undefined && count > seen
-      ? [{ playerId, count, atMs: raceMs, x: (reported.scanX ?? 0) / 10, y: (reported.scanY ?? 0) / 10 }]
+      ? [{
+          playerId,
+          count,
+          atMs: (reported.scanT ?? raceMs) + REMOTE_DELAY_MS,
+          x: (reported.scanX ?? 0) / 10,
+          y: (reported.scanY ?? 0) / 10,
+        }]
       : []
   })
   if (newScans.length > 0) setScanLog([...scanLog, ...newScans])
@@ -97,6 +111,7 @@ function MinefieldRun({
   /* ---------------- this player's own run ---------------- */
 
   const [inputs, setInputs] = useState<Input[]>([])
+  // Gone for this player's run the moment we hear of it, though the blast is shown a moment later.
   const goneIndexes = useMemo(() => new Set(blastLog.map(({ index }) => index)), [blastLog])
   // The field as this player's run sees it: mines others have already set off are not there.
   const { liveMap, originalIndex } = useMemo(() => {
@@ -105,7 +120,7 @@ function MinefieldRun({
   }, [map, goneIndexes])
 
   const [stoppedAtMs, setStoppedAtMs] = useState<number | null>(null)
-  const outcome = simulateRun(liveMap, inputs, stoppedAtMs ?? raceMs)
+  const outcome = simulateRun(liveMap, inputs, stoppedAtMs ?? raceMs, selfPlayerId)
   const isFinished = outcome.finishedAtMs !== null
   const isOut = outcome.eliminatedAtMs !== null
   const isTimeUp = raceMs >= MINEFIELD.MAX_RACE_MS
@@ -136,18 +151,27 @@ function MinefieldRun({
     if (performance.now() - timingStartsAtLocalMs < sonarReadyAtMs) return
     addInput((atMs) => ({ kind: 'sonar', atMs }))
   }, [addInput, sonarReadyAtMs, timingStartsAtLocalMs])
-  useHeldKeys({ enabled: isPlaying && !isOver && !isSpectating, onMove, onSonar })
+  const canControl = isPlaying && !isOver && !isSpectating
+  useHeldKeys({ enabled: canControl, onMove, onSonar })
+  // A finger rather than a keyboard: a joystick and a sonar button take the keys' place.
+  const isTouch = useMediaQuery('(pointer: coarse)')
 
   // Everyone else watches this player's progress.
+  // `t` changes on every frame, so a report goes out at the full rate even while
+  // standing still: other screens then always have one ahead of the time they draw.
   const lastHit = outcome.detonations.at(-1)
   const report = {
-      x: Math.min(MINEFIELD.WIDTH * 10, Math.round(outcome.x * 10)),
-      lives: outcome.livesLeft,
-      status: isFinished ? 1 : isOut ? 2 : 0,
-      mine: lastHit === undefined ? 0 : originalIndex[lastHit.mineIndex]! + 1,
-      scans: Math.min(MAX_SCANS, outcome.scans.length),
-      scanX: lastScan === undefined ? 0 : Math.round(lastScan.x * 10),
-      scanY: lastScan === undefined ? 0 : Math.round(lastScan.y * 10),
+    x: Math.min(MINEFIELD.WIDTH * 10, Math.round(outcome.x * 10)),
+    y: Math.min(map.height * 10, Math.round(outcome.y * 10)),
+    t: Math.min(MINEFIELD.MAX_RACE_MS, Math.round(raceMs)),
+    lives: outcome.livesLeft,
+    status: isFinished ? 1 : isOut ? 2 : 0,
+    mine: lastHit === undefined ? 0 : originalIndex[lastHit.mineIndex]! + 1,
+    mineT: lastHit?.atMs ?? 0,
+    scans: Math.min(MAX_SCANS, outcome.scans.length),
+    scanX: lastScan === undefined ? 0 : Math.round(lastScan.x * 10),
+    scanY: lastScan === undefined ? 0 : Math.round(lastScan.y * 10),
+    scanT: lastScan?.atMs ?? 0,
   }
   useThrottledReport(report, isPlaying && !isSpectating, onProgress)
 
@@ -176,7 +200,9 @@ function MinefieldRun({
   const ownScans: Scan[] = outcome.scans
   const allScans: Scan[] = [...ownScans, ...scanLog]
   const ownGone = outcome.detonations.map(({ mineIndex }) => originalIndex[mineIndex]!)
-  const gone = new Set([...goneIndexes, ...ownGone])
+  // As drawn: a rival's mine stays in the ground until their runner gets there and it goes off.
+  const shownBlasts = blastLog.filter(({ atMs }) => atMs <= raceMs).map(({ index }) => index)
+  const gone = new Set([...shownBlasts, ...ownGone])
   const revealed = revealedMines(map, allScans, raceMs, gone)
 
   const blasts: Blast[] = [
@@ -191,14 +217,19 @@ function MinefieldRun({
   ]
 
   const selfPlayer = players.find(({ playerId }) => playerId === selfPlayerId)
-  const racers: Racer[] = players.map((player, index) => {
+  const racers: Racer[] = players.map((player) => {
     if (player.playerId === selfPlayerId) {
+      // Between simulation steps the runner is carried on at the pace of the last one.
+      const isMoving = !isOver
       const isHeld = raceMs < (outcome.scans.at(-1)?.atMs ?? -Infinity) + MINEFIELD.SONAR_ANIMATION_MS
       const lastBlastAt = outcome.detonations.at(-1)?.atMs ?? -Infinity
       return {
         playerId: player.playerId,
         x: outcome.x,
         y: outcome.y,
+        atMs: outcome.endedAtMs,
+        vx: isMoving ? outcome.stepX / MINEFIELD.STEP_MS : 0,
+        vy: isMoving ? outcome.stepY / MINEFIELD.STEP_MS : 0,
         isSelf: true,
         state: winnerIds.has(player.playerId)
           ? 'won'
@@ -214,17 +245,29 @@ function MinefieldRun({
       }
     }
     const reported = progress[player.playerId]
-    const rivalIndex = others.findIndex(({ playerId }) => playerId === player.playerId)
-    // Rivals report how far they are, not how far across: spread them over the width.
-    const lane = others.length > 1 ? 1.5 + (rivalIndex / (others.length - 1)) * (map.height - 3) : 3
-    void index
+    // What they are doing as of the delayed time they are drawn at.
+    const shownMs = raceMs - REMOTE_DELAY_MS
+    const hitAt = (reported?.mine ?? 0) > 0 ? (reported?.mineT ?? 0) : -Infinity
+    const scannedAt = (reported?.scans ?? 0) > 0 ? (reported?.scanT ?? 0) : -Infinity
+    const within = (fromMs: number, forMs: number) => shownMs >= fromMs && shownMs < fromMs + forMs
     return {
       playerId: player.playerId,
       x: (reported?.x ?? map.startX * 10) / 10,
-      y: lane,
+      y: reported?.y === undefined ? startYOf(map, player.playerId) : reported.y / 10,
+      atMs: reported?.t ?? 0,
+      vx: 0,
+      vy: 0,
       isSelf: false,
-      state: winnerIds.has(player.playerId) ? 'won' : reported?.status === 2 ? 'out' : 'racing',
-      isProtected: false,
+      state: winnerIds.has(player.playerId)
+        ? 'won'
+        : reported?.status === 2 && shownMs >= hitAt
+          ? 'out'
+          : within(hitAt, MINEFIELD.EXPLOSION_ANIMATION_MS)
+            ? 'exploding'
+            : within(scannedAt, MINEFIELD.SONAR_ANIMATION_MS)
+              ? 'scanning'
+              : 'racing',
+      isProtected: within(hitAt, MINEFIELD.INVULNERABLE_MS),
       lives: reported?.lives ?? MINEFIELD.LIVES,
     }
   })
@@ -268,14 +311,17 @@ function MinefieldRun({
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'space-between',
-          padding: '22px 24px 26px',
+          // Tighter on a phone, and clear of the notch; on a phone the controls own the bottom corners.
+          padding: isTouch
+            ? 'max(12px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) 0 max(14px, env(safe-area-inset-left))'
+            : 'clamp(12px, 3vh, 22px) clamp(14px, 3vw, 24px) clamp(14px, 3vh, 26px)',
         }}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <div>
               <div style={{ ...sharedStyles.microLabel, color: color.ink }}>LIVES</div>
-              <div style={{ display: 'flex', gap: 4, fontSize: 32, lineHeight: 1 }}>
+              <div style={{ display: 'flex', gap: 4, fontSize: 'clamp(24px, 4.5vmin, 32px)', lineHeight: 1 }}>
                 {Array.from({ length: MINEFIELD.LIVES }, (_, index) => (
                   <span
                     key={index}
@@ -295,7 +341,7 @@ function MinefieldRun({
                 style={{
                   fontFamily: font.display,
                   fontWeight: 700,
-                  fontSize: 34,
+                  fontSize: 'clamp(24px, 4.8vmin, 34px)',
                   lineHeight: 1,
                   color: MINEFIELD.MAX_RACE_MS - raceMs < 10_000 ? color.pink : color.cream,
                   textShadow: `0 2px 0 ${color.ink}`,
@@ -308,14 +354,23 @@ function MinefieldRun({
           <RaceStrip racers={racers} players={players} finishX={map.finishX} width={map.width} />
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: 10,
+            // Above the joystick and sonar button on a phone, not squeezed between them.
+            paddingBottom: isTouch && !isSpectating ? 'calc(150px + env(safe-area-inset-bottom))' : 0,
+          }}
+        >
           {message !== null && (
             <div
               key={message}
               style={{
                 fontFamily: font.display,
                 fontWeight: 700,
-                fontSize: 30,
+                fontSize: 'clamp(20px, 5vmin, 30px)',
                 color: isOut ? '#FF7A72' : color.cream,
                 textShadow: `0 3px 0 ${color.ink}`,
                 animation: 'pa-pop .35s cubic-bezier(.34,1.56,.64,1)',
@@ -325,7 +380,7 @@ function MinefieldRun({
               {message}
             </div>
           )}
-          {!isSpectating && selfPlayer !== undefined && (
+          {!isSpectating && !isTouch && selfPlayer !== undefined && (
             <>
               <div style={{ ...sharedStyles.microLabel, color: color.ink, opacity: isOut ? 0.4 : 0.9 }}>
                 MOVE · ARROWS / WASD &nbsp;&nbsp; SONAR · SPACE
@@ -353,6 +408,10 @@ function MinefieldRun({
           )}
         </div>
       </div>
+
+      {isTouch && !isSpectating && (
+        <TouchControls enabled={canControl} onMove={onMove} onSonar={onSonar} sonarCharge={sonarFill} />
+      )}
     </div>
   )
 }

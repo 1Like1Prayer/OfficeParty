@@ -49,20 +49,27 @@ export const parseMinefieldResult = (raw: unknown): MinefieldResult | null => {
 /**
  * Progress is display-only, so opponents can watch the race:
  *   x:      how far along the field, in tenths of a tile;
+ *   y:      how far across it, in tenths of a tile;
+ *   t:      the race time (ms) this report describes. Other screens draw each
+ *           rival a little in the past, between two reports, so the time a
+ *           report was taken matters more than when it happened to arrive;
  *   lives:  lives left;
  *   status: 0 = racing, 1 = finished, 2 = out;
  *   mine:   the most recent mine that hurt this player, as its index in the
  *           field plus one (0 for none). Other players' screens use it to take
  *           that mine off the field, since it is gone for them too;
+ *   mineT:  the race time (ms) that mine went off;
  *   scans, scanX, scanY: how many sonar scans this player has made, and where
  *           they stood (in tenths of a tile) for the latest. Other players'
  *           screens show what that scan found, since sonar is shared: when
- *           `scans` goes up, reveal the mines in range of (scanX, scanY).
+ *           `scans` goes up, reveal the mines in range of (scanX, scanY);
+ *   scanT:  the race time (ms) the latest scan started.
  * The server never uses it to decide anything.
  */
 export const parseMinefieldProgress = (
     raw: unknown,
-    mineCount: number = MINEFIELD.WIDTH * MINEFIELD.HEIGHT
+    mineCount: number = MINEFIELD.WIDTH * MINEFIELD.MAX_HEIGHT,
+    height: number = MINEFIELD.MAX_HEIGHT
 ): Record<string, number> | null => {
     if (!isRecord(raw)) return null;
 
@@ -73,10 +80,14 @@ export const parseMinefieldProgress = (
     } as const;
     // Optional so a client that doesn't send them yet still shows its position.
     const optional = {
+        y: height * 10,
+        t: MINEFIELD.MAX_RACE_MS,
         mine: mineCount,
+        mineT: MINEFIELD.MAX_RACE_MS,
         scans: MAX_SCANS,
         scanX: MINEFIELD.WIDTH * 10,
-        scanY: MINEFIELD.HEIGHT * 10
+        scanY: height * 10,
+        scanT: MINEFIELD.MAX_RACE_MS
     } as const;
 
     const progress: Record<string, number> = {};

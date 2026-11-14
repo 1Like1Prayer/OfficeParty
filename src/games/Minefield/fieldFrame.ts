@@ -1,18 +1,30 @@
 import type { MinefieldMap } from '../../shared/games/minefield/types.ts'
 
 /**
- * How many world units one tile is drawn as. The field is always the same
- * number of tiles, but a crowded room spreads it out: each tile takes more
- * room, so a dozen runners have space to run, and their name tags stay apart.
+ * How many world units one tile is drawn as. The field itself already gets a
+ * row wider per player, so this only spreads a crowded room a little further,
+ * to keep a dozen name tags on the start line apart.
  */
 export const tileScaleFor = (playerCount: number): number =>
-  Math.min(2.2, Math.max(1, 1 + (playerCount - 4) * 0.15))
+  Math.min(1.5, Math.max(1, 1 + (playerCount - 4) * 0.06))
 
 export interface Racer {
   playerId: string
-  /** Position on the field, in tiles. */
+  /**
+   * Position on the field, in tiles, at race time `atMs`. For this player it
+   * is where their own run has got to; for a rival it is their latest report,
+   * and the stage draws them a little in the past (see remoteTrack.ts).
+   */
   x: number
   y: number
+  atMs: number
+  /**
+   * Tiles per millisecond this player is moving at. The stage carries them on
+   * by it until the next frame, so their motion is smooth at any refresh rate.
+   * Rivals' speed comes from their reports, so it is 0 here.
+   */
+  vx: number
+  vy: number
   isSelf: boolean
   state: 'racing' | 'exploding' | 'scanning' | 'out' | 'won'
   /** Blinks while the blast protection lasts. */

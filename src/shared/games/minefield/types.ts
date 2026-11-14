@@ -8,7 +8,10 @@ export interface MinefieldMap {
     width: number;
     height: number;
     startX: number;
+    /** The middle of the start line. */
     startY: number;
+    /** Where on the start line each player starts (their y), by player id. */
+    starts: Record<string, number>;
     finishX: number;
     mines: Mine[];
 }

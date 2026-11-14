@@ -24,6 +24,10 @@
  * All runners are judged from the same snapshot of positions in each step, so
  * the result never depends on the order the runners are listed in.
  *
+ * Only + - * / and comparisons feed the result, never Math.hypot or `**`:
+ * the browser and the server may be different JavaScript engines, and those
+ * are only guaranteed to round the basic operations the same way.
+ *
  * Plain functions over plain data: no sockets, no clock.
  */
 
@@ -53,6 +57,13 @@ export interface RunOutcome {
     y: number;
     /** The furthest they got towards the finish. */
     maxX: number;
+    /**
+     * How far the runner moved in the last step, in tiles (0, 0 if they stood
+     * still). A renderer carries the runner on by this between steps, so the
+     * motion looks smooth on any refresh rate.
+     */
+    stepX: number;
+    stepY: number;
     /** The explosions that hurt this runner. */
     detonations: Detonation[];
     /** Each sonar scan: when it started and where the runner stood (presses that were still cooling down are not here). */
@@ -79,12 +90,17 @@ export interface RaceOutcome {
 const MARGIN = 0.5;
 const TRIGGER_RADIUS_SQUARED = MINEFIELD.TRIGGER_RADIUS * MINEFIELD.TRIGGER_RADIUS;
 const STEP_DISTANCE = (MINEFIELD.SPEED_TILES_PER_S * MINEFIELD.STEP_MS) / 1000;
+/** Each axis's share of a diagonal step, so diagonals are no faster than straight lines. */
+const DIAGONAL_STEP = STEP_DISTANCE * Math.SQRT1_2;
 
 const clamp = (value: number, min: number, max: number): number =>
     Math.min(Math.max(value, min), max);
 
-const distanceSquared = (mine: Mine, x: number, y: number): number =>
-    (mine.x - x) ** 2 + (mine.y - y) ** 2;
+const distanceSquared = (mine: Mine, x: number, y: number): number => {
+    const dx = mine.x - x;
+    const dy = mine.y - y;
+    return dx * dx + dy * dy;
+};
 
 interface RunnerState {
     playerId: string;
@@ -95,6 +111,8 @@ interface RunnerState {
     maxX: number;
     dx: number;
     dy: number;
+    stepX: number;
+    stepY: number;
     livesLeft: number;
     /** Still during a scan or an explosion. */
     holdUntil: number;
@@ -110,15 +128,21 @@ interface RunnerState {
     endedAtMs: number;
 }
 
+/** A runner's spot on the start line; the middle of it for anyone without one. */
+export const startYOf = (map: MinefieldMap, playerId: string): number =>
+    map.starts[playerId] ?? map.startY;
+
 const startRunner = (map: MinefieldMap, runner: Runner): RunnerState => ({
     playerId: runner.playerId,
     inputs: runner.inputs,
     nextInput: 0,
     x: map.startX,
-    y: map.startY,
+    y: startYOf(map, runner.playerId),
     maxX: map.startX,
     dx: 0,
     dy: 0,
+    stepX: 0,
+    stepY: 0,
     livesLeft: MINEFIELD.LIVES,
     holdUntil: 0,
     protectedUntil: 0,
@@ -148,12 +172,16 @@ const stepRunner = (map: MinefieldMap, runner: RunnerState, now: number): void =
         }
     }
 
+    const fromX = runner.x;
+    const fromY = runner.y;
     if (now >= runner.holdUntil && (runner.dx !== 0 || runner.dy !== 0)) {
-        const length = Math.hypot(runner.dx, runner.dy);
-        runner.x = clamp(runner.x + (runner.dx / length) * STEP_DISTANCE, MARGIN, map.width - MARGIN);
-        runner.y = clamp(runner.y + (runner.dy / length) * STEP_DISTANCE, MARGIN, map.height - MARGIN);
+        const distance = runner.dx !== 0 && runner.dy !== 0 ? DIAGONAL_STEP : STEP_DISTANCE;
+        runner.x = clamp(runner.x + runner.dx * distance, MARGIN, map.width - MARGIN);
+        runner.y = clamp(runner.y + runner.dy * distance, MARGIN, map.height - MARGIN);
         runner.maxX = Math.max(runner.maxX, runner.x);
     }
+    runner.stepX = runner.x - fromX;
+    runner.stepY = runner.y - fromY;
 };
 
 /** The live mine this runner is close enough to set off: the nearest, if several. */
@@ -211,6 +239,9 @@ const explodeMines = (
 
         runner.detonations.push({ atMs: now, mineIndex: nearest });
         runner.livesLeft--;
+        // Thrown off their feet: nothing to carry on into the next step.
+        runner.stepX = 0;
+        runner.stepY = 0;
         if (runner.livesLeft <= 0) {
             runner.eliminatedAtMs = now;
             runner.active = false;
@@ -274,6 +305,9 @@ export const simulateRace = (
                     x: runner.x,
                     y: runner.y,
                     maxX: runner.maxX,
+                    // A runner who has stopped racing is not carried on.
+                    stepX: runner.active ? runner.stepX : 0,
+                    stepY: runner.active ? runner.stepY : 0,
                     detonations: runner.detonations,
                     scans: runner.scans,
                     endedAtMs: runner.endedAtMs
@@ -286,13 +320,17 @@ export const simulateRace = (
     };
 };
 
-/** One runner alone on the field: the same rules, with nobody to share the mines with. */
+/**
+ * One runner alone on the field: the same rules, with nobody to share the
+ * mines with. They start from `playerId`'s spot on the start line.
+ */
 export const simulateRun = (
     map: MinefieldMap,
     inputs: readonly Input[],
-    untilMs: number = MINEFIELD.MAX_RACE_MS
+    untilMs: number = MINEFIELD.MAX_RACE_MS,
+    playerId = ''
 ): RunOutcome =>
-    simulateRace(map, [{ playerId: 'solo', inputs }], untilMs).outcomes.get('solo')!;
+    simulateRace(map, [{ playerId, inputs }], untilMs).outcomes.get(playerId)!;
 
 /**
  * The mines a sonar scan at this spot reveals, as indices into the map's mine
@@ -306,7 +344,7 @@ export const minesInSonarRange = (
 ): number[] =>
     map.mines.flatMap((mine, index) =>
         !gone.has(index) &&
-        (mine.x - x) ** 2 + (mine.y - y) ** 2 <= MINEFIELD.SONAR_RADIUS ** 2
+        distanceSquared(mine, x, y) <= MINEFIELD.SONAR_RADIUS * MINEFIELD.SONAR_RADIUS
             ? [index]
             : []
     );

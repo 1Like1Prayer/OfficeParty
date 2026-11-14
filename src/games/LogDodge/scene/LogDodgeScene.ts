@@ -19,7 +19,7 @@ import { createAvatarTexture } from '../../three/avatarTexture.ts'
 import { labelWidthFor } from '../../three/Nameplate.ts'
 import { followPose, overviewPose, zoomProgress } from './cameraPath.ts'
 import { Contestant } from './Contestant.ts'
-import { NAME_TAG_ASPECT, NameTag } from './NameTag.ts'
+import { HEARTS_TAG_ASPECT, HeartsTag } from '../../three/HeartsTag.ts'
 import { Ocean } from './Ocean.ts'
 import { RollingLog, LogShared } from './RollingLog.ts'
 import { Sky } from './Sky.ts'
@@ -87,7 +87,7 @@ interface Entry {
   /** Their tag fades once they are out, so it does not sit over whoever closes up into their lane. */
   tagOpacity: number
   contestant: Contestant
-  nameplate: NameTag
+  nameplate: HeartsTag
   badge: CanvasTexture
   /** Hits already shown, so a new one is only reacted to once. */
   shownHits: number
@@ -224,7 +224,7 @@ export class LogDodgeScene {
       })
       const contestant = new Contestant(player.color, badge)
       contestant.root.position.set(slotXs[index]!, 0, 0)
-      const nameplate = new NameTag()
+      const nameplate = new HeartsTag(LOG_DODGE.MAX_HITS)
       this.scene.add(contestant.root, nameplate.sprite)
 
       // A screen that joins the round part-way starts from where it has got to.
@@ -536,7 +536,7 @@ export class LogDodgeScene {
     if (isCrowded && lanePixels * 0.94 < NAMEPLATE_PIXELS) {
       pixels = Math.min(NAMEPLATE_PIXELS, Math.max(NAMEPLATE_MIN_PIXELS, lanePixels * 1.85))
       // A tag's height, as a share of its width, in world units at this distance.
-      rowOffset = ((pixels * NAME_TAG_ASPECT) / pixelsPerUnit) * 1.08
+      rowOffset = ((pixels * HEARTS_TAG_ASPECT) / pixelsPerUnit) * 1.08
     }
     return { width: labelWidthFor(pixels, canvasHeight, CAMERA_FIELD_OF_VIEW), rowOffset }
   }
