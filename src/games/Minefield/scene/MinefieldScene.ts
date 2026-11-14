@@ -25,20 +25,30 @@ import { MINEFIELD } from '../../../shared/games/minefield/constants.ts'
 import type { MinefieldMap } from '../../../shared/games/minefield/types.ts'
 import type { RoundPlayerView } from '../../../types/index.ts'
 import { createAvatarTexture } from '../../three/avatarTexture.ts'
-import { labelWidthFor, Nameplate } from '../../three/Nameplate.ts'
+import { HeartsTag } from '../../three/HeartsTag.ts'
+import { labelWidthFor } from '../../three/Nameplate.ts'
 import { zoomProgress } from '../../LogDodge/scene/cameraPath.ts'
 import type { Blast, FieldFrame, Racer, ScanPulse } from '../fieldFrame.ts'
+import { RemoteTrack, REMOTE_DELAY_MS } from '../remoteTrack.ts'
 import { Runner } from './Runner.ts'
 import { World } from './World.ts'
 
 const FIELD_OF_VIEW = 50
 const HORIZON = '#f3e2b8'
+/** Name tags are this wide on a tall screen, shrinking with a short one (a phone held sideways) down to the minimum. */
 const NAMEPLATE_PIXELS = 96
+const NAMEPLATE_MIN_PIXELS = 64
+const NAMEPLATE_SHARE_OF_HEIGHT = 0.13
 const NAMEPLATE_HEIGHT = 2.5
 
 /** The follow camera: high above and a little behind, looking ahead of the runner — top down, tilted. */
 const FOLLOW = { OFFSET: new Vector3(-2, 22, 11.5), LOOK: new Vector3(4.5, 0, -0.8) }
 const SHAKE_DECAY_PER_SECOND = 5
+/**
+ * How far past the frame React last handed over the player's own runner may
+ * be carried on: a simulation step and a display frame, with room to spare.
+ */
+const MAX_SELF_LEAD_MS = 50
 
 export interface MinefieldSetup {
   map: MinefieldMap
@@ -51,7 +61,9 @@ export interface MinefieldSetup {
 interface Entry {
   player: RoundPlayerView
   runner: Runner
-  nameplate: Nameplate
+  /** A rival's reports, to draw them from. Unused for the player's own runner. */
+  track: RemoteTrack
+  nameplate: HeartsTag
   badge: CanvasTexture
 }
 
@@ -126,6 +138,8 @@ export class MinefieldScene {
   /* camera */
   private readonly focus = new Vector3()
   private hasFocus = false
+  /** Where each runner is drawn this frame, in tiles. */
+  private readonly drawn = new Map<string, { x: number; y: number }>()
   private pull = 1
   private shake = 0
   private readonly cameraPosition = new Vector3()
@@ -186,10 +200,10 @@ export class MinefieldScene {
     this.entries = players.map((player) => {
       const badge = createAvatarTexture({ initial: player.initial, color: player.color, seed: player.avatar })
       const runner = new Runner(player.color, badge)
-      const nameplate = new Nameplate()
+      const nameplate = new HeartsTag(MINEFIELD.LIVES)
       nameplate.setWidth(this.labelWidth)
       this.scene.add(runner.root, nameplate.sprite)
-      return { player, runner, nameplate, badge }
+      return { player, runner, nameplate, badge, track: new RemoteTrack() }
     })
   }
 
@@ -337,7 +351,8 @@ export class MinefieldScene {
 
   private updateRacers(frame: FieldFrame, deltaSeconds: number, nowMs: number): void {
     const canvasHeight = this.renderer.domElement.clientHeight || 1
-    this.labelWidth = labelWidthFor(NAMEPLATE_PIXELS, canvasHeight, FIELD_OF_VIEW)
+    const pixels = Math.min(NAMEPLATE_PIXELS, Math.max(NAMEPLATE_MIN_PIXELS, canvasHeight * NAMEPLATE_SHARE_OF_HEIGHT))
+    this.labelWidth = labelWidthFor(pixels, canvasHeight, FIELD_OF_VIEW)
     const byId = new Map(frame.racers.map((racer) => [racer.playerId, racer]))
 
     for (const entry of this.entries) {
@@ -348,25 +363,47 @@ export class MinefieldScene {
         continue
       }
       const { tileScale } = this.setup
+      const point = this.placeRacer(entry, racer, nowMs)
+      this.drawn.set(racer.playerId, point)
       entry.runner.update(
-        { ...racer, x: racer.x * tileScale, y: racer.y * tileScale },
+        { ...racer, x: point.x * tileScale, y: point.y * tileScale, vx: point.vx, vy: point.vy },
         deltaSeconds,
         nowMs,
-        tileScale,
       )
       const { position } = entry.runner.root
       entry.nameplate.setWidth(this.labelWidth)
       // From far above the tags would pile on top of each other, so rivals' appear as the camera comes down.
       entry.nameplate.setOpacity(racer.isSelf ? 1 : zoomProgress(nowMs))
       entry.nameplate.sprite.position.set(position.x, NAMEPLATE_HEIGHT, position.z)
+      // Only the name in the pill, with their lives as hearts above it.
       entry.nameplate.update({
         name: entry.player.name,
-        score: racer.lives,
-        unit: '♥',
-        status: racer.state === 'out' ? 'OUT' : racer.state === 'won' ? 'WINNER!' : '',
+        lives: racer.lives,
         isYou: racer.isSelf,
-        isFallen: racer.state === 'out',
+        isOut: racer.state === 'out',
       })
+    }
+  }
+
+  /**
+   * Where to draw a runner now, in tiles. The player's own is carried on from
+   * the last simulation step at its pace, so it moves every display frame and
+   * not only every step; a rival is drawn a little in the past, between the
+   * reports either side of that time.
+   */
+  private placeRacer(entry: Entry, racer: Racer, nowMs: number): { x: number; y: number; vx: number; vy: number } {
+    if (racer.isSelf) {
+      const lead = Math.min(Math.max(nowMs - racer.atMs, 0), MAX_SELF_LEAD_MS)
+      return { x: racer.x + racer.vx * lead, y: racer.y + racer.vy * lead, vx: racer.vx, vy: racer.vy }
+    }
+    entry.track.push({ t: racer.atMs, x: racer.x, y: racer.y })
+    const { map } = this.setup
+    const point = entry.track.at(nowMs - REMOTE_DELAY_MS) ?? { x: racer.x, y: racer.y, vx: 0, vy: 0 }
+    // Carrying on past the latest report never takes them off the field.
+    return {
+      ...point,
+      x: Math.min(Math.max(point.x, 0.5), map.width - 0.5),
+      y: Math.min(Math.max(point.y, 0.5), map.height - 0.5),
     }
   }
 
@@ -378,7 +415,8 @@ export class MinefieldScene {
       .reduce<Racer | null>((best, racer) => (best === null || racer.x > best.x ? racer : best), null)
     const subject = self !== undefined && self.state !== 'out' ? self : (leader ?? self)
     if (subject !== undefined) {
-      const target = new Vector3(subject.x * this.setup.tileScale, 0, subject.y * this.setup.tileScale)
+      const at = this.drawn.get(subject.playerId) ?? subject
+      const target = new Vector3(at.x * this.setup.tileScale, 0, at.y * this.setup.tileScale)
       if (!this.hasFocus) {
         this.focus.copy(target)
         this.hasFocus = true

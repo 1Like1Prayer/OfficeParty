@@ -104,28 +104,31 @@ export class Runner {
     }
   }
 
-  /** Moves toward `racer` and plays what they are doing. `nowMs` is the round clock. */
-  update(racer: Racer, deltaSeconds: number, nowMs: number, tileScale = 1): void {
+  /**
+   * Stands at `racer`'s position (in world units) and plays what they are
+   * doing. `vx`/`vy` are their speed in tiles per millisecond. `nowMs` is the
+   * round clock.
+   */
+  update(racer: Racer, deltaSeconds: number, nowMs: number): void {
     const { root, body } = this
-    const dx = racer.x - root.position.x
-    const dz = racer.y - root.position.z
-    if (!this.placed) {
+    if (!this.placed || racer.isSelf) {
       root.position.set(racer.x, 0, racer.y)
       this.placed = true
-    } else if (racer.isSelf) {
-      root.position.set(racer.x, 0, racer.y)
     } else {
-      // Others' positions arrive a few times a second, so they glide between reports.
-      const follow = damp(12, deltaSeconds)
-      root.position.x += dx * follow
-      root.position.z += dz * follow
+      // A rival's path is already smooth; this only softens the small jump when
+      // a late report puts them somewhere a little different from where they
+      // were being carried on to.
+      const follow = damp(25, deltaSeconds)
+      root.position.x += (racer.x - root.position.x) * follow
+      root.position.z += (racer.y - root.position.z) * follow
     }
-    // Measured in tiles, so a runner's stride looks the same however far apart the tiles are drawn.
-    const speed = deltaSeconds > 0 ? Math.hypot(dx, dz) / deltaSeconds / tileScale : 0
+    // In tiles per second, from the race itself rather than from how far the
+    // model happened to move this frame, so the stride never flickers.
+    const speed = Math.hypot(racer.vx, racer.vy) * 1000
     const isRunning = racer.state === 'racing' && speed > 0.6
 
     if (isRunning) {
-      this.yaw += shortestAngle(this.yaw, Math.atan2(-dz, dx)) * damp(14, deltaSeconds)
+      this.yaw += shortestAngle(this.yaw, Math.atan2(-racer.vy, racer.vx)) * damp(14, deltaSeconds)
     }
     root.rotation.y = this.yaw
 

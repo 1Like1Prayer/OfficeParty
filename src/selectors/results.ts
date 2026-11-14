@@ -50,7 +50,7 @@ function avatarOf(room: RoomView, playerId: string): string {
 }
 
 /** Games whose results rows show just the place and the name: the order says it all. */
-const PLAIN_RESULT_GAMES: ReadonlySet<string> = new Set(['log-dodge'])
+const PLAIN_RESULT_GAMES: ReadonlySet<string> = new Set(['log-dodge', 'minefield'])
 
 /**
  * Games describe their own results, so this formats the keys it knows and

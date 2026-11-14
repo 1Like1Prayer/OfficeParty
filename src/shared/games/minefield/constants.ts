@@ -4,15 +4,27 @@
  * tiles and times in milliseconds.
  */
 
+import { ROOM } from '../../constants.js';
+
 export const MINEFIELD = {
     /** Two scoring rounds per game; each race has its own freshly laid field. */
     ROUNDS_PER_GAME: 2,
 
     /* ---- the map ---- */
     WIDTH: 60,
-    HEIGHT: 15,
+    /**
+     * The field is as many rows across as this plus one per player (15 for
+     * four), so a crowd has as much room each as a pair does. Mines are laid
+     * per tile, so a wider field has more of them in proportion.
+     */
+    BASE_HEIGHT: 11,
+    HEIGHT_PER_PLAYER: 1,
+    /** The widest a field gets: the room's player limit. */
+    MAX_HEIGHT: 11 + ROOM.MAX_PLAYERS,
+    /** Everyone starts on this line, each on their own spot. */
     START_X: 1.5,
-    START_Y: 7.5,
+    /** Gap between neighbours on the start line, in tiles. */
+    START_SPACING: 2,
     /** Crossing this x ends the race for that player: the finish line. */
     FINISH_X: 57,
     /** No mines in the first stretch, so nobody blows up at the start. */

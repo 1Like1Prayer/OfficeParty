@@ -5,7 +5,7 @@
  */
 
 /** Bumped whenever a message or state shape changes. Mismatched clients are asked to reload. */
-export const PROTOCOL_VERSION = 17;
+export const PROTOCOL_VERSION = 18;
 
 /**
  * Avatars are chosen by the player and drawn from a seed, never a URL. The

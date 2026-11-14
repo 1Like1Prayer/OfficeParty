@@ -1,5 +1,4 @@
 import { CanvasTexture, Sprite, SpriteMaterial, SRGBColorSpace } from 'three'
-import { LOG_DODGE } from '../../../shared/games/logDodge/constants.ts'
 
 /** The tag's canvas: a row of hearts over a name pill. */
 const WIDTH = 360
@@ -9,7 +8,7 @@ const PILL_HEIGHT = 120
 const HEIGHT = HEARTS_HEIGHT + GAP + PILL_HEIGHT
 
 /** Width over height, for anything laying tags out on screen. */
-export const NAME_TAG_ASPECT = HEIGHT / WIDTH
+export const HEARTS_TAG_ASPECT = HEIGHT / WIDTH
 
 /**
  * The height of the plain name pill the shared tag used to be, as a share of
@@ -28,7 +27,7 @@ const INK = '#2E2A45'
 const HEART_ON = '#FF5FA2'
 const HEART_OFF = '#4A3F78'
 
-export interface NameTagContent {
+export interface HeartsTagContent {
   name: string
   lives: number
   isYou: boolean
@@ -36,16 +35,20 @@ export interface NameTagContent {
 }
 
 /**
- * Log Dodge's floating name tag: the player's lives as hearts above, and their
+ * A floating name tag: the player's lives as hearts above, and their
  * name filling the pill below. Redraws only when what it shows changes.
  */
-export class NameTag {
+export class HeartsTag {
   readonly sprite: Sprite
   private readonly canvas = document.createElement('canvas')
   private readonly texture: CanvasTexture
   private drawnKey = ''
 
-  constructor() {
+  /** How many hearts the row holds, full or empty. */
+  private readonly maxLives: number
+
+  constructor(maxLives: number) {
+    this.maxLives = maxLives
     this.canvas.width = WIDTH
     this.canvas.height = HEIGHT
     this.texture = new CanvasTexture(this.canvas)
@@ -64,7 +67,7 @@ export class NameTag {
 
   /** How wide the tag is drawn, in screen-sized sprite units (see `labelWidthFor`). */
   setWidth(width: number): void {
-    this.sprite.scale.set(width, width * NAME_TAG_ASPECT, 1)
+    this.sprite.scale.set(width, width * HEARTS_TAG_ASPECT, 1)
   }
 
   /** 0 hides the tag, 1 shows it fully. */
@@ -72,7 +75,7 @@ export class NameTag {
     this.sprite.material.opacity = opacity
   }
 
-  update(content: NameTagContent): void {
+  update(content: HeartsTagContent): void {
     const key = JSON.stringify(content)
     if (key === this.drawnKey) return
     this.drawnKey = key
@@ -113,7 +116,7 @@ export class NameTag {
     this.sprite.material.dispose()
   }
 
-  private drawHearts(context: CanvasRenderingContext2D, { lives, isOut }: NameTagContent): void {
+  private drawHearts(context: CanvasRenderingContext2D, { lives, isOut }: HeartsTagContent): void {
     const centreY = HEARTS_HEIGHT / 2 + 2
     if (isOut) {
       context.font = FONT(44)
@@ -125,7 +128,7 @@ export class NameTag {
       return
     }
 
-    const total = LOG_DODGE.MAX_HITS
+    const total = this.maxLives
     const spacing = 62
     context.font = FONT(56)
     context.lineWidth = 7

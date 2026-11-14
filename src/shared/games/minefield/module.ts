@@ -23,15 +23,24 @@
 
 import { assignSharedRanks } from '../ranking.js';
 import type { RandomSource } from '../random.js';
-import type { RankedEntry, ResultEntry, SelfTimedGameModule } from '../selfTimed.js';
+import type {
+    RankedEntry,
+    ResultEntry,
+    RoundContext,
+    SelfTimedGameModule
+} from '../selfTimed.js';
 import { MINEFIELD } from './constants.js';
 import { generateMap } from './map.js';
 import { parseMinefieldProgress, parseMinefieldResult } from './parsing.js';
 import { simulateRace, type RunOutcome } from './simulate.js';
 import type { MinefieldResult, MinefieldRound } from './types.js';
 
-export const createRoundData = (random: RandomSource = Math.random): MinefieldRound => ({
-    map: generateMap(random)
+/** The field is sized for, and has a start spot for, exactly the players in this attempt. */
+export const createRoundData = (
+    context: Pick<RoundContext, 'playerIds'>,
+    random: RandomSource = Math.random
+): MinefieldRound => ({
+    map: generateMap(context.playerIds, random)
 });
 
 /** Measured from when timing starts, like every self-timed game. */
@@ -129,9 +138,10 @@ export const minefieldModule: SelfTimedGameModule<MinefieldRound, MinefieldResul
     kind: 'self-timed',
     roundsPerGame: MINEFIELD.ROUNDS_PER_GAME,
     finishAnimationMs: MINEFIELD.FINISH_ANIMATION_MS,
-    createRoundData: () => createRoundData(),
+    createRoundData: (context) => createRoundData(context),
     parseResult: (raw) => parseMinefieldResult(raw),
-    parseProgress: (raw, round) => parseMinefieldProgress(raw, round.map.mines.length),
+    parseProgress: (raw, round) =>
+        parseMinefieldProgress(raw, round.map.mines.length, round.map.height),
     shouldCloseEarly,
     resultTimeoutMs,
     rank

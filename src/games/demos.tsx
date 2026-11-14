@@ -2,6 +2,7 @@ import type { GameId } from '../shared/games/catalog.ts'
 import { CrusherEscalatorDemo } from './CrusherEscalator/CrusherEscalatorDemo.tsx'
 import { CubeCounterDemo } from './CubeCounter/CubeCounterDemo.tsx'
 import { LogDodgeDemo } from './LogDodge/LogDodgeDemo.tsx'
+import { MinefieldDemo } from './Minefield/MinefieldDemo.tsx'
 import { StopTheClockDemo } from './StopTheClock/StopTheClockDemo.tsx'
 import { TypeRacerDemo } from './TypeRacer/TypeRacerDemo.tsx'
 
@@ -18,6 +19,8 @@ export function GameDemo({ gameId }: { gameId: GameId }) {
       return <CrusherEscalatorDemo />
     case 'type-racer-roulette':
       return <TypeRacerDemo />
+    case 'minefield':
+      return <MinefieldDemo />
     default:
       return null
   }
