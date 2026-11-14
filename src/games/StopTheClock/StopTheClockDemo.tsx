@@ -52,7 +52,6 @@ export function StopTheClockDemo() {
       step={step}
       progress={progress}
       ariaLabel="How it works: a target lands, you stop the clock as close to it as you can, and the closest stop wins the point."
-      footnote="Last two rounds, the clock fades out halfway — you count the rest in your head."
     >
       {step === 0 && <TargetStep t={t} />}
       {step === 1 && <ClockStep t={t} />}

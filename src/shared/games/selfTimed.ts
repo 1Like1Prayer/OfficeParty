@@ -28,7 +28,7 @@ export interface RoundContext {
     roundsPerGame: number;
     /**
      * The players this attempt is for. Games that give each player their own
-     * content (Crusher Escalator's arrow streams) build it from this; a
+     * content (Crusher Escalator's arrow seeds) build it from this; a
      * tiebreaker attempt lists only the tied players.
      */
     playerIds: readonly string[];
@@ -91,7 +91,11 @@ export interface SelfTimedGameModule<TRound, TResult> {
      * the player's own progress messages arriving, so it is a reliable way to
      * tell the room that someone is out. Return null to say nothing.
      */
-    progressFromResult?(result: TResult, round: TRound): Record<string, number> | null;
+    progressFromResult?(
+        result: TResult,
+        round: TRound,
+        playerId: string
+    ): Record<string, number> | null;
 
     /**
      * Optional, for games that end before everyone has finished (Crusher
@@ -103,7 +107,7 @@ export interface SelfTimedGameModule<TRound, TResult> {
      * every result.
      */
     shouldCloseEarly?(
-        reported: readonly TResult[],
+        reported: readonly ResultEntry<TResult>[],
         participantCount: number,
         round: TRound
     ): boolean;

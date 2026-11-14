@@ -1,22 +1,21 @@
 import { CRUSHER_ESCALATOR } from '../../shared/games/crusherEscalator/constants.ts'
-import { directionAt } from '../../shared/games/crusherEscalator/stream.ts'
-import type { ArrowStream, Input } from '../../shared/games/crusherEscalator/types.ts'
+import type { ArrowSequence, Input } from '../../shared/games/crusherEscalator/types.ts'
 import type { RankedEntry } from '../../shared/games/selfTimed.ts'
 import type { RoundPlayerView } from '../../types/index.ts'
 
 export type ScoresByPlayer = Record<string, number>
 
-const { STARTING_SCORE, ELIMINATION_GAP } = CRUSHER_ESCALATOR
+const { STARTING_SCORE } = CRUSHER_ESCALATOR
 
 /** Did the press at `pressIndex` match the arrow that was showing? */
 export const isCorrectPress = (
   input: Input,
-  stream: ArrowStream,
+  arrows: ArrowSequence,
   pressIndex: number,
-): boolean => input.direction === directionAt(stream, pressIndex)
+): boolean => input.direction === arrows(pressIndex)
 
-export const countCorrectPresses = (inputs: readonly Input[], stream: ArrowStream): number =>
-  inputs.filter((input, pressIndex) => isCorrectPress(input, stream, pressIndex)).length
+export const countCorrectPresses = (inputs: readonly Input[], arrows: ArrowSequence): number =>
+  inputs.filter((input, pressIndex) => isCorrectPress(input, arrows, pressIndex)).length
 
 /**
  * Everyone's score as this screen knows it: our own is exact, the others
@@ -43,29 +42,21 @@ export function collectScores({
   )
 }
 
-/**
- * How far each player is behind the leader of their own group. In the heats
- * two groups race side by side and only ever compare themselves with each
- * other; in a final everyone is in one group.
- */
-export function gapsBehindGroupLeader(
-  scores: ScoresByPlayer,
-  groups: readonly (readonly string[])[],
-): Record<string, number> {
-  const gaps: Record<string, number> = {}
-  for (const group of groups) {
-    const lead = Math.max(STARTING_SCORE, ...group.map((playerId) => scores[playerId] ?? STARTING_SCORE))
-    for (const playerId of group) gaps[playerId] = lead - (scores[playerId] ?? STARTING_SCORE)
-  }
-  return gaps
+/** How far each player is behind the leader (whoever has the highest score). */
+export function gapsBehindLeader(scores: ScoresByPlayer): Record<string, number> {
+  const lead = Math.max(STARTING_SCORE, ...Object.values(scores))
+  return Object.fromEntries(Object.entries(scores).map(([playerId, score]) => [playerId, lead - score]))
 }
 
-/** The same rule the server applies when it replays the race. */
-export const isCrushed = (gap: number): boolean => gap >= ELIMINATION_GAP
+/**
+ * The same rule the server applies when it replays the race. `eliminationGap`
+ * is the gap allowed right now, which narrows as the race goes on.
+ */
+export const isCrushed = (gap: number, eliminationGap: number): boolean => gap >= eliminationGap
 
 /** 0 = keeping pace with the leader, 1 = about to be crushed. */
-export const slipFraction = (gap: number): number =>
-  Math.min(1, Math.max(0, gap / ELIMINATION_GAP))
+export const slipFraction = (gap: number, eliminationGap: number): number =>
+  Math.min(1, Math.max(0, gap / eliminationGap))
 
 /** Who the server's replay says was crushed. Its word beats what this screen guessed. */
 export const crushedPlayerIds = (ranking: readonly RankedEntry[]): ReadonlySet<string> =>

@@ -1,66 +1,56 @@
 /**
- * Arrow streams.
+ * Arrow sequences.
  *
- * A stream is a short list of directions that loops forever, and it advances
- * on every key press (right or wrong). Rules:
- *  - never the same direction twice in a row, including across the loop point;
- *  - every player gets a different stream.
+ * Each player gets a seed; the seed expands into an endless sequence of
+ * directions that advances on every key press (right or wrong). The client
+ * and the server run the same code on the same seed, so they always agree on
+ * which arrow was showing. Rules:
+ *  - never the same direction twice in a row;
+ *  - every player gets a different seed, so a different sequence;
+ *  - it never loops, so there is no pattern to memorise.
  */
 
-import { randomInt, type RandomSource } from '../random.js';
-import { CRUSHER_ESCALATOR, DIRECTIONS } from './constants.js';
-import type { ArrowStream, Direction } from './types.js';
+import { randomInt, seededRandom, type RandomSource } from '../random.js';
+import { DIRECTIONS } from './constants.js';
+import type { ArrowSequence, Direction } from './types.js';
 
-/** Picks any direction except the ones listed. Always possible: there are four. */
-const pickDirectionExcluding = (
-    random: RandomSource,
-    excluded: readonly Direction[]
-): Direction => {
-    const allowed = DIRECTIONS.filter((direction) => !excluded.includes(direction));
+/** Any direction except `previous`. Always possible: there are four. */
+const pickDirectionAfter = (random: RandomSource, previous: Direction | undefined): Direction => {
+    const allowed = DIRECTIONS.filter((direction) => direction !== previous);
     return allowed[randomInt(random, 0, allowed.length - 1)]!;
 };
 
-export const generateStream = (
-    random: RandomSource,
-    length: number = CRUSHER_ESCALATOR.STREAM_LENGTH
-): Direction[] => {
-    const stream: Direction[] = [];
+/**
+ * The sequence a seed describes. Arrows are generated as they are first asked
+ * for and remembered, so looking any of them up again is free.
+ */
+export const arrowSequence = (seed: number): ArrowSequence => {
+    const random = seededRandom(seed);
+    const shown: Direction[] = [];
 
-    for (let index = 0; index < length; index++) {
-        const previous = stream[index - 1];
-        const isLast = index === length - 1;
-        // The last symbol is followed by the first when the stream loops.
-        const first = stream[0];
-
-        const excluded: Direction[] = [];
-        if (previous !== undefined) excluded.push(previous);
-        if (isLast && first !== undefined) excluded.push(first);
-
-        stream.push(pickDirectionExcluding(random, excluded));
-    }
-    return stream;
+    return (pressCount) => {
+        while (shown.length <= pressCount) shown.push(pickDirectionAfter(random, shown.at(-1)));
+        return shown[pressCount]!;
+    };
 };
 
-const streamKey = (stream: ArrowStream): string => stream.join(',');
+/** Seeds are unsigned 32-bit numbers, which mulberry32 uses in full. */
+const MAX_SEED = 0xffff_ffff;
 
-/** One stream per player, no two alike. */
-export const generatePlayerStreams = (
+/** One seed per player, no two alike. */
+export const generatePlayerSeeds = (
     playerIds: readonly string[],
-    random: RandomSource
-): Record<string, Direction[]> => {
-    const streams: Record<string, Direction[]> = {};
-    const used = new Set<string>();
+    random: RandomSource = Math.random
+): Record<string, number> => {
+    const seeds: Record<string, number> = {};
+    const used = new Set<number>();
 
     for (const playerId of playerIds) {
-        let stream = generateStream(random);
-        while (used.has(streamKey(stream))) stream = generateStream(random);
+        let seed = randomInt(random, 0, MAX_SEED);
+        while (used.has(seed)) seed = randomInt(random, 0, MAX_SEED);
 
-        used.add(streamKey(stream));
-        streams[playerId] = stream;
+        used.add(seed);
+        seeds[playerId] = seed;
     }
-    return streams;
+    return seeds;
 };
-
-/** The arrow showing after `pressCount` presses. Loops past the end. */
-export const directionAt = (stream: ArrowStream, pressCount: number): Direction =>
-    stream[pressCount % stream.length]!;

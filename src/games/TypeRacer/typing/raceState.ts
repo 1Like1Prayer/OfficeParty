@@ -23,9 +23,11 @@ export interface RaceState {
   /**
    * typing: keys count · rolling: three strikes, waiting on the dice ·
    * finished: every paragraph done · survived: everyone else is out, so this
-   * player wins where they stand · out: crushed by a skull or by the clock.
+   * player wins where they stand · stopped: the server closed the race
+   * (someone else finished, or this player is the last one left) · out:
+   * crushed by a skull or by the clock.
    */
-  status: 'typing' | 'rolling' | 'finished' | 'survived' | 'out'
+  status: 'typing' | 'rolling' | 'finished' | 'survived' | 'stopped' | 'out'
   paragraphIndex: number
   lineIndex: number
   /** Correct characters on the line being typed. */
@@ -66,6 +68,8 @@ export type RaceAction =
   | { type: 'timeout'; atMs: number }
   /** Every other player is out: this player has won without finishing. */
   | { type: 'lastSurvivor'; atMs: number }
+  /** The server says the race is decided: stop where we are. */
+  | { type: 'stopped'; atMs: number }
 
 export const initialRaceState: RaceState = {
   status: 'typing',
@@ -184,5 +188,10 @@ export const createRaceReducer =
         // Whatever they were in the middle of no longer matters, even the dice.
         if (state.status !== 'typing' && state.status !== 'rolling') return state
         return { ...state, status: 'survived', endedAtMs: action.atMs, pendingRoll: null }
+
+      case 'stopped':
+        // Mid-roll too: the race is over, so the dice no longer matter.
+        if (state.status !== 'typing' && state.status !== 'rolling') return state
+        return { ...state, status: 'stopped', endedAtMs: action.atMs, pendingRoll: null }
     }
   }

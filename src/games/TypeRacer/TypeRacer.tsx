@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { TYPE_RACER } from '../../shared/games/typeRacer/constants.ts'
 import { checkpointFractions, totalCharacters } from '../../shared/games/typeRacer/progress.ts'
 import type { Paragraph, TypeRacerRound } from '../../shared/games/typeRacer/types.ts'
+import { useMediaQuery } from '../../hooks/index.ts'
 import { color } from '../../theme/index.ts'
 import type { GameSurfaceProps } from '../types.ts'
 import type { StationView } from './scene/TypeRacerScene.ts'
@@ -11,7 +12,9 @@ import { useTypingRace } from './typing/useTypingRace.ts'
 import { RaceProgressBar, type BarRunner } from './ui/RaceProgressBar.tsx'
 import { TypeRacerStage } from './ui/TypeRacerStage.tsx'
 import { SwipeAway } from './ui/SwipeAway.tsx'
+import { PhoneTypingInput, type PhoneTypingInputHandle } from './ui/PhoneTypingInput.tsx'
 import { TypingPanel } from './ui/TypingPanel.tsx'
+import { useVisibleViewport } from './ui/useVisibleViewport.ts'
 import { useParagraphBreak } from './ui/useParagraphBreak.ts'
 import { useParagraphClock } from './ui/useParagraphClock.ts'
 
@@ -23,6 +26,11 @@ const isRound = (data: unknown): data is TypeRacerRound =>
   Array.isArray((data as TypeRacerRound).paragraphs)
 
 const STATUS_BY_CODE = ['typing', 'finished', 'out'] as const
+
+/** A finger rather than a keyboard: typing goes through a box that brings up the on-screen keyboard. */
+const TOUCH = '(pointer: coarse)'
+/** A phone-sized screen: the bar and the sheet tighten up so the text keeps the room. */
+const NARROW = '(max-width: 600px)'
 
 /**
  * Type Racer Roulette. Everyone types the same paragraphs on an old
@@ -45,6 +53,7 @@ function TypeRacerSession({
   players,
   selfPlayerId,
   progress,
+  closingPlayerIds,
   timingStartsAtLocalMs,
   onSubmit,
   onProgress,
@@ -63,15 +72,24 @@ function TypeRacerSession({
     (rollIndex: number) => onAction({ type: 'roll', rollIndex }),
     [onAction],
   )
-  // Everyone else is out (their reports say so), so this player has won.
+  // Everyone else is out, so this player has won. The server announces each
+  // knock-out from its own replay, so this does not hang on their progress reports.
   const others = players.filter(({ playerId }) => playerId !== selfPlayerId)
   const isLastSurvivor =
     others.length > 0 && others.every(({ playerId }) => progress[playerId]?.status === 2)
+  const isTouch = useMediaQuery(TOUCH)
+  const isCompact = useMediaQuery(NARROW) || isTouch
+  const phoneInputRef = useRef<PhoneTypingInputHandle>(null)
+  // A phone's keyboard is up when it hides a good share of the screen. The
+  // race bar then folds away, so the paragraph keeps the little room left.
+  const visible = useVisibleViewport()
+  const isKeyboardUp = isTouch && visible.height < window.innerHeight * 0.75
   const race = useTypingRace({
     paragraphs,
     timingStartsAtLocalMs,
     isRacing,
     isLastSurvivor,
+    isClosed: closingPlayerIds !== null,
     requestRoll,
     onSubmit,
     onProgress,
@@ -173,34 +191,59 @@ function TypeRacerSession({
         ref={overlayRef}
         style={{
           position: 'absolute',
-          top: 16,
+          top: isCompact ? 'max(8px, env(safe-area-inset-top))' : 16,
           left: '50%',
           transform: 'translateX(-50%)',
-          width: 'min(1080px, calc(100% - 32px))',
+          width: isCompact ? 'min(1080px, calc(100% - 16px))' : 'min(1080px, calc(100% - 32px))',
           display: 'flex',
           flexDirection: 'column',
-          gap: 10,
+          gap: isCompact ? 6 : 10,
         }}
       >
         <div
+          aria-hidden={isKeyboardUp}
           style={{
-            background: 'rgba(14, 9, 36, 0.62)',
-            border: `3px solid ${color.ink}`,
-            borderRadius: 16,
-            backdropFilter: 'blur(6px)',
-            padding: '8px 0 0',
+            display: 'grid',
+            gridTemplateRows: isKeyboardUp ? '0fr' : '1fr',
+            opacity: isKeyboardUp ? 0 : 1,
+            marginBottom: isKeyboardUp ? (isCompact ? -6 : -10) : 0,
+            transition: 'grid-template-rows 260ms ease, opacity 200ms ease, margin-bottom 260ms ease',
           }}
         >
-          <RaceProgressBar runners={runners} checkpoints={checkpointFractions(paragraphs)} />
+          <div style={{ minHeight: 0, overflow: 'hidden' }}>
+            <div
+              style={{
+                background: 'rgba(14, 9, 36, 0.62)',
+                border: `3px solid ${color.ink}`,
+                borderRadius: 16,
+                backdropFilter: 'blur(6px)',
+                padding: isCompact ? '4px 0 0' : '8px 0 0',
+              }}
+            >
+              <RaceProgressBar runners={runners} checkpoints={checkpointFractions(paragraphs)} isCompact={isCompact} />
+            </div>
+          </div>
         </div>
         <SwipeAway isAway={isTypingDone}>
-          <TypingPanel
-            paragraphs={paragraphs}
-            state={race.state}
-            secondsLeft={secondsLeft}
-            isRacing={isRacing}
-            breakProgress={breakProgress}
-          />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {/* Above the sheet, so the keyboard never covers it and the page never has to scroll to it. */}
+            {isTouch && (
+              <PhoneTypingInput
+                ref={phoneInputRef}
+                onCharacter={race.typeCharacter}
+                isOpen={isRacing && race.state.status === 'typing'}
+              />
+            )}
+            <TypingPanel
+              paragraphs={paragraphs}
+              state={race.state}
+              secondsLeft={secondsLeft}
+              isRacing={isRacing}
+              breakProgress={breakProgress}
+              isCompact={isCompact}
+              onTap={isTouch ? () => { phoneInputRef.current?.focus() } : undefined}
+            />
+          </div>
         </SwipeAway>
       </div>
 

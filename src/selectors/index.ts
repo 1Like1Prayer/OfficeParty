@@ -27,6 +27,7 @@ export {
 } from './lobby.ts'
 export {
   selectChampionLine,
+  selectChampionName,
   selectChampionNote,
   selectResultEyebrow,
   selectResultHeadline,

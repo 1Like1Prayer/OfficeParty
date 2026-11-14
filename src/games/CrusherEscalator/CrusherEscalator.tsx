@@ -1,15 +1,18 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CRUSHER_ESCALATOR } from '../../shared/games/crusherEscalator/constants.ts'
-import { directionAt } from '../../shared/games/crusherEscalator/stream.ts'
+import { arrowSequence } from '../../shared/games/crusherEscalator/stream.ts'
 import type {
   CrusherEscalatorRound,
   Direction,
   Input,
 } from '../../shared/games/crusherEscalator/types.ts'
+import { useMediaQuery } from '../../hooks/index.ts'
 import { color, font, sharedStyles } from '../../theme/index.ts'
-import type { NextStageView, RoundPlayerView } from '../../types/index.ts'
+import type { RoundPlayerView } from '../../types/index.ts'
 import type { GameSurfaceProps } from '../types.ts'
-import { ArrowPrompt } from './ArrowPrompt.tsx'
+import { ArrowPad } from './ArrowPad.tsx'
+import { ArrowPrompt, type PressFeedback } from './ArrowPrompt.tsx'
+import { COMPACT_SCREEN, VISIBLE_LANES } from './arena/arenaConfig.ts'
 import { EscalatorArena } from './arena/EscalatorArena.tsx'
 import type { LaneView } from './arena/types.ts'
 import { selectRoster } from './roster.ts'
@@ -17,17 +20,17 @@ import {
   collectScores,
   countCorrectPresses,
   crushedPlayerIds,
-  gapsBehindGroupLeader,
+  gapsBehindLeader,
   isCorrectPress,
   slipFraction,
   survivingPlayerIds,
 } from './standings.ts'
 import { useArrowKeyPresses } from './useArrowKeyPresses.ts'
+import { useEliminationGap } from './useEliminationGap.ts'
 import { useFallenPlayers } from './useFallenPlayers.ts'
 import { useScoreBroadcast } from './useScoreBroadcast.ts'
 import { useTabWasHidden } from '../../hooks/useTabWasHidden.ts'
 
-const NO_STREAM: readonly Direction[] = []
 const NO_PLAYERS: ReadonlySet<string> = new Set()
 /**
  * How long a pressed arrow stays on screen, green or red, before the next one
@@ -35,27 +38,32 @@ const NO_PLAYERS: ReadonlySet<string> = new Set()
  * they have not seen yet.
  */
 const FEEDBACK_MS = 170
-/** Fixed, so a message taking the arrow's place moves nothing. */
-const PROMPT_STRIP_HEIGHT = 128
+/**
+ * Fixed for a given screen, so a message taking the arrow's place moves
+ * nothing; shorter on a short screen, so the arena keeps its share.
+ */
+const PROMPT_STRIP_HEIGHT = 'clamp(84px, 17dvh, 128px)'
+const PROMPT_ARROW_SIZE = 'clamp(48px, 11dvh, 92px)'
+/** A finger rather than a mouse: the arrows get buttons of their own. */
+const TOUCH = '(pointer: coarse)'
 /** The same deep space as the scene, so the strip reads as part of it. */
 const BACKDROP_COLOR = '#0a051c'
 
 const isRound = (data: unknown): data is CrusherEscalatorRound =>
   typeof data === 'object' &&
   data !== null &&
-  typeof (data as CrusherEscalatorRound).streams === 'object' &&
-  Array.isArray((data as CrusherEscalatorRound).groups)
+  typeof (data as CrusherEscalatorRound).seeds === 'object' &&
+  (data as CrusherEscalatorRound).seeds !== null
 
-const { MAX_INPUTS, MAX_RACE_MS, FINALISTS } = CRUSHER_ESCALATOR
+const { MAX_INPUTS, MAX_RACE_MS } = CRUSHER_ESCALATOR
 
 interface StatusInput {
   players: readonly RoundPlayerView[]
   selfPlayerId: string
   isSpectating: boolean
-  stage: CrusherEscalatorRound['stage']
-  nextStage: NextStageView | null
   selfHasFallen: boolean
   survivorCount: number
+  isRaceOver: boolean
   /** Who the server says was left standing, or null while it has not decided. */
   winnerIds: string[] | null
 }
@@ -64,14 +72,9 @@ interface StatusInput {
  * What the strip says instead of the arrow, or null while the arrow is what
  * the player should be looking at.
  */
-function describeStatus(input: StatusInput & { isRaceOver: boolean }): string | null {
-  const { players, selfPlayerId, isSpectating, stage, nextStage, selfHasFallen, winnerIds } = input
+function describeStatus(input: StatusInput): string | null {
+  const { players, selfPlayerId, isSpectating, selfHasFallen, winnerIds } = input
 
-  if (nextStage !== null) {
-    return nextStage.playerIds.includes(selfPlayerId)
-      ? 'You’re through to the final!'
-      : 'Out in the heats. Watch the final!'
-  }
   if (isSpectating) return 'Watching from the sidelines'
 
   if (winnerIds !== null) {
@@ -83,28 +86,23 @@ function describeStatus(input: StatusInput & { isRaceOver: boolean }): string | 
   }
 
   if (!input.isRaceOver) return null
-  if (selfHasFallen) {
-    return stage === 'heats' ? 'Swallowed! Waiting for the heat to end…' : 'Swallowed! Waiting for the others…'
-  }
-  if (stage === 'heats') return 'Heat over! Waiting for the others…'
+  if (selfHasFallen) return 'Swallowed! Waiting for the others…'
   return input.survivorCount <= 1 ? 'Last one running!' : 'Time! Locked in…'
 }
 
 /**
  * Crusher Escalator. Every player runs up an escalator that carries them
  * down; hitting the arrow that is showing keeps them climbing. Fall far enough
- * behind your group's leader and the black hole at the bottom takes you.
- *
- * With many players the round opens with two heats, shown here as the heat you
- * are racing in. When six are left the heats end, the finalists are set down
- * in their new places on the escalators, and they race again as one group.
+ * behind the leader and the black hole at the bottom takes you. How far is
+ * "far enough" narrows as the race goes on, so nobody can hang on forever.
  *
  * The browser plays the race on its own clock and reports every press with its
  * time; the server replays all players' presses and decides the outcome. The
  * picture here is a live preview of that, built from our own presses and the
- * other players' score reports. This component stays mounted from one stage to
- * the next so the 3D scene can carry the finalists across, and starts its own
- * state afresh whenever `attemptKey` changes.
+ * other players' score reports. Each player's arrows come from a seed in the
+ * round data, expanded by the same shared code the server judges with. This
+ * component starts its own state afresh whenever `attemptKey` changes (a
+ * tiebreaker).
  */
 export function CrusherEscalator({
   phase,
@@ -114,7 +112,6 @@ export function CrusherEscalator({
   progress,
   closingPlayerIds,
   attemptKey,
-  nextStage,
   timingStartsAtLocalMs,
   onSubmit,
   onProgress,
@@ -122,10 +119,9 @@ export function CrusherEscalator({
 }: GameSurfaceProps) {
   const isRacing = phase === 'playing'
   const round = isRound(data) ? data : null
-  const stage = round?.stage ?? 'final'
-  const groups = round?.groups ?? [players.map(({ playerId }) => playerId)]
   const isSpectating = !players.some(({ playerId }) => playerId === selfPlayerId)
-  const stream = (round?.streams[selfPlayerId]) ?? NO_STREAM
+  const seed = round?.seeds[selfPlayerId]
+  const arrows = useMemo(() => (seed === undefined ? null : arrowSequence(seed)), [seed])
 
   const [inputs, setInputs] = useState<Input[]>([])
   const [isTimeUp, setIsTimeUp] = useState(false)
@@ -134,8 +130,12 @@ export function CrusherEscalator({
   const [seenAttemptKey, setSeenAttemptKey] = useState(attemptKey)
   const submittedAttemptKey = useRef<string | null>(null)
   const tabWasHidden = useTabWasHidden(isRacing)
+  const isPortrait = useMediaQuery('(orientation: portrait)')
+  const isCompact = useMediaQuery(COMPACT_SCREEN)
+  const isTouch = useMediaQuery(TOUCH)
+  const eliminationGap = useEliminationGap(isRacing, timingStartsAtLocalMs)
 
-  // A new attempt (the final after the heats, a tiebreaker) starts from nothing.
+  // A new attempt (a tiebreaker) starts from nothing.
   if (seenAttemptKey !== attemptKey) {
     setSeenAttemptKey(attemptKey)
     setInputs([])
@@ -143,38 +143,33 @@ export function CrusherEscalator({
     setFlashedPressCount(null)
   }
 
-  const score = countCorrectPresses(inputs, stream)
+  const score = arrows === null ? 0 : countCorrectPresses(inputs, arrows)
   const scores = collectScores({ players, selfPlayerId, selfScore: score, progress })
-  const gaps = gapsBehindGroupLeader(scores, groups)
+  const gaps = gapsBehindLeader(scores)
   // Once the race is called, the players still standing have won: no late score
   // report can take them back down.
   const winnersByServer = finalRanking === null ? NO_PLAYERS : new Set(survivingPlayerIds(finalRanking))
   const safeIds = closingPlayerIds === null ? winnersByServer : new Set([...winnersByServer, ...closingPlayerIds])
-  const fallenPlayers = useFallenPlayers(gaps, attemptKey, safeIds)
+  const fallenPlayers = useFallenPlayers(gaps, eliminationGap, attemptKey, safeIds)
 
   // Once the server has decided the race its replay is the truth: anyone it
   // crushed goes into the hole now, even if this screen had not seen it coming.
-  // Players it sends through to the next stage are not crushed, whatever this
-  // screen guessed.
-  const goingThrough = new Set(nextStage?.playerIds)
   const crushedByServer = finalRanking === null ? NO_PLAYERS : crushedPlayerIds(finalRanking)
   const hasFallen = (playerId: string): boolean =>
-    !goingThrough.has(playerId) && (fallenPlayers.has(playerId) || crushedByServer.has(playerId))
+    fallenPlayers.has(playerId) || crushedByServer.has(playerId)
 
   const selfHasFallen = hasFallen(selfPlayerId)
   const survivorCount = players.filter(({ playerId }) => !hasFallen(playerId)).length
-  // The heats end when the finalists are decided, the final when one is left.
-  const survivorsToEnd = stage === 'heats' ? FINALISTS : 1
   // The server calls the race once enough players have reported, whatever this
   // screen has been told by progress reports (which can be late or dropped).
   const isRaceOver =
     finalRanking !== null ||
     isTimeUp ||
     selfHasFallen ||
-    survivorCount <= survivorsToEnd ||
+    survivorCount <= 1 ||
     closingPlayerIds !== null
   const isFlashingPress = flashedPressCount === inputs.length && inputs.length > 0
-  const acceptsInput = isRacing && !isRaceOver && stream.length > 0 && !isFlashingPress
+  const acceptsInput = isRacing && !isRaceOver && arrows !== null && !isFlashingPress
 
   const recordPress = useCallback(
     (direction: Direction) => {
@@ -216,18 +211,17 @@ export function CrusherEscalator({
   // While a press is being flashed the arrow shown is the one that was pressed.
   const shownPressIndex = isFlashingPress ? inputs.length - 1 : inputs.length
   const lastInput = inputs.at(-1)
-  const feedback =
-    isFlashingPress && lastInput !== undefined
-      ? isCorrectPress(lastInput, stream, inputs.length - 1)
+  const feedback: PressFeedback | null =
+    isFlashingPress && lastInput !== undefined && arrows !== null
+      ? isCorrectPress(lastInput, arrows, inputs.length - 1)
         ? 'correct'
         : 'wrong'
       : null
 
-  // The last runner in the final has won: they jump on the spot and nothing touches them.
-  const isFinalDecided =
-    stage === 'final' && nextStage === null && (finalRanking !== null || closingPlayerIds !== null || survivorCount <= 1)
+  // The last runner has won: they jump on the spot and nothing touches them.
+  const isDecided = finalRanking !== null || closingPlayerIds !== null || survivorCount <= 1
   const winnerIds = new Set(
-    isFinalDecided
+    isDecided
       ? finalRanking !== null
         ? survivingPlayerIds(finalRanking)
         : players.filter(({ playerId }) => !hasFallen(playerId)).map(({ playerId }) => playerId)
@@ -235,18 +229,17 @@ export function CrusherEscalator({
   )
   const hasSoleWinner = winnerIds.size === 1
 
-  const roster = selectRoster({ round, players, nextStage, selfPlayerId })
-  const lanes: LaneView[] = roster.map(({ playerId }) => {
-    // Between stages the finalists are being set down for a fresh start.
-    if (nextStage !== null) {
-      return { playerId, score: 0, gap: 0, slip: 0, isFallen: false, isYou: playerId === selfPlayerId }
-    }
-    const gap = gaps[playerId] ?? 0
+  const roster = selectRoster({
+    players,
+    selfPlayerId,
+    count: isCompact ? VISIBLE_LANES.COMPACT : VISIBLE_LANES.FULL,
+    isOut: hasFallen,
+  })
+  const lanes: LaneView[] = players.map(({ playerId }) => {
     return {
       playerId,
       score: scores[playerId] ?? 0,
-      gap,
-      slip: slipFraction(gap),
+      slip: slipFraction(gaps[playerId] ?? 0, eliminationGap),
       isFallen: hasFallen(playerId),
       isWinner: hasSoleWinner && winnerIds.has(playerId),
       isYou: playerId === selfPlayerId,
@@ -257,13 +250,26 @@ export function CrusherEscalator({
     players,
     selfPlayerId,
     isSpectating,
-    stage,
-    nextStage,
     selfHasFallen,
     survivorCount,
     isRaceOver,
-    winnerIds: finalRanking === null || nextStage !== null ? null : survivingPlayerIds(finalRanking),
+    winnerIds: finalRanking === null ? null : survivingPlayerIds(finalRanking),
   })
+
+  const padFlash =
+    feedback !== null && lastInput !== undefined ? { direction: lastInput.direction, feedback } : null
+  // Live for the whole race, so the pad does not flicker with every press; a tap
+  // while the last press is still being shown is ignored, as a key would be.
+  const canPress = isRacing && !isRaceOver && arrows !== null && !isSpectating
+  const onPadPress = canPress
+    ? (direction: Direction) => { if (!isFlashingPress) recordPress(direction) }
+    : null
+  const hasPad = isTouch && !isSpectating
+  const arena = (
+    <div style={{ flex: 1, minWidth: 0, minHeight: 0 }}>
+      <EscalatorArena players={roster} lanes={lanes} attemptKey={attemptKey} isRacing={isRacing} />
+    </div>
+  )
 
   return (
     <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -277,8 +283,10 @@ export function CrusherEscalator({
           alignItems: 'center',
           justifyContent: 'center',
           gap: 4,
+          padding: '0 16px',
           background: BACKDROP_COLOR,
           borderBottom: `3px solid ${color.ink}`,
+          textAlign: 'center',
         }}
       >
         {statusMessage !== null && (isRacing || isSpectating) ? (
@@ -287,8 +295,9 @@ export function CrusherEscalator({
             style={{
               fontFamily: font.display,
               fontWeight: 700,
-              fontSize: 28,
-              color: selfHasFallen && nextStage === null ? '#FF7A72' : color.green,
+              fontSize: 'clamp(18px, 5vw, 28px)',
+              lineHeight: 1.15,
+              color: selfHasFallen ? '#FF7A72' : color.green,
               animation: 'pa-pop .35s cubic-bezier(.34,1.56,.64,1)',
             }}
           >
@@ -297,19 +306,35 @@ export function CrusherEscalator({
         ) : (
           <>
             <ArrowPrompt
-              direction={acceptsInput || isFlashingPress ? directionAt(stream, shownPressIndex) : null}
+              direction={(acceptsInput || isFlashingPress) && arrows !== null ? arrows(shownPressIndex) : null}
               feedback={feedback}
+              size={PROMPT_ARROW_SIZE}
             />
-            <div style={{ ...sharedStyles.microLabel, fontSize: 12, color: color.mutedSoft }}>
-              {stage === 'heats' ? `HEAT · LAST ${FINALISTS} STANDING GO THROUGH` : 'ARROW KEYS OR WASD'}
+            <div style={{ ...sharedStyles.microLabel, fontSize: 'clamp(10px, 2.6vw, 12px)', color: color.mutedSoft }}>
+              {isTouch ? 'TAP THE ARROWS' : 'ARROW KEYS OR WASD'} ·{' '}
+              {/* Keyed on the gap, so it pops each time the gap narrows. */}
+              <span
+                key={eliminationGap}
+                style={{ display: 'inline-block', color: color.cream, animation: 'pa-pop .35s cubic-bezier(.34,1.56,.64,1)' }}
+              >
+                CRUSHED AT {eliminationGap} BEHIND
+              </span>
             </div>
           </>
         )}
       </div>
 
-      <div style={{ flex: 1, minHeight: 0 }}>
-        <EscalatorArena players={roster} lanes={lanes} isRacing={isRacing} introduce={stage === 'heats'} />
-      </div>
+      {/* On a phone the arrows get buttons beside the arena, never over it. */}
+      {hasPad && !isPortrait ? (
+        <div style={{ flex: 1, minHeight: 0, display: 'flex' }}>
+          <ArrowPad placement="left" onPress={onPadPress} flash={padFlash} />
+          {arena}
+          <ArrowPad placement="right" onPress={onPadPress} flash={padFlash} />
+        </div>
+      ) : (
+        arena
+      )}
+      {hasPad && isPortrait && <ArrowPad placement="row" onPress={onPadPress} flash={padFlash} />}
     </div>
   )
 }

@@ -15,36 +15,24 @@ export const CRUSHER_ESCALATOR = {
     POINTS_PER_CORRECT_INPUT: 1,
 
     /**
-     * A player is crushed when the leader's score is this many points above
-     * theirs. The leader is whoever has the highest score.
+     * A player is crushed when the leader (highest score) is this many points
+     * ahead of them. The gap starts wide and narrows as the race goes on, so
+     * evenly matched players can't stall until the time cap:
+     *
+     *   0-20 s: 8, 20 s: 7, 30 s: 6, 40 s: 5, 50 s: 4, 60 s onwards: 3.
      */
-    ELIMINATION_GAP: 8,
-
-    /** Symbols in a player's stream before it loops back to the start. */
-    STREAM_LENGTH: 30,
+    ELIMINATION_GAP_START: 8,
+    ELIMINATION_GAP_MIN: 3,
+    /** The gap holds at its start value until this point in the race. */
+    GAP_SHRINK_STARTS_MS: 20_000,
+    /** From then on it narrows by one point this often, down to the minimum. */
+    GAP_SHRINK_EVERY_MS: 10_000,
 
     /**
      * Breathing room after the race is decided (one player left) for the
      * ending animations, before the next round is scheduled.
      */
     FINISH_ANIMATION_MS: 4_000,
-
-    /**
-     * With more players than this, the opening stage splits them into two
-     * heats. It runs until this many players are left, who then race again in
-     * one group for the final.
-     */
-    FINALISTS: 6,
-    /**
-     * The heats get a longer intro than a normal race: the usual countdown
-     * plus this much extra, for the animation that sorts players into heats.
-     */
-    HEATS_EXTRA_ANIMATION_MS: 4_000,
-    /** After the heats, how long the round pauses before the final loads. */
-    FINAL_PAUSE_MS: 3_000,
-    /** The final's run-up is shorter than usual: finalists have just been watching. */
-    FINAL_START_LEAD_MS: 2_000,
-    FINAL_COUNTDOWN_MS: 3_000,
 
     /** The race ends at this time even if several players are still alive. */
     MAX_RACE_MS: 90_000,
@@ -54,5 +42,12 @@ export const CRUSHER_ESCALATOR = {
      * Upper bound on inputs in one result. Bounds the message size; far above
      * what a person can press in MAX_RACE_MS.
      */
-    MAX_INPUTS: 2_000
+    MAX_INPUTS: 2_000,
+    /**
+     * The fastest the server lets presses come (20 a second). Presses reported
+     * closer together are spaced out to this, so a burst stamped at a single
+     * instant plays out at a human rate instead of scoring all at once. Real
+     * play never gets near it; clients should still ignore key auto-repeat.
+     */
+    MIN_PRESS_INTERVAL_MS: 50
 } as const;

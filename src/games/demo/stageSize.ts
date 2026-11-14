@@ -5,7 +5,7 @@ import { fluid } from '../../theme/index.ts'
  * the theme, but never past a share of the screen's height, so on a wide, short
  * laptop the reveal screen still fits.
  */
-export const STAGE_HEIGHT = `max(210px, min(${fluid(210, 340)}, 36vh))`
+export const STAGE_HEIGHT = `max(210px, min(${fluid(210, 340)}, 33vh))`
 
 /**
  * A size inside the demo stage, as a share of the stage's height (`cqh`),

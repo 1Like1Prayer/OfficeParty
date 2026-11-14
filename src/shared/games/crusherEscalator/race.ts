@@ -10,30 +10,23 @@
  *  - everyone starts on STARTING_SCORE;
  *  - a press scores a point if it matches the arrow currently showing; the
  *    arrow moves on after every press, right or wrong;
- *  - when a group's leader (highest score in that group) is ELIMINATION_GAP
- *    or more points ahead of a player in the same group, that player is
- *    crushed and their score is frozen;
- *  - the race ends when only `survivorsToEnd` players are left in total
- *    (1 for a final, FINALISTS for the heats), or at MAX_RACE_MS.
+ *  - when the leader (highest score) is at least the current elimination gap
+ *    ahead of a player, that player is crushed and their score is frozen. The
+ *    gap narrows over time (gap.ts), so a player can be crushed by the gap
+ *    narrowing as well as by a press;
+ *  - the race ends when one player is left, or at MAX_RACE_MS.
  *
  * Plain functions over plain data: no sockets, no clock.
  */
 
 import { CRUSHER_ESCALATOR } from './constants.js';
-import { directionAt } from './stream.js';
-import type { ArrowStream, Input } from './types.js';
+import { eliminationGapAt, gapNarrowingTimes } from './gap.js';
+import type { ArrowSequence, Input } from './types.js';
 
 export interface Racer {
     playerId: string;
-    /** Who this player races against. The gap rule only looks inside a group. */
-    groupId: string;
     inputs: readonly Input[];
-    stream: ArrowStream;
-}
-
-export interface RaceRules {
-    /** The race stops as soon as this many players (or fewer) are left. */
-    survivorsToEnd: number;
+    arrows: ArrowSequence;
 }
 
 export interface RaceOutcome {
@@ -43,96 +36,63 @@ export interface RaceOutcome {
     eliminatedAtMs: number | null;
 }
 
-interface RacerState extends RaceOutcome {
-    groupId: string;
-}
-
 interface JudgedPress {
     playerId: string;
-    atMs: number;
     points: number;
 }
 
-/** Judge each press against the arrow showing when it was made. */
-const judgePresses = ({ playerId, inputs, stream }: Racer): JudgedPress[] =>
-    inputs.map((input, pressIndex) => ({
-        playerId,
-        atMs: input.atMs,
-        points:
-            input.direction === directionAt(stream, pressIndex)
-                ? CRUSHER_ESCALATOR.POINTS_PER_CORRECT_INPUT
-                : 0
-    }));
-
-/** Groups presses that happened at the same millisecond, earliest first. */
-const groupByTime = (presses: JudgedPress[]): JudgedPress[][] => {
-    const sorted = [...presses].sort((a, b) => a.atMs - b.atMs);
-    const groups: JudgedPress[][] = [];
-
-    for (const press of sorted) {
-        const lastGroup = groups[groups.length - 1];
-        if (lastGroup !== undefined && lastGroup[0]!.atMs === press.atMs) {
-            lastGroup.push(press);
-        } else {
-            groups.push([press]);
-        }
+/** Every press, judged against the arrow showing when it was made, by time. */
+const judgePressesByTime = (racers: readonly Racer[]): Map<number, JudgedPress[]> => {
+    const byTime = new Map<number, JudgedPress[]>();
+    for (const { playerId, inputs, arrows } of racers) {
+        inputs.forEach((input, pressIndex) => {
+            const points =
+                input.direction === arrows(pressIndex)
+                    ? CRUSHER_ESCALATOR.POINTS_PER_CORRECT_INPUT
+                    : 0;
+            const atSameTime = byTime.get(input.atMs) ?? [];
+            atSameTime.push({ playerId, points });
+            byTime.set(input.atMs, atSameTime);
+        });
     }
-    return groups;
+    return byTime;
 };
 
-const isAlive = (state: RacerState): boolean => state.eliminatedAtMs === null;
+const isAlive = (outcome: RaceOutcome): boolean => outcome.eliminatedAtMs === null;
 
-const toOutcome = ({ playerId, score, eliminatedAtMs }: RacerState): RaceOutcome => ({
-    playerId,
-    score,
-    eliminatedAtMs
-});
-
-export const simulateRace = (
-    racers: readonly Racer[],
-    rules: RaceRules
-): RaceOutcome[] => {
-    const states = new Map<string, RacerState>(
-        racers.map(({ playerId, groupId }) => [
+export const simulateRace = (racers: readonly Racer[]): RaceOutcome[] => {
+    const states = new Map<string, RaceOutcome>(
+        racers.map(({ playerId }) => [
             playerId,
-            {
-                playerId,
-                groupId,
-                score: CRUSHER_ESCALATOR.STARTING_SCORE,
-                eliminatedAtMs: null
-            }
+            { playerId, score: CRUSHER_ESCALATOR.STARTING_SCORE, eliminatedAtMs: null }
         ])
     );
+    const all = [...states.values()];
 
-    const survivors = (): RacerState[] => [...states.values()].filter(isAlive);
+    const pressesByTime = judgePressesByTime(racers);
+    // Presses, plus the moments the gap narrows, in time order.
+    const instants = [...new Set([...pressesByTime.keys(), ...gapNarrowingTimes()])].sort(
+        (a, b) => a - b
+    );
 
-    const leadScoreOfGroup = (groupId: string): number =>
-        Math.max(
-            ...[...states.values()]
-                .filter((state) => state.groupId === groupId)
-                .map((state) => state.score)
-        );
-
-    for (const group of groupByTime(racers.flatMap(judgePresses))) {
-        if (survivors().length <= rules.survivorsToEnd) break; // The race is over.
+    for (const atMs of instants) {
+        if (all.filter(isAlive).length <= 1) break; // The race is over.
 
         // Everything at the same instant counts before anyone is crushed, so
         // simultaneous presses can't be decided by processing order.
-        for (const press of group) {
+        for (const press of pressesByTime.get(atMs) ?? []) {
             const state = states.get(press.playerId)!;
             if (isAlive(state)) state.score += press.points;
         }
 
-        const atMs = group[0]!.atMs;
-        for (const state of survivors()) {
-            const lead = leadScoreOfGroup(state.groupId);
-            if (lead - state.score >= CRUSHER_ESCALATOR.ELIMINATION_GAP) {
-                state.eliminatedAtMs = atMs;
-            }
+        const lead = Math.max(...all.map((state) => state.score));
+        const gap = eliminationGapAt(atMs);
+        for (const state of all.filter(isAlive)) {
+            if (lead - state.score >= gap) state.eliminatedAtMs = atMs;
         }
     }
 
-    return racers.map(({ playerId }) => toOutcome(states.get(playerId)!));
+    return racers.map(({ playerId }) => ({ ...states.get(playerId)! }));
 };
 
 /**

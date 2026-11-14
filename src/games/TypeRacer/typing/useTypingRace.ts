@@ -1,11 +1,11 @@
-import { useEffect, useReducer, useRef } from 'react'
+import { useCallback, useEffect, useReducer, useRef } from 'react'
 import { useTabWasHidden, useThrottledReport } from '../../../hooks/index.ts'
 import { MAX_RACE_MS, TYPE_RACER } from '../../../shared/games/typeRacer/constants.ts'
 import { skullsForRoll } from '../../../shared/games/typeRacer/dice.ts'
 import { charactersTyped } from '../../../shared/games/typeRacer/progress.ts'
 import type { DieRoll, Paragraph } from '../../../shared/games/typeRacer/types.ts'
 import { parseDieRoll } from './dieReply.ts'
-import { typedCharacter } from './keys.ts'
+import { isFromTypingInput, typedCharacter } from './keys.ts'
 import { createRaceReducer, initialRaceState, type RaceState } from './raceState.ts'
 
 /**
@@ -52,6 +52,11 @@ interface UseTypingRaceOptions {
   isRacing: boolean
   /** Every other player is out, so this one has won where they stand. */
   isLastSurvivor: boolean
+  /**
+   * The server has closed the race (someone finished, or everyone else is
+   * out) and is waiting on this player's result.
+   */
+  isClosed: boolean
   /** Ask the server how the dice landed. */
   requestRoll: (rollIndex: number) => Promise<unknown>
   onSubmit: (result: unknown) => void
@@ -60,12 +65,17 @@ interface UseTypingRaceOptions {
 
 export interface TypingRace {
   state: RaceState
+  /**
+   * Types one character, for input that does not come as key presses — a
+   * phone's on-screen keyboard. Ignored unless typing is open.
+   */
+  typeCharacter: (key: string) => void
   /** Correct characters in the whole race: what the shared bar shows. */
   chars: number
   progress: TypingProgress
 }
 
-const STATUS_CODE = { typing: 0, rolling: 0, finished: 1, survived: 1, out: 2 } as const
+const STATUS_CODE = { typing: 0, rolling: 0, finished: 1, survived: 1, stopped: 0, out: 2 } as const
 
 /**
  * Runs this player's race: counts their key presses, casts the dice when
@@ -79,6 +89,7 @@ export function useTypingRace({
   timingStartsAtLocalMs,
   isRacing,
   isLastSurvivor,
+  isClosed,
   requestRoll,
   onSubmit,
   onProgress,
@@ -96,6 +107,8 @@ export function useTypingRace({
   useEffect(() => {
     if (!isTyping) return
     const onKeyDown = (event: KeyboardEvent) => {
+      // The phone's typing box reports what it receives itself; counting its keys too would double them.
+      if (isFromTypingInput(event)) return
       const key = typedCharacter(event)
       if (key === null) return
       // Space would scroll the page, and quote keys open quick-find in some browsers.
@@ -176,9 +189,17 @@ export function useTypingRace({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isRacing, isLastSurvivor, canStillWin, timingStartsAtLocalMs])
 
+  // The server has called the race: stop and report now, so the room is not
+  // kept waiting. If that is because everyone else is out, the effect above
+  // has already made this player the survivor and this does nothing.
+  useEffect(() => {
+    if (isRacing && isClosed && !isLastSurvivor && canStillWin) dispatch({ type: 'stopped', atMs: elapsedMs() })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isRacing, isClosed, isLastSurvivor, canStillWin, timingStartsAtLocalMs])
+
   // Report once, as soon as the race is over for this player. The server
   // replays the events itself, so nothing here claims an outcome.
-  const isOver = state.status === 'finished' || state.status === 'survived' || state.status === 'out'
+  const isOver = state.status !== 'typing' && state.status !== 'rolling'
   useEffect(() => {
     if (!isOver || hasSubmitted.current || state.endedAtMs === null) return
     hasSubmitted.current = true
@@ -199,5 +220,15 @@ export function useTypingRace({
   }
   useThrottledReport(progress, isRacing, onProgress)
 
-  return { state, chars, progress }
+  const typeCharacter = useCallback(
+    (key: string) => {
+      if (!isTyping || key.length !== 1) return
+      dispatch({ type: 'key', key, atMs: elapsedMs() })
+    },
+    // elapsedMs only reads the race start.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [isTyping, timingStartsAtLocalMs],
+  )
+
+  return { state, typeCharacter, chars, progress }
 }

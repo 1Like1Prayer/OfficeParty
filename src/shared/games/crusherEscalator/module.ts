@@ -1,35 +1,26 @@
 /**
  * Crusher Escalator as a self-timed game module.
  *
- * Every player climbs their own looping stream of arrows. Pressing the arrow
- * that's showing scores a point; the arrow changes on every press. Fall
- * ELIMINATION_GAP points behind your group's leader and you are crushed.
- *
- * With more than FINALISTS players, the first stage is two even heats that
- * run together until FINALISTS players are left. After a short pause those
- * players race again, all in one group and starting from 0, for the final.
- * Last one standing in the final wins.
+ * Every player climbs their own endless sequence of arrows. Pressing the
+ * arrow that's showing scores a point; the arrow changes on every press. Fall
+ * too far behind the leader and you are crushed, and the allowed gap narrows
+ * as the race goes on. Last one standing wins.
  *
  * The browser runs its own race and reports every press with a time; the
  * server replays all players together (see race.ts). That keeps the game
  * latency-proof like the other self-timed games, while still letting players
- * affect each other through the leader's score. The heats and the final are
- * two attempts of one scoring round, driven by the runner's `nextStage` hook.
+ * affect each other through the leader's score.
  */
 
-import { SELF_TIMED } from '../../constants.js';
 import { assignSharedRanks } from '../ranking.js';
 import type { RandomSource } from '../random.js';
 import type {
-    AttemptTiming,
     RankedEntry,
     ResultEntry,
     RoundContext,
-    SelfTimedGameModule,
-    StageAdvance
+    SelfTimedGameModule
 } from '../selfTimed.js';
 import { CRUSHER_ESCALATOR } from './constants.js';
-import { splitIntoTwoGroups } from './groups.js';
 import { parseCrusherEscalatorProgress, parseCrusherEscalatorResult } from './parsing.js';
 import {
     compareOutcomes,
@@ -38,53 +29,30 @@ import {
     type RaceOutcome,
     type Racer
 } from './race.js';
-import { generatePlayerStreams } from './stream.js';
-import type {
-    CrusherEscalatorResult,
-    CrusherEscalatorRound,
-    RaceStage
-} from './types.js';
-
-/** Heats only when there are too many players and it is the opening attempt. */
-const stageFor = ({ playerIds, attempt }: RoundContext): RaceStage =>
-    attempt === 0 && playerIds.length > CRUSHER_ESCALATOR.FINALISTS ? 'heats' : 'final';
+import { arrowSequence, generatePlayerSeeds } from './stream.js';
+import type { CrusherEscalatorResult, CrusherEscalatorRound } from './types.js';
 
 const createRoundData = (
     context: RoundContext,
     random: RandomSource = Math.random
-): CrusherEscalatorRound => {
-    const stage = stageFor(context);
-    return {
-        stage,
-        groups:
-            stage === 'heats'
-                ? splitIntoTwoGroups(context.playerIds, random)
-                : [[...context.playerIds]],
-        streams: generatePlayerStreams(context.playerIds, random)
-    };
-};
+): CrusherEscalatorRound => ({
+    seeds: generatePlayerSeeds(context.playerIds, random)
+});
 
 /** Measured from when timing starts, like every self-timed game. */
 const resultTimeoutMs = (): number =>
     CRUSHER_ESCALATOR.MAX_RACE_MS + CRUSHER_ESCALATOR.RESULT_GRACE_MS;
-
-const groupIdOf = (playerId: string, round: CrusherEscalatorRound): string =>
-    String(round.groups.findIndex((group) => group.includes(playerId)));
 
 const toRacers = (
     entries: ResultEntry<CrusherEscalatorResult>[],
     round: CrusherEscalatorRound
 ): Racer[] =>
     entries.flatMap(({ playerId, result }) => {
-        const stream = round.streams[playerId];
-        return stream === undefined
+        const seed = round.seeds[playerId];
+        return seed === undefined
             ? []
-            : [{ playerId, groupId: groupIdOf(playerId, round), inputs: result.inputs, stream }];
+            : [{ playerId, inputs: result.inputs, arrows: arrowSequence(seed) }];
     });
-
-/** The heats stop when the finalists are decided; the final when one is left. */
-const survivorsToEnd = (round: CrusherEscalatorRound): number =>
-    round.stage === 'heats' ? CRUSHER_ESCALATOR.FINALISTS : 1;
 
 const rank = (
     entries: ResultEntry<CrusherEscalatorResult>[],
@@ -94,9 +62,9 @@ const rank = (
         entries.map(({ playerId, result }) => [playerId, result.timingSuspect])
     );
 
-    const outcomes = simulateRace(toRacers(entries, round), {
-        survivorsToEnd: survivorsToEnd(round)
-    }).sort((a, b) => compareOutcomes(a, b) || a.playerId.localeCompare(b.playerId));
+    const outcomes = simulateRace(toRacers(entries, round)).sort(
+        (a, b) => compareOutcomes(a, b) || a.playerId.localeCompare(b.playerId)
+    );
 
     return assignSharedRanks(outcomes, isSameOutcome).map(
         ({ item, rank: position }: { item: RaceOutcome; rank: number }) => ({
@@ -104,7 +72,6 @@ const rank = (
             rank: position,
             reported: true,
             detail: {
-                stage: round.stage,
                 score: item.score,
                 survived: item.eliminatedAtMs === null,
                 ...(item.eliminatedAtMs !== null && {
@@ -117,55 +84,14 @@ const rank = (
 };
 
 /**
- * After the heats, the best FINALISTS players go through. Players level with
- * the last qualifier go through too, so a tie never knocks someone out by
- * luck of ordering. Returns null when the round is over (a final, or fewer
- * than two players to race).
- */
-const nextStage = (
-    ranked: RankedEntry[],
-    round: CrusherEscalatorRound
-): StageAdvance | null => {
-    if (round.stage !== 'heats') return null;
-
-    const lastQualifier = ranked[CRUSHER_ESCALATOR.FINALISTS - 1];
-    const finalists =
-        lastQualifier === undefined
-            ? ranked
-            : ranked.filter((row) => row.rank <= lastQualifier.rank);
-    if (finalists.length < 2) return null;
-
-    return {
-        participants: finalists.map((row) => row.playerId),
-        pauseMs: CRUSHER_ESCALATOR.FINAL_PAUSE_MS,
-        timing: {
-            startLeadMs: CRUSHER_ESCALATOR.FINAL_START_LEAD_MS,
-            countdownMs: CRUSHER_ESCALATOR.FINAL_COUNTDOWN_MS
-        }
-    };
-};
-
-/** Heats open with the usual countdown plus time for the heat-sorting animation. */
-const openingTiming = (round: CrusherEscalatorRound): AttemptTiming | null =>
-    round.stage === 'heats'
-        ? {
-              startLeadMs: SELF_TIMED.START_LEAD_MS,
-              countdownMs:
-                  SELF_TIMED.COUNTDOWN_MS + CRUSHER_ESCALATOR.HEATS_EXTRA_ANIMATION_MS
-          }
-        : null;
-
-/**
- * The race is over once only `survivorsToEnd` players are left, so as soon as
- * that many fewer than everyone have been crushed and reported, the players
- * still racing must stop and report: they can't tell the race has ended
- * except by watching others.
+ * The race is over once one player is left, so as soon as everyone else has
+ * been crushed and reported, the last player racing must stop and report:
+ * they can't tell the race has ended except by watching others.
  */
 const shouldCloseEarly = (
-    reported: readonly CrusherEscalatorResult[],
-    participantCount: number,
-    round: CrusherEscalatorRound
-): boolean => reported.length >= 1 && participantCount - reported.length <= survivorsToEnd(round);
+    reported: readonly ResultEntry<CrusherEscalatorResult>[],
+    participantCount: number
+): boolean => reported.length >= 1 && participantCount - reported.length <= 1;
 
 export const crusherEscalatorModule: SelfTimedGameModule<
     CrusherEscalatorRound,
@@ -181,7 +107,5 @@ export const crusherEscalatorModule: SelfTimedGameModule<
     parseProgress: (raw) => parseCrusherEscalatorProgress(raw),
     resultTimeoutMs,
     rank,
-    openingTiming,
-    nextStage,
     shouldCloseEarly
 };

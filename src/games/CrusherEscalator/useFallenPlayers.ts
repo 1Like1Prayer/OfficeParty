@@ -14,6 +14,7 @@ interface Latch {
  */
 export function useFallenPlayers(
   gaps: Record<string, number>,
+  eliminationGap: number,
   attemptKey: string,
   safeIds: ReadonlySet<string>,
 ): ReadonlySet<string> {
@@ -21,7 +22,7 @@ export function useFallenPlayers(
   const fallen = latch.attemptKey === attemptKey ? latch.fallen : new Set<string>()
 
   const newlyCrushed = Object.entries(gaps)
-    .filter(([playerId, gap]) => !fallen.has(playerId) && !safeIds.has(playerId) && isCrushed(gap))
+    .filter(([playerId, gap]) => !fallen.has(playerId) && !safeIds.has(playerId) && isCrushed(gap, eliminationGap))
     .map(([playerId]) => playerId)
   // Adjusting state while rendering is the supported way to derive a latch.
   if (latch.attemptKey !== attemptKey || newlyCrushed.length > 0) {

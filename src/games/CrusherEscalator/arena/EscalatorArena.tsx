@@ -1,15 +1,17 @@
 import { useEffect, useRef } from 'react'
 import type { RoundPlayerView } from '../../../types/index.ts'
-import { ArenaScene } from './ArenaScene.ts'
+import { ArenaScene, type RosterChange } from './ArenaScene.ts'
 import type { LaneView } from './types.ts'
 
 interface EscalatorArenaProps {
+  /** Who has a lane on screen, in lane order. */
   players: readonly RoundPlayerView[]
+  /** Every runner's state, on screen or not: one leaving the screen still has to be told it fell. */
   lanes: readonly LaneView[]
+  /** Changes with each fresh attempt (a tiebreaker), whose new line-up gets the full changeover. */
+  attemptKey: string
   /** The escalators run and the runners climb. */
   isRacing: boolean
-  /** Play the opening animation when the lanes first appear, rather than showing them at once. */
-  introduce: boolean
 }
 
 /**
@@ -17,13 +19,14 @@ interface EscalatorArenaProps {
  * it is told who is on the escalators when that changes, and handed the newest
  * lanes on every render.
  */
-export function EscalatorArena({ players, lanes, isRacing, introduce }: EscalatorArenaProps) {
+export function EscalatorArena({ players, lanes, attemptKey, isRacing }: EscalatorArenaProps) {
   const hostRef = useRef<HTMLDivElement>(null)
   const sceneRef = useRef<ArenaScene | null>(null)
+  const rosterAttemptKey = useRef(attemptKey)
   const playerKey = players.map(({ playerId }) => playerId).join('|')
 
-  // One scene for as long as this is mounted, so a change of roster — the
-  // finalists replacing the heats — can be played as a changeover in it.
+  // One scene for as long as this is mounted, so a change of roster — a
+  // tiebreaker among some of the runners — can be played as a changeover in it.
   useEffect(() => {
     const host = hostRef.current
     if (host === null) return
@@ -35,10 +38,15 @@ export function EscalatorArena({ players, lanes, isRacing, introduce }: Escalato
     }
   }, [])
 
-  // Told again only when who is playing, or their order, changes.
+  // Told again only when who is on screen, or their order, changes.
   useEffect(() => {
-    // `introduce` only matters for the first roster; later changes play the changeover.
-    sceneRef.current?.setRoster(players, { introduce })
+    // A fresh attempt's line-up plays the full changeover; within one, runners
+    // swallowed or coming into view just close up (the first roster builds the scene).
+    const change: RosterChange = rosterAttemptKey.current === attemptKey ? 'reflow' : 'changeover'
+    rosterAttemptKey.current = attemptKey
+    // The latest states first, so a lane leaving because its runner was swallowed sees them fall.
+    sceneRef.current?.setLanes(lanes, isRacing)
+    sceneRef.current?.setRoster(players, change)
     // Keyed on the ids and order, not on the array, which is new every render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playerKey])

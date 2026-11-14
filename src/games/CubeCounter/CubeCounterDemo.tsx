@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react'
 import type { Box } from '../../shared/games/cubeCounter/types.ts'
-import { border, color, fluid, font, lift, sharedStyles } from '../../theme/index.ts'
+import { border, color, font, lift, sharedStyles } from '../../theme/index.ts'
 import { DemoCard, DemoRow } from '../demo/DemoKit.tsx'
 import { stepAt, useLoopTime } from '../demo/demoLoop.ts'
 import { stageSize } from '../demo/stageSize.ts'
@@ -78,7 +78,7 @@ export function CubeCounterDemo() {
       step={step}
       progress={progress}
       ariaLabel="How it works: a pile of blocks flashes up and vanishes, you type how many there were, and the most right answers win, with speed breaking ties."
-      footnote="Wide blocks count once — and the piles get bigger as you go."
+      footnote="Wide blocks count once."
     >
       {step === 0 && <FlashStep t={t} />}
       {step === 1 && <AnswerStep t={t} />}
@@ -114,7 +114,6 @@ function FlashStep({ t }: { t: number }) {
           <IsoScene boxes={SCENE} />
         </div>
       </div>
-      <div style={{ ...caption, color: color.ink }}>Remember them all!</div>
       {/* The scene's time on screen runs out. */}
       <Bar fraction={1 - t / HIDE_AT} fill={color.yellow} />
     </>
@@ -210,7 +209,7 @@ function CheckStep() {
           animation: 'pa-pop .35s cubic-bezier(.34,1.56,.64,1)',
         }}
       >
-        Yes — {ANSWER}!
+        {ANSWER}
       </div>
     </>
   )
@@ -226,17 +225,6 @@ function StandingsStep({ t }: { t: number }) {
         <DemoRow place="1st" name="You" note="7 right · 18.4s" gain="+1" highlight visible={since > 300} />
         <DemoRow place="2nd" name="Sam" note="7 right · 24.9s" gain="—" visible={since > 600} />
         <DemoRow place="3rd" name="Alex" note="5 right · 11.2s" gain="—" visible={since > 900} />
-      </div>
-      <div
-        style={{
-          fontWeight: 700,
-          fontSize: fluid(12, 13),
-          color: color.mutedStrong,
-          opacity: since > 1400 ? 1 : 0,
-          transition: 'opacity .3s ease',
-        }}
-      >
-        Same score? The faster answers win.
       </div>
     </>
   )

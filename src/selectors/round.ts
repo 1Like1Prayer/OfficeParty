@@ -115,7 +115,11 @@ export function selectGameScreenIsUp({
     case 'playing':
       return true
     case 'results':
-      return results !== null && (results.advancing !== null || (isFinishing && isParticipant))
+      // The phase can land a moment before the results themselves. Until they
+      // arrive there is no telling whether an ending animation follows, so the
+      // game stays up rather than swiping to an empty results screen and back.
+      if (results === null) return true
+      return results.advancing !== null || (isFinishing && isParticipant)
     case 'loading':
     case 'ready-check':
     case 'starting':
