@@ -67,5 +67,5 @@ export function hidesTitleOncePlaying(gameId: GameId): boolean {
  * written rules. Must match the cases `GameDemo` in `demos.tsx` renders.
  */
 export function hasDemo(gameId: GameId): boolean {
-  return gameId === 'stop-the-clock' || gameId === 'cube-counter'
+  return gameId === 'stop-the-clock' || gameId === 'cube-counter' || gameId === 'log-dodge'
 }

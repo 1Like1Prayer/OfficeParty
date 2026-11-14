@@ -131,7 +131,7 @@ export const logDodgeModule: SelfTimedGameModule<LogDodgeRound, LogDodgeResult> 
     finishAnimationMs: LOG_DODGE.FINISH_ANIMATION_MS,
     createRoundData: (context) => createRoundData(context),
     parseResult: (raw, round) => parseLogDodgeResult(raw, round.durationMs),
-    parseProgress: (raw) => parseLogDodgeProgress(raw),
+    parseProgress: (raw, round) => parseLogDodgeProgress(raw, round.durationMs),
     progressFromResult,
     shouldCloseEarly,
     resultTimeoutMs,

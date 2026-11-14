@@ -1,5 +1,6 @@
 import type { GameId } from '../shared/games/catalog.ts'
 import { CubeCounterDemo } from './CubeCounter/CubeCounterDemo.tsx'
+import { LogDodgeDemo } from './LogDodge/LogDodgeDemo.tsx'
 import { StopTheClockDemo } from './StopTheClock/StopTheClockDemo.tsx'
 
 /** The game's looping demo round for the reveal screen (see `hasDemo`), or nothing for a game that explains itself in words. */
@@ -9,6 +10,8 @@ export function GameDemo({ gameId }: { gameId: GameId }) {
       return <StopTheClockDemo />
     case 'cube-counter':
       return <CubeCounterDemo />
+    case 'log-dodge':
+      return <LogDodgeDemo />
     default:
       return null
   }

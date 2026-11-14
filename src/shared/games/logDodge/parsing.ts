@@ -44,11 +44,27 @@ export const parseLogDodgeResult = (
 
 /**
  * Progress is display-only: the player's hit count, so opponents can see who
- * is on the ropes. The server never uses it to decide anything.
+ * is on the ropes, and their latest press, so other screens can play it.
+ * The server never uses either to decide anything; it judges the full list of
+ * presses in the result.
+ *
+ * The press is optional (a player who has not pressed yet sends none) and
+ * comes as a pair: `pressAction`, an index into ACTIONS, and `pressAtMs`, when
+ * in the round it was pressed. A half or out-of-range pair drops the message.
  */
-export const parseLogDodgeProgress = (raw: unknown): Record<string, number> | null => {
+export const parseLogDodgeProgress = (
+    raw: unknown,
+    durationMs: number = LOG_DODGE.DURATION_MS
+): Record<string, number> | null => {
     if (!isRecord(raw)) return null;
-    const { hits } = raw;
+    const { hits, pressAction, pressAtMs } = raw;
     if (typeof hits !== 'number' || !Number.isInteger(hits)) return null;
-    return hits >= 0 && hits <= LOG_DODGE.MAX_HITS ? { hits } : null;
+    if (hits < 0 || hits > LOG_DODGE.MAX_HITS) return null;
+
+    if (pressAction === undefined && pressAtMs === undefined) return { hits };
+    if (typeof pressAction !== 'number' || !Number.isInteger(pressAction)) return null;
+    if (pressAction < 0 || pressAction >= ACTIONS.length) return null;
+    if (typeof pressAtMs !== 'number' || !Number.isInteger(pressAtMs)) return null;
+    if (pressAtMs < 0 || pressAtMs > durationMs) return null;
+    return { hits, pressAction, pressAtMs };
 };

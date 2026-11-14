@@ -8,7 +8,7 @@ import type { GameSurfaceProps } from '../types.ts'
 import { Hud } from './Hud.tsx'
 import { LogDodgeStage, type LogDodgeStageHandle } from './LogDodgeStage.tsx'
 import { pickVisiblePlayers } from './roster.ts'
-import { collectStatuses, describeStatus, lastStanding, survivorsOf } from './standings.ts'
+import { collectStatuses, describeStatus, lastStanding, pressReport, survivorsOf } from './standings.ts'
 import { useActionKeys } from './useActionKeys.ts'
 import { useRoundElapsed } from './useRoundElapsed.ts'
 
@@ -98,11 +98,15 @@ function LogDodgeRun({
     },
     [inputs, timingStartsAtLocalMs, round.durationMs],
   )
-  useActionKeys(isPlaying && !isOver && !isSpectating, recordPress)
+  const canPress = isPlaying && !isOver && !isSpectating
+  useActionKeys(canPress, recordPress)
 
-  // Everyone else sees how many hits this player has taken.
-  const hitsReport = useMemo(() => ({ hits: outcome.hits }), [outcome.hits])
-  useThrottledReport(hitsReport, isPlaying && !isSpectating, onProgress)
+  // Everyone else sees how many hits this player has taken, and plays each of
+  // their presses. Presses are further apart than reports are allowed to be,
+  // so each one gets its own report.
+  const lastPress = inputs.at(-1) ?? null
+  const report = useMemo(() => pressReport(outcome.hits, lastPress), [outcome.hits, lastPress])
+  useThrottledReport(report, isPlaying && !isSpectating, onProgress)
 
   // Report once, as soon as this player's round is decided. The server replays
   // the presses itself, so nothing here claims an outcome.
@@ -129,8 +133,6 @@ function LogDodgeRun({
       survivorsOf(finalRanking) ??
       (standing.winnerId === null ? null : new Set([standing.winnerId])),
   }
-  const lastPress = inputs.at(-1) ?? null
-
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
       <LogDodgeStage
@@ -147,6 +149,7 @@ function LogDodgeRun({
         hits={outcome.hits}
         isOut={isOut}
         hasKeys={!isSpectating}
+        onPress={canPress ? recordPress : null}
         lastPress={lastPress}
         readyAtMs={lastPress === null ? -Infinity : lastPress.atMs + LOG_DODGE.INPUT_COOLDOWN_MS}
         message={describeStatus({
