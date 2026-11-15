@@ -58,6 +58,8 @@ export interface RoundStateJson {
     resultTimeoutMs: number;
     /** Latest display-only progress per player. Keys are the game's own. */
     progress: Record<string, { values: Record<string, number> }>;
+    /** Server-owned shared-world values for the attempt. Keys are the game's own. */
+    shared: Record<string, number>;
 }
 
 export interface PartyStateJson {

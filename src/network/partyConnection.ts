@@ -36,7 +36,9 @@ import {
   readPartyState,
   toProgressByPlayer,
   toRoomView,
+  toSharedValues,
   type ProgressByPlayer,
+  type SharedValues,
   type RoomView,
 } from './roomView.ts'
 import type { PartyRoom } from './types.ts'
@@ -53,6 +55,8 @@ export interface LocalSchedule {
 export interface PartySnapshot {
   room: RoomView
   progress: ProgressByPlayer
+  /** The round's shared world, as the server owns it. */
+  shared: SharedValues
   events: RoundEvents
   schedule: LocalSchedule | null
   /** False while the SDK is reconnecting a dropped connection. */
@@ -71,6 +75,7 @@ export class PartyConnection {
   private readonly unsubscribers: Array<() => void> = []
   private lastRoomKey = ''
   private lastProgressKey = ''
+  private lastSharedKey = ''
   private pingTimer: ReturnType<typeof setTimeout> | null = null
   private pingsSent = 0
   private disposed = false
@@ -96,6 +101,7 @@ export class PartyConnection {
     this.snapshot = {
       room: this.trackRoom(state),
       progress: this.trackProgress(state),
+      shared: this.trackShared(state),
       events: NO_ROUND_EVENTS,
       schedule: null,
       isConnected: true,
@@ -190,9 +196,10 @@ export class PartyConnection {
   private applyState(state: PartyStateJson): void {
     const room = this.trackRoom(state)
     const progress = this.trackProgress(state)
+    const shared = this.trackShared(state)
     const events =
       state.phase === 'leaderboard' ? this.snapshot.events : onLeftLeaderboard(this.snapshot.events)
-    this.update({ room, progress, events, schedule: this.scheduleFor(state) })
+    this.update({ room, progress, shared, events, schedule: this.scheduleFor(state) })
   }
 
   /** The previous view object when nothing changed, so React can skip work. */
@@ -209,6 +216,14 @@ export class PartyConnection {
     const key = JSON.stringify(next)
     if (key === this.lastProgressKey) return this.snapshot.progress
     this.lastProgressKey = key
+    return next
+  }
+
+  private trackShared(state: PartyStateJson): SharedValues {
+    const next = toSharedValues(state)
+    const key = JSON.stringify(next)
+    if (key === this.lastSharedKey) return this.snapshot.shared
+    this.lastSharedKey = key
     return next
   }
 

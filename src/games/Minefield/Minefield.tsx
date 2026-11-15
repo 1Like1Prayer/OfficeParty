@@ -142,8 +142,15 @@ function MinefieldRun({
   )
   const lastScan = outcome.scans.at(-1)
   const sonarReadyAtMs = lastScan === undefined ? 0 : lastScan.atMs + MINEFIELD.SONAR_COOLDOWN_MS
+  // The keys and the stick both give a direction (x right, y down), taken from
+  // the runner's point of view: up is forward, toward the finish (+x), and
+  // right is the runner's right (+y across the field).
   const onMove = useCallback(
-    (dx: Axis, dy: Axis) => { addInput((atMs) => ({ kind: 'move', atMs, dx, dy })) },
+    (screenX: Axis, screenY: Axis) => {
+      const dx = -screenY as Axis
+      const dy = screenX
+      addInput((atMs) => ({ kind: 'move', atMs, dx, dy }))
+    },
     [addInput],
   )
   const onSonar = useCallback(() => {
@@ -223,10 +230,15 @@ function MinefieldRun({
       const isMoving = !isOver
       const isHeld = raceMs < (outcome.scans.at(-1)?.atMs ?? -Infinity) + MINEFIELD.SONAR_ANIMATION_MS
       const lastBlastAt = outcome.detonations.at(-1)?.atMs ?? -Infinity
+      // The last direction pressed (not let go of): the runner faces it, moving or not.
+      const lastAim = [...inputs].reverse().find(
+        (input): input is Extract<Input, { kind: 'move' }> => input.kind === 'move' && (input.dx !== 0 || input.dy !== 0),
+      )
       return {
         playerId: player.playerId,
         x: outcome.x,
         y: outcome.y,
+        facing: lastAim === undefined ? null : { x: lastAim.dx, y: lastAim.dy },
         atMs: outcome.endedAtMs,
         vx: isMoving ? outcome.stepX / MINEFIELD.STEP_MS : 0,
         vy: isMoving ? outcome.stepY / MINEFIELD.STEP_MS : 0,

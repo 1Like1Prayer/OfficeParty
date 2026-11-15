@@ -1,7 +1,7 @@
 /**
- * The ten games, in the order the plan lists them, and what kind each one is. Only games marked `implemented`
- * can appear in a playlist; the rest are here so the client can show the
- * full catalogue and so playlist code doesn't need a second list.
+ * The eight games and what kind each one is. Only games marked `implemented`
+ * can appear in a playlist; the two still being built are here so the client
+ * can show the full catalogue and so playlist code doesn't need a second list.
  */
 
 export const GAME_IDS = [
@@ -11,10 +11,8 @@ export const GAME_IDS = [
     'stop-the-clock',
     'type-racer-roulette',
     'mage-battle',
-    'hidden-crossfire',
     'log-dodge',
-    'hexa-gone',
-    'wall-climbers'
+    'hex-drop'
 ] as const;
 
 export type GameId = (typeof GAME_IDS)[number];
@@ -37,11 +35,8 @@ export const GAME_CATALOG: Record<GameId, GameMeta> = {
     'type-racer-roulette': { id: 'type-racer-roulette', title: 'Type Racer Roulette', kind: 'self-timed', implemented: true },
     // Kind is provisional until the rules are settled: self-timed if each player faces their own boss, shared-world if they fight one together.
     'mage-battle': { id: 'mage-battle', title: 'Mage Battle', kind: 'self-timed', implemented: false },
-    'hidden-crossfire': { id: 'hidden-crossfire', title: 'Hidden Crossfire', kind: 'shared-world', implemented: false },
     'log-dodge': { id: 'log-dodge', title: 'Log Dodge', kind: 'self-timed', implemented: true },
-    'hexa-gone': { id: 'hexa-gone', title: 'Hexa-Gone', kind: 'shared-world', implemented: false },
-    // TBA: the rules are not decided yet, so the kind is a placeholder.
-    'wall-climbers': { id: 'wall-climbers', title: 'Wall Climbers', kind: 'self-timed', implemented: false }
+    'hex-drop': { id: 'hex-drop', title: 'Hex Drop', kind: 'shared-world', implemented: true }
 };
 
 export const isGameId = (value: unknown): value is GameId =>

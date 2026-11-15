@@ -127,7 +127,13 @@ export class Runner {
     const speed = Math.hypot(racer.vx, racer.vy) * 1000
     const isRunning = racer.state === 'racing' && speed > 0.6
 
-    if (isRunning) {
+    // The direction pressed, when known, turns the runner even standing still or
+    // after a quick tap; otherwise they face the way they are going.
+    const facing = racer.facing
+    const canTurn = racer.state === 'racing' || racer.state === 'scanning'
+    if (facing && (facing.x !== 0 || facing.y !== 0) && canTurn) {
+      this.yaw += shortestAngle(this.yaw, Math.atan2(-facing.y, facing.x)) * damp(18, deltaSeconds)
+    } else if (isRunning) {
       this.yaw += shortestAngle(this.yaw, Math.atan2(-racer.vy, racer.vx)) * damp(14, deltaSeconds)
     }
     root.rotation.y = this.yaw

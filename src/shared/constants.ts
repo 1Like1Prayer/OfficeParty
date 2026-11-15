@@ -46,9 +46,10 @@ export const COMPETITION = {
      * How many scoring rounds a game gets is the game's own business: each
      * game module declares `roundsPerGame`. Each scoring round is worth one point.
      */
-    /** How many games random mode picks (capped by how many are implemented). */
-    RANDOM_PLAYLIST_SIZE: 5,
-    MAX_CUSTOM_PLAYLIST_SIZE: 9,
+    /*
+     * A run is not capped: random mode plays every playable game, and custom
+     * mode takes as many distinct playable games as the owner picks.
+     */
     /** How long the results screen shows before the next round starts. */
     RESULT_DISPLAY_MS: 6_000,
     /** How long the final leaderboard shows before the room returns to lobby. */

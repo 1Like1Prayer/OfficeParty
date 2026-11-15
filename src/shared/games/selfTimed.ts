@@ -36,6 +36,22 @@ export interface RoundContext {
     attempt: number;
 }
 
+/**
+ * The live, server-owned part of a round played in one shared world (Hex
+ * Drop's tiles). A game's `handleAction` reads and writes it; every change is
+ * synced to all players, and a player who reconnects gets all of it.
+ * Values are numbers under the game's own keys, reset every attempt.
+ */
+export interface SharedWorld {
+    /**
+     * Milliseconds since the attempt's clock started, by the server's clock:
+     * the same timeline the players' own reports are timed on.
+     */
+    readonly raceMs: number;
+    get(key: string): number | undefined;
+    set(key: string, value: number): void;
+}
+
 /** How long the run-up to an attempt's start lasts. */
 export interface AttemptTiming {
     /** How far ahead the start is scheduled once everyone is ready. */
@@ -75,6 +91,14 @@ export interface SelfTimedGameModule<TRound, TResult> {
      * round is scheduled. Omit for games that need none.
      */
     readonly finishAnimationMs?: number;
+
+    /**
+     * How many progress updates a second each player may send, and the room
+     * relays. Defaults to SELF_TIMED.PROGRESS_HZ, enough for a race bar. A game
+     * whose players move around one shared world wants about the state sync
+     * rate (20), so the others can be drawn moving smoothly.
+     */
+    readonly progressHz?: number;
 
     /** Public round data. Must contain nothing a player shouldn't see. */
     createRoundData(context: RoundContext): TRound;
@@ -124,10 +148,11 @@ export interface SelfTimedGameModule<TRound, TResult> {
     /**
      * Optional. Answer a request a player makes mid-round, for games where
      * something must be decided by the server while the round is running (Type
-     * Racer Roulette's dice). Return the reply for the player, or null if the
-     * request is malformed.
+     * Racer Roulette's dice, Hex Drop's tiles). `world` is the round's shared,
+     * server-owned state; what the action writes there reaches every player.
+     * Return the reply for the player, or null if the request is malformed.
      */
-    handleAction?(round: TRound, playerId: string, raw: unknown): unknown | null;
+    handleAction?(round: TRound, playerId: string, raw: unknown, world: SharedWorld): unknown | null;
 
     /**
      * Optional. A different run-up for the opening attempt, decided from its

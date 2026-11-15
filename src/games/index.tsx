@@ -2,6 +2,7 @@ import type { GameId } from '../shared/games/catalog.ts'
 import { CrusherEscalator } from './CrusherEscalator/CrusherEscalator.tsx'
 import { TypeRacer } from './TypeRacer/TypeRacer.tsx'
 import { CubeCounter } from './CubeCounter/CubeCounter.tsx'
+import { HexDrop } from './HexDrop/HexDrop.tsx'
 import { Minefield } from './Minefield/Minefield.tsx'
 import { LogDodge } from './LogDodge/LogDodge.tsx'
 import { StopTheClock } from './StopTheClock/StopTheClock.tsx'
@@ -25,6 +26,8 @@ export function GameSurface({ gameId, ...props }: { gameId: GameId } & GameSurfa
       return <LogDodge {...props} />
     case 'minefield':
       return <Minefield {...props} />
+    case 'hex-drop':
+      return <HexDrop {...props} />
     case 'stop-the-clock':
       return <StopTheClock {...props} />
     default:
