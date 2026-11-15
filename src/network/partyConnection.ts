@@ -47,6 +47,8 @@ import type { PartyRoom } from './types.ts'
 export interface LocalSchedule {
   roundId: number
   attempt: number
+  /** The server's start this was converted from: a start called off and scheduled again is a new schedule. */
+  startAtServerMs: number
   startAtLocalMs: number
   timingStartsAtLocalMs: number
   countdownMs: number
@@ -228,20 +230,23 @@ export class PartyConnection {
   }
 
   /**
-   * Convert the scheduled start into local time once per attempt, and only
+   * Convert the scheduled start into local time once per start, and only
    * after the clock has a sample: a game measures its player from this
-   * moment, so it must not shift mid-round.
+   * moment, so it must not shift mid-round. A start that is called off
+   * (someone took their ready back) drops the schedule with it.
    */
   private scheduleFor(state: PartyStateJson): LocalSchedule | null {
     const { roundId, attempt, startAtMs, timingStartsAtMs, countdownMs } = state.round
+    if (startAtMs === undefined || timingStartsAtMs === undefined) return null
     const current = this.snapshot?.schedule ?? null
-    if (current?.roundId === roundId && current.attempt === attempt) return current
-    if (startAtMs === undefined || timingStartsAtMs === undefined || !this.clock.isSynced) return null
+    if (current?.roundId === roundId && current.attempt === attempt && current.startAtServerMs === startAtMs) return current
+    if (!this.clock.isSynced) return null
 
     const localNowMs = performance.now()
     return {
       roundId,
       attempt,
+      startAtServerMs: startAtMs,
       startAtLocalMs: this.clock.toLocalTime(startAtMs, localNowMs),
       timingStartsAtLocalMs: this.clock.toLocalTime(timingStartsAtMs, localNowMs),
       countdownMs,

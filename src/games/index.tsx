@@ -5,6 +5,7 @@ import { CubeCounter } from './CubeCounter/CubeCounter.tsx'
 import { HexDrop } from './HexDrop/HexDrop.tsx'
 import { Minefield } from './Minefield/Minefield.tsx'
 import { LogDodge } from './LogDodge/LogDodge.tsx'
+import { MageBattle } from './MageBattle/MageBattle.tsx'
 import { StopTheClock } from './StopTheClock/StopTheClock.tsx'
 import type { GameSurfaceProps } from './types.ts'
 
@@ -28,6 +29,8 @@ export function GameSurface({ gameId, ...props }: { gameId: GameId } & GameSurfa
       return <Minefield {...props} />
     case 'hex-drop':
       return <HexDrop {...props} />
+    case 'mage-battle':
+      return <MageBattle {...props} />
     case 'stop-the-clock':
       return <StopTheClock {...props} />
     default:

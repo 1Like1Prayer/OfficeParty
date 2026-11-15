@@ -13,7 +13,8 @@ export function hasSurface(gameId: GameId): boolean {
     gameId === 'type-racer-roulette' ||
     gameId === 'log-dodge' ||
     gameId === 'minefield' ||
-    gameId === 'hex-drop'
+    gameId === 'hex-drop' ||
+    gameId === 'mage-battle'
   )
 }
 
@@ -27,7 +28,8 @@ export function isFullBleed(gameId: GameId): boolean {
     gameId === 'type-racer-roulette' ||
     gameId === 'log-dodge' ||
     gameId === 'minefield' ||
-    gameId === 'hex-drop'
+    gameId === 'hex-drop' ||
+    gameId === 'mage-battle'
   )
 }
 
@@ -36,7 +38,7 @@ export function isFullBleed(gameId: GameId): boolean {
  * crushed early, say — keeps the arena and watches the rest of the round.
  */
 export function canSpectate(gameId: GameId): boolean {
-  return gameId === 'crusher-escalator' || gameId === 'hex-drop'
+  return gameId === 'crusher-escalator' || gameId === 'hex-drop' || gameId === 'mage-battle'
 }
 
 /**
@@ -51,7 +53,8 @@ export function hidesTitle(gameId: GameId): boolean {
     gameId === 'minefield' ||
     gameId === 'crusher-escalator' ||
     gameId === 'log-dodge' ||
-    gameId === 'hex-drop'
+    gameId === 'hex-drop' ||
+    gameId === 'mage-battle'
   )
 }
 
@@ -76,6 +79,7 @@ export function hasDemo(gameId: GameId): boolean {
     gameId === 'crusher-escalator' ||
     gameId === 'type-racer-roulette' ||
     gameId === 'minefield' ||
-    gameId === 'hex-drop'
+    gameId === 'hex-drop' ||
+    gameId === 'mage-battle'
   )
 }

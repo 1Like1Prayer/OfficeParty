@@ -86,6 +86,8 @@ function displayPhase(
 ): RoundPhase {
   if (serverPhase === 'idle' || serverPhase === 'results') return serverPhase
   if (!hasData) return 'loading'
+  // Still (or again, once a start is called off) waiting on readies: nothing is scheduled to run ahead to.
+  if (serverPhase === 'loading' || serverPhase === 'ready-check') return serverPhase
   if (schedule === null) return serverPhase
 
   const scheduled: RoundPhase =

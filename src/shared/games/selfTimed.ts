@@ -42,13 +42,16 @@ export interface RoundContext {
  * synced to all players, and a player who reconnects gets all of it.
  * Values are numbers under the game's own keys, reset every attempt.
  */
-export interface SharedWorld {
+export interface SharedWorldView {
+    get(key: string): number | undefined;
+}
+
+export interface SharedWorld extends SharedWorldView {
     /**
      * Milliseconds since the attempt's clock started, by the server's clock:
      * the same timeline the players' own reports are timed on.
      */
     readonly raceMs: number;
-    get(key: string): number | undefined;
     set(key: string, value: number): void;
 }
 
@@ -128,12 +131,15 @@ export interface SelfTimedGameModule<TRound, TResult> {
      * runner tells the rest to stop and report. They would otherwise keep
      * playing, because they only learn the round is over by watching others.
      * The server decides nothing from it: the final ranking still replays
-     * every result.
+     * every result. `world` is the shared world, for games that keep the
+     * score there (Mage Battle's knock-outs); it is also checked after every
+     * action, not only after results.
      */
     shouldCloseEarly?(
         reported: readonly ResultEntry<TResult>[],
         participantCount: number,
-        round: TRound
+        round: TRound,
+        world?: SharedWorldView
     ): boolean;
 
     /** How long after the start the server waits before resolving without stragglers. */
@@ -141,9 +147,10 @@ export interface SelfTimedGameModule<TRound, TResult> {
 
     /**
      * Order the reported results. Entries that share rank 1 are a genuine tie
-     * and the runner will send them to a tiebreaker.
+     * and the runner will send them to a tiebreaker. `world` is the attempt's
+     * shared world as it ended, for games whose server keeps the score there.
      */
-    rank(entries: ResultEntry<TResult>[], round: TRound): RankedEntry[];
+    rank(entries: ResultEntry<TResult>[], round: TRound, world?: SharedWorldView): RankedEntry[];
 
     /**
      * Optional. Answer a request a player makes mid-round, for games where

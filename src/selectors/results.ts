@@ -62,6 +62,11 @@ function describeDetail(gameId: string, detail: Record<string, number | string |
   if (gameId === 'crusher-escalator' && typeof detail['score'] === 'number') {
     return `survived ${detail['score']} ${detail['score'] === 1 ? 'step' : 'steps'}`
   }
+  // Mage Battle: just the points they scored in the duel.
+  if (gameId === 'mage-battle') {
+    const score = typeof detail['score'] === 'number' ? detail['score'] : 0
+    return `${score} ${score === 1 ? 'point' : 'points'}`
+  }
   const parts: string[] = []
 
   // Type Racer Roulette: how the race went for this player.

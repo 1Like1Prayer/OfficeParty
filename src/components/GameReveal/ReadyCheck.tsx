@@ -8,7 +8,7 @@ interface ReadyCheckProps {
   waitingFor: string[]
   readyCount: number
   participantCount: number
-  /** Null when this player is not in the round, or is already ready. */
+  /** Toggles this player's ready; null when they are not in the round. */
   onReady: (() => void) | null
   /** True once this player has acknowledged. */
   isReady: boolean
@@ -16,6 +16,15 @@ interface ReadyCheckProps {
   isSpectator: boolean
   /** The host's controls, set beside the ready button. */
   hostControls?: ReactNode
+}
+
+/** This player's ready, as a toggle: "I'm ready", then "I'm ready ✓" to take it back. */
+export function ReadyButton({ isReady, onToggle, fullWidth = false }: { isReady: boolean; onToggle: () => void; fullWidth?: boolean }) {
+  return (
+    <PushButton size="md" fullWidth={fullWidth} variant={isReady ? 'success' : 'primary'} onClick={onToggle}>
+      {isReady ? 'I’m ready ✓' : 'I’m ready'}
+    </PushButton>
+  )
 }
 
 /** Who has acknowledged the round, and this player's own acknowledgement. */
@@ -30,11 +39,8 @@ export function ReadyCheck({
 }: ReadyCheckProps) {
   const compact = useMediaQuery(breakpoint.compact)
 
-  const button = onReady && (
-    <PushButton size="md" fullWidth={compact} onClick={onReady}>
-      I&rsquo;m ready
-    </PushButton>
-  )
+  // Stays up once pressed, so they can take it back until the start's count runs out.
+  const button = onReady && <ReadyButton isReady={isReady} onToggle={onReady} fullWidth={compact} />
 
   const status = (
     <div

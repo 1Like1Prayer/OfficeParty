@@ -8,7 +8,8 @@ export function useLoopTime(loopMs: number): number {
     let frame = 0
     const startedAt = performance.now()
     const tick = (now: number) => {
-      setTime((now - startedAt) % loopMs)
+      // A frame's timestamp can come from just before `startedAt` was read; never run time backwards.
+      setTime(Math.max(0, now - startedAt) % loopMs)
       frame = requestAnimationFrame(tick)
     }
     frame = requestAnimationFrame(tick)

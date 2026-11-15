@@ -69,6 +69,11 @@ export const SELF_TIMED = {
      */
     READY_CHECK_TIMEOUT_MS: 20_000,
     /**
+     * Someone who takes back their ready once the start is scheduled calls it
+     * off; the ready check then waits at least this long for them again.
+     */
+    UNREADY_GRACE_MS: 10_000,
+    /**
      * The window the round owns before the clock runs, and which the server
      * does not count against anyone: the game builds up in the first part of
      * it and the last part is the "get ready, set, start!" the client counts down.
