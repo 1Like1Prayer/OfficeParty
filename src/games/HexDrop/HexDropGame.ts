@@ -82,6 +82,8 @@ export class HexDropGame {
   private jumpPressed = false
   /** A phone's stick, as a direction and strength on screen axes; zero when let go. */
   private stick = { x: 0, z: 0 }
+  /** The last direction pressed, kept after letting go: the runner faces it. */
+  private facing: { x: number; z: number } | null = null
   private lastReportAtMs = -Infinity
 
   private readonly tracks = new Map<string, RemoteTrack>()
@@ -244,8 +246,12 @@ export class HexDropGame {
     const jump = this.jumpPressed
     this.jumpPressed = false
     // The stick, when it is pushed, steers precisely; otherwise the keys do.
-    if (this.stick.x !== 0 || this.stick.z !== 0) return { moveX: this.stick.x, moveZ: this.stick.z, jump }
-    return { moveX: axis(has(LEFT), has(RIGHT)), moveZ: axis(has(UP), has(DOWN)), jump }
+    const controls =
+      this.stick.x !== 0 || this.stick.z !== 0
+        ? { moveX: this.stick.x, moveZ: this.stick.z, jump }
+        : { moveX: axis(has(LEFT), has(RIGHT)), moveZ: axis(has(UP), has(DOWN)), jump }
+    if (controls.moveX !== 0 || controls.moveZ !== 0) this.facing = { x: controls.moveX, z: controls.moveZ }
+    return controls
   }
 
   private listenToKeys(): () => void {
@@ -293,6 +299,7 @@ export class HexDropGame {
         vx: state.tile === null && state.vy !== 0 ? 0 : state.vx / 1000,
         vz: state.tile === null && state.vy !== 0 ? 0 : state.vz / 1000,
         layer: state.layer,
+        facing: this.facing,
         isSelf: true,
         isOut: state.out,
         isWinner: this.winners.has(this.setup.selfPlayerId),

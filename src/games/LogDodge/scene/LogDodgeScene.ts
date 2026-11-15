@@ -20,7 +20,7 @@ import { labelWidthFor } from '../../three/Nameplate.ts'
 import { followPose, overviewPose, zoomProgress } from './cameraPath.ts'
 import { Contestant } from './Contestant.ts'
 import { HEARTS_TAG_ASPECT, HeartsTag } from '../../three/HeartsTag.ts'
-import { Ocean } from './Ocean.ts'
+import { Ocean } from '../../three/Ocean.ts'
 import { RollingLog, LogShared } from './RollingLog.ts'
 import { Sky } from './Sky.ts'
 import {
@@ -33,6 +33,8 @@ import {
   LANE_SPACING,
   LOG,
   OVERVIEW_NEIGHBOURS,
+  SEA_COLOR,
+  SEA_LEVEL,
 } from './sceneConfig.ts'
 import { Treadmill } from './Treadmill.ts'
 
@@ -139,7 +141,8 @@ export class LogDodgeScene {
   private readonly clock = new Clock()
   private readonly treadmill = new Treadmill()
   private readonly sky = new Sky()
-  private readonly ocean = new Ocean()
+  /** Tall enough swell to read as sea, small enough that the deck never looks adrift. */
+  private readonly ocean = new Ocean({ color: SEA_COLOR, level: SEA_LEVEL, swell: 0.35 })
   private readonly sharedLog = new LogShared()
   private readonly logs: RollingLog[]
   private readonly sun = new DirectionalLight(0xfff3d6, 2.6)

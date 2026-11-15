@@ -30,6 +30,13 @@ export interface Racer {
   /** Blinks while the blast protection lasts. */
   isProtected: boolean
   lives: number
+  /**
+   * Which way this player is pointing the controls, on the field's axes (x
+   * toward the finish, y across). The runner turns to face it at once, moving
+   * or not, and keeps facing it after a tap. Only known for this player; null
+   * for rivals and before any direction is pressed, when facing follows movement.
+   */
+  facing?: { x: number; y: number } | null
 }
 
 export interface Blast {

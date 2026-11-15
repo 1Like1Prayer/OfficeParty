@@ -132,7 +132,7 @@ function stripeTexture(): CanvasTexture {
 
 /**
  * The desert the minefield lies in: sand underfoot with dunes beyond the field,
- * a rope along each side, a start gate and a finish arch, and a little scenery.
+ * a rope along each side, a finish arch, and a little scenery.
  */
 export class World {
   readonly group = new Group()
@@ -150,7 +150,6 @@ export class World {
     this.tileScale = tileScale
     this.addGround(map)
     this.addRopes(map)
-    this.addGate(map, 0.2, 'START', false)
     this.addGate(map, map.finishX, 'FINISH', true)
     this.addFinishStrip(map)
     this.addScenery(map)
@@ -246,8 +245,8 @@ export class World {
         new MeshBasicMaterial({ map: this.track(bannerTexture(text, checkered)), side: DoubleSide }),
       ),
     )
-    // Hangs across the field between the posts, tilted to face the way they will come from.
-    banner.rotation.y = Math.PI / 2
+    // Hangs across the field between the posts, facing the runners (and the camera behind them) as they come.
+    banner.rotation.y = -Math.PI / 2
     banner.scale.y = 0.42
     banner.position.set(x, 3.7, map.height / 2)
     this.group.add(banner)

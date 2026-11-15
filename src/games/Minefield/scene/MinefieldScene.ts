@@ -41,14 +41,15 @@ const NAMEPLATE_MIN_PIXELS = 64
 const NAMEPLATE_SHARE_OF_HEIGHT = 0.13
 const NAMEPLATE_HEIGHT = 2.5
 
-/** The follow camera: high above and a little behind, looking ahead of the runner — top down, tilted. */
 /**
- * Right behind the runner, looking along the field toward the finish (+x), so
- * the screen is their point of view: up is forward and right is their right,
- * as the controls are mapped.
+ * The follow camera: behind the runner and well above them, looking down along
+ * the field toward the finish (+x). Up on screen is their forward and right is
+ * their right, as the controls are mapped.
  */
-const FOLLOW = { OFFSET: new Vector3(-10, 14, 0), LOOK: new Vector3(3, 0, 0) }
+const FOLLOW = { OFFSET: new Vector3(-12, 25, 0), LOOK: new Vector3(7, 0, 0) }
 const SHAKE_DECAY_PER_SECOND = 5
+const TAU = Math.PI * 2
+const lerp = (from: number, to: number, amount: number): number => from + (to - from) * amount
 /**
  * How far past the frame React last handed over the player's own runner may
  * be carried on: a simulation step and a display frame, with room to spare.
@@ -412,6 +413,30 @@ export class MinefieldScene {
     }
   }
 
+  /**
+   * The opening swoop: from the overview beyond the finish round to behind the
+   * runners, circling them at a steady height rather than passing over their
+   * heads. Angle, distance and height around the focus each ease from one end
+   * to the other; it always swings the same way round, so it never flips.
+   */
+  private orbitAroundFocus(followPosition: Vector3, blend: number): void {
+    const from = this.overviewPosition
+    const startAngle = Math.atan2(from.z - this.focus.z, from.x - this.focus.x)
+    const endAngle = Math.atan2(followPosition.z - this.focus.z, followPosition.x - this.focus.x)
+    const sweep = (((endAngle - startAngle) % TAU) + TAU) % TAU
+    const angle = startAngle + sweep * blend
+    const radius = lerp(
+      Math.hypot(from.x - this.focus.x, from.z - this.focus.z),
+      Math.hypot(followPosition.x - this.focus.x, followPosition.z - this.focus.z),
+      blend,
+    )
+    this.cameraPosition.set(
+      this.focus.x + Math.cos(angle) * radius,
+      lerp(from.y, followPosition.y, blend),
+      this.focus.z + Math.sin(angle) * radius,
+    )
+  }
+
   private updateCamera(frame: FieldFrame, nowMs: number, deltaSeconds: number): void {
     // Who the camera is on: the player, or while they are out the runner furthest ahead.
     const self = frame.racers.find((racer) => racer.isSelf)
@@ -444,10 +469,8 @@ export class MinefieldScene {
     const blend = zoomProgress(nowMs)
     const followPosition = new Vector3().copy(this.focus).addScaledVector(FOLLOW.OFFSET, this.pull * this.viewScale)
     const followTarget = new Vector3().copy(this.focus).addScaledVector(FOLLOW.LOOK, this.pull * this.viewScale)
-    this.cameraPosition.lerpVectors(this.overviewPosition, followPosition, blend)
+    this.orbitAroundFocus(followPosition, blend)
     this.cameraTarget.lerpVectors(this.overviewTarget, followTarget, blend)
-    // Sweeps in on an arc rather than a straight line, so it feels like it is flying.
-    this.cameraPosition.y += Math.sin(Math.PI * blend) * 8 * this.viewScale
 
     this.shake = Math.max(0, this.shake - SHAKE_DECAY_PER_SECOND * deltaSeconds)
     const rattle = this.shake * this.shake * 0.35

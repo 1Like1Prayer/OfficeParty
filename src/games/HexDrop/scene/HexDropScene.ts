@@ -26,7 +26,9 @@ import type { Tile } from '../../../shared/games/hexDrop/types.ts'
 import type { RoundPlayerView } from '../../../types/index.ts'
 import { createAvatarTexture } from '../../three/avatarTexture.ts'
 import { labelWidthFor } from '../../three/Nameplate.ts'
+import { Ocean } from '../../three/Ocean.ts'
 import { ScoreTag } from '../../three/ScoreTag.ts'
+import { Splashes } from '../../three/Splash.ts'
 import { Runner } from '../../Minefield/scene/Runner.ts'
 
 /** A narrow lens from far off: the floors look flat, close to isometric, and nothing at the edge is stretched. */
@@ -51,6 +53,17 @@ const PLAYER_BIAS = 0.25
 /** Breathing room round the floor's edge. */
 const FRAME_MARGIN = 1.25
 const MIN_CAMERA_DISTANCE = 16
+/**
+ * On a narrow (portrait) screen, fitting a floor's full width would put the
+ * camera so far back the runners are specks. While playing it backs off at
+ * most this much past what the floor's depth needs, and pans sideways with the
+ * player instead; someone watching still gets the whole floor.
+ */
+const MAX_WIDTH_STRETCH = 1.3
+/** The fog starts this many camera distances out, so a far-off camera is never looking through it. */
+const FOG_NEAR_PER_DISTANCE = 1.6
+const FOG_DEPTH = 120
+const FOG_NEAR = 80
 /** How quickly the camera backs off or closes in when the player drops to a different floor. */
 const REFRAME_PER_SECOND = 2.5
 /** Floors above the player's fade to this, so they never hide the floor being played. */
@@ -104,6 +117,8 @@ export interface RunnerPose {
   vz: number
   /** The layer they are on or falling towards, for their tag. */
   layer: number
+  /** The direction this player last pressed, which they face; only known for this player. */
+  facing?: { x: number; z: number } | null
   isSelf: boolean
   isOut: boolean
   isWinner: boolean
@@ -120,11 +135,16 @@ export interface HexDropFrame {
   focus: { x: number; y: number; z: number } | null
 }
 
+/** The sea under the bottom floor: a runner who falls through it goes under here, and is gone. */
+const OCEAN_LEVEL = layerHeight(LAYER_COUNT - 1) - 4
+
 interface Entry {
   player: RoundPlayerView
   runner: Runner
   nameplate: ScoreTag
   badge: CanvasTexture
+  /** Whether they were drawn last frame, so going under the sea makes one splash. */
+  wasShown: boolean
 }
 
 function skyTexture(): CanvasTexture {
@@ -164,6 +184,9 @@ export class HexDropScene {
   private hasFocus = false
   private readonly lookAt = new Vector3()
   private overview = 0
+  private readonly ocean = new Ocean({ color: '#3A7FD6', level: OCEAN_LEVEL, swell: 0.3 })
+  private oceanSeconds = 0
+  private readonly splashes = new Splashes(this.scene)
   /** How far back the camera sits, easing toward what the current floor needs. */
   private distance = 0
   /** Floors above this one are faded, and so is anyone standing on them. */
@@ -190,7 +213,7 @@ export class HexDropScene {
     this.disposables.push(sky)
     this.scene.background = sky
     // Far enough out that the 2.5D camera, well back from the floors, sees them clearly.
-    this.scene.fog = new Fog(new Color('#8E74D8'), 80, 200)
+    this.scene.fog = new Fog(new Color('#8E74D8'), FOG_NEAR, FOG_NEAR + FOG_DEPTH)
     this.scene.add(new HemisphereLight(0xfff4e6, 0x5a4a8a, 1.2), new AmbientLight(0xffffff, 0.25))
 
     this.sun.castShadow = true
@@ -204,6 +227,7 @@ export class HexDropScene {
     shadow.far = 90
     this.sun.shadow.bias = -0.0008
     this.scene.add(this.sun, this.sun.target)
+    this.scene.add(this.ocean.mesh)
 
     this.buildTiles()
 
@@ -220,13 +244,16 @@ export class HexDropScene {
       const runner = new Runner(player.color, badge)
       const nameplate = new ScoreTag()
       this.scene.add(runner.root, nameplate.sprite)
-      return { player, runner, nameplate, badge }
+      return { player, runner, nameplate, badge, wasShown: false }
     })
   }
 
   /** Draws one frame. */
   render(frame: HexDropFrame): void {
     const deltaSeconds = Math.min(this.clock.getDelta(), 0.05)
+    this.oceanSeconds += deltaSeconds
+    this.ocean.update(this.oceanSeconds)
+    this.splashes.update(deltaSeconds)
     this.updateTiles(frame)
     this.updateRunners(frame, deltaSeconds)
     this.updateCamera(frame, deltaSeconds)
@@ -237,6 +264,8 @@ export class HexDropScene {
     this.resizeObserver.disconnect()
     for (const entry of this.entries) this.removeEntry(entry)
     for (const layer of this.layers) layer.dispose()
+    this.ocean.dispose()
+    this.splashes.dispose()
     this.disposables.forEach((item) => { item.dispose() })
     this.renderer.dispose()
     this.renderer.domElement.remove()
@@ -327,9 +356,14 @@ export class HexDropScene {
     for (const entry of this.entries) {
       const pose = byId.get(entry.player.playerId)
       // Someone who has fallen out is gone from the arena; their tag goes with them.
-      const isShown = pose !== undefined && !(pose.isOut && pose.y < layerHeight(LAYER_COUNT - 1) - 4)
+      const isShown = pose !== undefined && !(pose.isOut && pose.y < OCEAN_LEVEL)
       entry.runner.root.visible = isShown
       entry.nameplate.sprite.visible = isShown
+      // Just went under: a splash where they hit the water. Wave crests reach about 0.36 above the still level.
+      if (entry.wasShown && !isShown && pose !== undefined) {
+        this.splashes.add(entry.runner.root.position.x, OCEAN_LEVEL + 0.4, entry.runner.root.position.z)
+      }
+      entry.wasShown = isShown
       if (pose === undefined || !isShown) continue
 
       entry.runner.update(
@@ -344,6 +378,7 @@ export class HexDropScene {
           state: pose.isWinner ? 'won' : 'racing',
           isProtected: false,
           lives: 1,
+          facing: pose.facing ? { x: pose.facing.x, y: pose.facing.z } : null,
         },
         deltaSeconds,
         frame.nowMs,
@@ -378,16 +413,22 @@ export class HexDropScene {
 
     // Framed on the floor the player is on (or heading down to); a watcher sees the widest, bottom one.
     const floor = focus === null ? LAYER_COUNT - 1 : layerAt(this.wanted.y)
-    const wantedDistance = lerp(this.fitDistance(LAYER_REACH[floor]!), this.fitDistance(LAYER_REACH[LAYER_COUNT - 1]!), this.overview)
+    const reach = LAYER_REACH[floor]!
+    const wantedDistance = lerp(this.fitDistance(reach, true), this.watchDistance(), this.overview)
     this.distance =
       this.distance === 0
         ? wantedDistance
         : this.distance + (wantedDistance - this.distance) * (1 - Math.exp(-REFRAME_PER_SECOND * deltaSeconds))
 
     // Between the middle of the floor and the player, at the player's height; the middle of the arena when watching.
-    const followX = this.focus.x * PLAYER_BIAS
+    // Where the floor is wider than the screen, the view also pans with the player as far as the floor's edge.
+    const halfTan = Math.tan((FIELD_OF_VIEW * Math.PI) / 360)
+    const slack = Math.max(0, reach * FRAME_MARGIN - this.distance * halfTan * this.camera.aspect)
+    const panned = Math.min(slack, Math.max(-slack, this.focus.x))
+    const followX = panned + (this.focus.x - panned) * PLAYER_BIAS
     const followZ = this.focus.z * PLAYER_BIAS
-    const watchY = layerHeight(LAYER_COUNT - 1)
+    // Halfway up the stack, so the whole of it is framed, top ring and all.
+    const watchY = (layerHeight(0) + layerHeight(LAYER_COUNT - 1)) / 2
     this.lookAt.set(
       lerp(followX, 0, this.overview),
       lerp(this.focus.y, watchY, this.overview),
@@ -398,6 +439,10 @@ export class HexDropScene {
     this.fadeFloorsAbove(this.fadedAbove, deltaSeconds)
     this.camera.position.copy(this.position)
     this.camera.lookAt(this.lookAt)
+    if (this.scene.fog instanceof Fog) {
+      this.scene.fog.near = Math.max(FOG_NEAR, this.distance * FOG_NEAR_PER_DISTANCE)
+      this.scene.fog.far = this.scene.fog.near + FOG_DEPTH
+    }
 
     // The sun's shadow follows the action.
     this.sun.target.position.copy(this.lookAt)
@@ -431,11 +476,27 @@ export class HexDropScene {
    * screen, whatever its shape: across by the narrower of the two angles, and
    * up and down by how much the floor rises toward the camera at this tilt.
    */
-  private fitDistance(reach: number): number {
+  /**
+   * How far back the camera sits for someone watching: the widest floor, and
+   * the whole stack above it. A height seen from this tilt shows as cos(elevation)
+   * of itself on screen, on top of the bottom floor's squashed depth.
+   */
+  private watchDistance(): number {
     const halfTan = Math.tan((FIELD_OF_VIEW * Math.PI) / 360)
+    const reach = Math.max(...LAYER_REACH)
+    const halfStack = (layerHeight(0) - layerHeight(LAYER_COUNT - 1)) / 2
     const across = reach / (halfTan * this.camera.aspect)
+    const upAndDown = (reach * Math.sin(CAMERA_ELEVATION) + halfStack * Math.cos(CAMERA_ELEVATION)) / halfTan
+    return Math.max(MIN_CAMERA_DISTANCE, Math.max(across, upAndDown) * FRAME_MARGIN)
+  }
+
+  /** How far back the camera sits to show a floor; `canPan` lets a narrow screen cut off its sides (see MAX_WIDTH_STRETCH). */
+  private fitDistance(reach: number, canPan: boolean): number {
+    const halfTan = Math.tan((FIELD_OF_VIEW * Math.PI) / 360)
     // A flat disc seen from this tilt is squashed to sin(elevation) of its depth.
     const upAndDown = (reach * Math.sin(CAMERA_ELEVATION)) / halfTan
+    const fullAcross = reach / (halfTan * this.camera.aspect)
+    const across = canPan ? Math.min(fullAcross, upAndDown * MAX_WIDTH_STRETCH) : fullAcross
     return Math.max(MIN_CAMERA_DISTANCE, Math.max(across, upAndDown) * FRAME_MARGIN)
   }
 
