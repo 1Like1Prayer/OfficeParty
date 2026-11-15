@@ -14,6 +14,7 @@ import { ArenaLayout } from '../ArenaLayout/index.ts'
 import { ScreenTransition } from '../ScreenTransition/index.ts'
 import { ConnectionGate } from '../ConnectionGate/index.ts'
 import { HostScreen, JoinScreen } from '../EntryScreen/index.ts'
+import { MusicControl } from '../MusicControl/index.ts'
 import { Scoreboard } from '../Scoreboard/index.ts'
 import { TitleScreen } from '../TitleScreen/index.ts'
 import { ArenaPhase } from './ArenaPhase.tsx'
@@ -74,6 +75,7 @@ export function Arena() {
     (room.phase === 'leaderboard' || room.phase === 'competition')
 
   return (
+    <>
     <ConnectionGate status={status} error={handshakeError}>
       <ScreenTransition screenKey={screenKey}>
         <ArenaLayout
@@ -154,5 +156,7 @@ export function Arena() {
         </ArenaLayout>
       </ScreenTransition>
     </ConnectionGate>
+      <MusicControl isGameUp={playing} />
+    </>
   )
 }
