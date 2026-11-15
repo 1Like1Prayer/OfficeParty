@@ -63,6 +63,12 @@ const COPY: Partial<Record<GameId, GameCopy>> = {
     rules:
       'Four floors of hexagon tiles, stacked. A tile drops two seconds after anyone stands on it, so keep moving. The top floor is islands: jump between them with Space. Fall through all four floors and you are out. Last one standing wins.',
   },
+  'mage-battle': {
+    input: 'Space, click or tap',
+    length: '1 min',
+    rules:
+      'Every mage against every other. A needle sweeps round your dial: press once per spin while it is over a block to score 1 to 4 points. A hit speeds the dial up and takes the biggest block away; a miss slows it down and gives one back. Fall 7 points behind the leader and you are knocked out. Last mage standing wins, or the highest score after 60 seconds.',
+  },
 }
 
 export function gameCopy(gameId: GameId): GameCopy {

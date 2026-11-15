@@ -1,7 +1,7 @@
 /**
  * The eight games and what kind each one is. Only games marked `implemented`
- * can appear in a playlist; the two still being built are here so the client
- * can show the full catalogue and so playlist code doesn't need a second list.
+ * can appear in a playlist; any still being built are listed here too, so the
+ * client can show the full catalogue and playlist code doesn't need a second list.
  */
 
 export const GAME_IDS = [
@@ -33,8 +33,7 @@ export const GAME_CATALOG: Record<GameId, GameMeta> = {
     'crusher-escalator': { id: 'crusher-escalator', title: 'Crusher Escalator', kind: 'self-timed', implemented: true },
     'stop-the-clock': { id: 'stop-the-clock', title: 'Stop the Clock', kind: 'self-timed', implemented: true },
     'type-racer-roulette': { id: 'type-racer-roulette', title: 'Type Racer Roulette', kind: 'self-timed', implemented: true },
-    // Kind is provisional until the rules are settled: self-timed if each player faces their own boss, shared-world if they fight one together.
-    'mage-battle': { id: 'mage-battle', title: 'Mage Battle', kind: 'self-timed', implemented: false },
+    'mage-battle': { id: 'mage-battle', title: 'Mage Battle', kind: 'shared-world', implemented: true },
     'log-dodge': { id: 'log-dodge', title: 'Log Dodge', kind: 'self-timed', implemented: true },
     'hex-drop': { id: 'hex-drop', title: 'Hex Drop', kind: 'shared-world', implemented: true }
 };

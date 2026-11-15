@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { GameSurface } from '../../games/index.tsx'
 import {
   canSpectate,
@@ -144,12 +144,16 @@ export function ArenaPhase({
 
   // The players going through to a game's next stage were only just watching,
   // so there is nothing to confirm: the stage opens straight into its countdown.
+  // Once per attempt, so someone who then takes their ready back is not readied again.
   const readyForRound = actions.readyForRound
-  const shouldAutoReady =
-    nextStage !== null && round.phase === 'ready-check' && isParticipant && !hasReadied
+  const attemptKey = `${round.roundId}:${round.attempt}`
+  const autoReadied = useRef<string | null>(null)
+  const shouldAutoReady = nextStage !== null && round.phase === 'ready-check' && isParticipant && !hasReadied
   useEffect(() => {
-    if (shouldAutoReady) readyForRound()
-  }, [shouldAutoReady, readyForRound])
+    if (!shouldAutoReady || autoReadied.current === attemptKey) return
+    autoReadied.current = attemptKey
+    readyForRound()
+  }, [shouldAutoReady, readyForRound, attemptKey])
 
   if (room.phase === 'lobby') {
     return (
@@ -269,7 +273,8 @@ export function ArenaPhase({
           waitingFor={selectNames(room, round.waitingFor)}
           readyCount={round.ready.length}
           participantCount={round.participants.length}
-          onReady={isParticipant && !hasReadied ? actions.readyForRound : null}
+          // A toggle, until the count to the start runs out: taking it back calls the start off.
+          onReady={isParticipant ? () => { actions.readyForRound(!hasReadied) } : null}
           isReady={hasReadied}
           isSpectator={!isParticipant}
           startsInBeats={startsInBeats}

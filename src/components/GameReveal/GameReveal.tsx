@@ -4,7 +4,7 @@ import { GameDemo } from '../../games/demos.tsx'
 import { hasDemo } from '../../games/playable.ts'
 import type { GameMeta } from '../../shared/games/catalog.ts'
 import { color, fluid, sharedStyles } from '../../theme/index.ts'
-import { ReadyCheck } from './ReadyCheck.tsx'
+import { ReadyButton, ReadyCheck } from './ReadyCheck.tsx'
 import { StartsIn } from './StartsIn.tsx'
 import { RulesCard } from './RulesCard.tsx'
 
@@ -15,6 +15,7 @@ interface GameRevealProps {
   waitingFor: string[]
   readyCount: number
   participantCount: number
+  /** Toggles this player's ready; null when they are not in the round. */
   onReady: (() => void) | null
   isReady: boolean
   isSpectator: boolean
@@ -25,8 +26,9 @@ interface GameRevealProps {
 }
 
 /**
- * Announces the next game while the server runs its ready check. There is no
- * button here — the round advances when the phones say so.
+ * Announces the next game while the server runs its ready check. The ready
+ * button stays up through the count to the start, so a player can take their
+ * ready back until it runs out (which calls the start off).
  */
 export function GameReveal({
   game,
@@ -90,6 +92,7 @@ export function GameReveal({
             gap: `${fluid(12, 16)} ${fluid(20, 36)}`,
           }}
         >
+          {onReady && <ReadyButton isReady={isReady} onToggle={onReady} />}
           <StartsIn beats={startsInBeats} />
           {hostControls}
         </div>

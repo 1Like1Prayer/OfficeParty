@@ -64,7 +64,9 @@ export const parseLogDodgeProgress = (
     if (pressAction === undefined && pressAtMs === undefined) return { hits };
     if (typeof pressAction !== 'number' || !Number.isInteger(pressAction)) return null;
     if (pressAction < 0 || pressAction >= ACTIONS.length) return null;
-    if (typeof pressAtMs !== 'number' || !Number.isInteger(pressAtMs)) return null;
-    if (pressAtMs < 0 || pressAtMs > durationMs) return null;
-    return { hits, pressAction, pressAtMs };
+    if (typeof pressAtMs !== 'number' || !Number.isFinite(pressAtMs)) return null;
+    // Rounded like a result's press times, so the client can send the same value.
+    const roundedAtMs = Math.round(pressAtMs);
+    if (roundedAtMs < 0 || roundedAtMs > durationMs) return null;
+    return { hits, pressAction, pressAtMs: roundedAtMs };
 };

@@ -52,7 +52,8 @@ export interface RoomActions {
 
   /* Round */
   /** Acknowledge the ready check for the round on screen. */
-  readyForRound: () => void
+  /** Ready for the round, or (false) take it back, until the start's lead runs out. */
+  readyForRound: (ready?: boolean) => void
   /** Report this player's result. The server never measures anything. */
   submitResult: (result: unknown) => void
   /** Display-only signal to the rest of the room. */
@@ -279,7 +280,7 @@ function useRoomActions(deps: {
       backToLobby: () => { run(ClientRequest.ReturnToLobby) },
       kick: (playerId) => { run(ClientRequest.KickPlayer, { playerId }) },
 
-      readyForRound: () => { run(ClientRequest.ReadyForRound, { roundId, attempt }) },
+      readyForRound: (ready = true) => { run(ClientRequest.ReadyForRound, { roundId, attempt, ready }) },
       submitResult: (result) => { run(ClientRequest.SubmitResult, { roundId, attempt, result }) },
       sendAction: async (action) => {
         if (connection === null) throw new Error('Not in a room.')

@@ -4,6 +4,10 @@
  */
 
 export const LOG_HEIGHTS = ['low', 'high'] as const;
+/**
+ * Progress messages send the latest press as an index into this list, so the
+ * order is part of the client protocol: append new actions, never reorder.
+ */
 export const ACTIONS = ['jump', 'duck'] as const;
 
 /** Which action dodges which log: jump a low log, duck a high one. */

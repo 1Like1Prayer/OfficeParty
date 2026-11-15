@@ -182,6 +182,11 @@ export interface KickPlayerRequest {
     playerId: string;
 }
 
+export interface ReadyForRoundRequest extends RoundEnvelope {
+    /** False takes a ready back, until the start's lead runs out. Left out, it means ready. */
+    ready?: boolean;
+}
+
 export interface SubmitResultRequest extends RoundEnvelope {
     /** Game-specific; validated by the game module. */
     result: unknown;
