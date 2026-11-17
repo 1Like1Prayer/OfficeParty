@@ -21,6 +21,8 @@ interface TypingPanelProps {
   isCompact?: boolean
   /** A tap anywhere on the sheet, so a phone can bring its keyboard up from it. */
   onTap?: () => void
+  /** Watching someone else's sheet: shown where the clock goes, since their clock is not known here. */
+  watchingName?: string
 }
 
 /** Room kept below the sheet's text when it is fitted above a phone's keyboard. */
@@ -150,6 +152,7 @@ export function TypingPanel({
   breakProgress,
   isCompact = false,
   onTap,
+  watchingName,
 }: TypingPanelProps) {
   const paragraph = paragraphs[Math.min(state.paragraphIndex, paragraphs.length - 1)] ?? []
   const isDone = state.status !== 'typing' && state.status !== 'rolling'
@@ -238,7 +241,7 @@ export function TypingPanel({
             animation: isLowOnTime ? 'pa-pulse 1s ease-in-out infinite' : undefined,
           }}
         >
-          {secondsLeft === null ? '–:––' : formatClock(secondsLeft)}
+          {watchingName !== undefined ? `👀 ${watchingName}` : secondsLeft === null ? '–:––' : formatClock(secondsLeft)}
         </span>
       </div>
 
@@ -357,7 +360,7 @@ export function TypingPanel({
           }}
         >
           {isRolling && 'THREE STRIKES — ROLLING THE DICE…'}
-          {state.status === 'finished' && 'DONE! Waiting for the others…'}
+          {state.status === 'finished' && (watchingName !== undefined ? 'DONE! They made it to the end.' : 'DONE! Waiting for the others…')}
           {state.status === 'survived' && 'LAST ONE STANDING — you win!'}
           {state.status === 'stopped' && 'RACE OVER — waiting for the results…'}
           {state.status === 'out' &&

@@ -17,6 +17,9 @@ import { TypingPanel } from './ui/TypingPanel.tsx'
 import { useVisibleViewport } from './ui/useVisibleViewport.ts'
 import { useParagraphBreak } from './ui/useParagraphBreak.ts'
 import { useParagraphClock } from './ui/useParagraphClock.ts'
+import { useSpectator } from './ui/useSpectator.ts'
+import { watchedRaceState } from './typing/watchedState.ts'
+import { SpectatorHint } from './ui/SpectatorHint.tsx'
 
 const NO_PARAGRAPHS: readonly Paragraph[] = []
 
@@ -169,6 +172,42 @@ function TypeRacerSession({
     return () => { observer.disconnect() }
   }, [sceneReady])
 
+  // Out of the race: watch the ones still typing, over their shoulder. Click,
+  // tap or Space moves on to the next. Watching only; nothing typed counts now.
+  const winnerIds = finalRanking?.filter(({ rank }) => rank === 1).map(({ playerId }) => playerId) ?? null
+  const isWatching =
+    race.state.status === 'out' || (winnerIds !== null && !winnerIds.includes(selfPlayerId))
+  const spectator = useSpectator({ isWatching, selfPlayerId, views, winnerIds })
+  const { watchedId, next: watchNext } = spectator
+  useEffect(() => {
+    sceneRef.current?.spectate(watchedId)
+  }, [watchedId, sceneReady])
+  const canSwitch = isWatching && winnerIds === null && spectator.candidateCount > 1
+  useEffect(() => {
+    if (!canSwitch) return
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.code !== 'Space' && event.key !== ' ') return
+      event.preventDefault()
+      if (!event.repeat) watchNext()
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => { window.removeEventListener('keydown', onKeyDown) }
+  }, [canSwitch, watchNext])
+  const watchedName = players.find(({ playerId }) => playerId === watchedId)?.name ?? null
+  // Their sheet, filling in as they type. A drop in their count is a wrong key: the sheet flashes for it.
+  const watchedView = views.find(({ playerId }) => playerId === watchedId) ?? null
+  const [watchedSeen, setWatchedSeen] = useState({ id: watchedId, chars: 0, mistakes: 0 })
+  const watchedChars = watchedView?.chars ?? 0
+  if (watchedSeen.id !== watchedId || watchedSeen.chars !== watchedChars) {
+    const isSame = watchedSeen.id === watchedId
+    setWatchedSeen({
+      id: watchedId,
+      chars: watchedChars,
+      mistakes: isSame && watchedChars < watchedSeen.chars ? watchedSeen.mistakes + 1 : isSame ? watchedSeen.mistakes : 0,
+    })
+  }
+  const showsWatchedSheet = isWatching && winnerIds === null && watchedView !== null && watchedName !== null
+
   const runners: BarRunner[] = players.map((player, index) => ({
     player,
     fraction: views[index]!.fraction,
@@ -177,7 +216,10 @@ function TypeRacerSession({
   }))
 
   return (
-    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+    <div
+      style={{ position: 'relative', width: '100%', height: '100%', cursor: canSwitch ? 'pointer' : undefined }}
+      onClick={canSwitch ? watchNext : undefined}
+    >
       <TypeRacerStage
         players={players}
         selfPlayerId={selfPlayerId}
@@ -245,7 +287,27 @@ function TypeRacerSession({
             />
           </div>
         </SwipeAway>
+        {showsWatchedSheet && (
+          // Comes in once the player's own sheet has swiped away; re-keyed per player, so switching writes the new sheet in afresh.
+          <div style={{ animation: 'pa-fade-up .4s ease-out .9s both' }}>
+          <div key={watchedId} style={{ animation: 'pa-fade-up .35s ease-out both' }}>
+            <TypingPanel
+              paragraphs={paragraphs}
+              state={watchedRaceState(paragraphs, watchedView, watchedSeen.mistakes)}
+              secondsLeft={null}
+              isRacing
+              breakProgress={null}
+              isCompact={isCompact}
+              watchingName={watchedName}
+            />
+          </div>
+          </div>
+        )}
       </div>
+
+      {isWatching && winnerIds === null && watchedName !== null && (
+        <SpectatorHint name={watchedName} canSwitch={canSwitch} isTouch={isTouch} />
+      )}
 
       {/* Last in the stack, so the die is the closest thing the player sees. */}
       <div

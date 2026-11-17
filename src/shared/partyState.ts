@@ -51,7 +51,6 @@ export interface RoundStateJson {
     participants: string[];
     ready: string[];
     waitingFor: string[];
-    readyDeadlineMs: number;
     startAtMs?: number;
     countdownMs: number;
     timingStartsAtMs?: number;
