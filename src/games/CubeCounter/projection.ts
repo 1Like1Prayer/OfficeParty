@@ -35,12 +35,11 @@ export const VIEW_BOX = {
 /** Width over height of a scene, so its box can scale without distorting it. */
 export const SCENE_ASPECT = VIEW_BOX.width / VIEW_BOX.height
 
-const points = (corners: [number, number, number][]): string =>
-  corners
-    .map(([x, y, z]) => {
-      const p = project(x, y, z)
-      return `${p.x.toFixed(1)},${p.y.toFixed(1)}`
-    })
+const corners = (list: [number, number, number][]): Point2[] => list.map(([x, y, z]) => project(x, y, z))
+
+const points = (list: [number, number, number][]): string =>
+  corners(list)
+    .map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`)
     .join(' ')
 
 export interface BoxFaces {
@@ -49,26 +48,43 @@ export interface BoxFaces {
   sideY: string
 }
 
-export const boxFaces = ({ x, y, z, width, depth }: Box): BoxFaces => ({
-  top: points([
+/** The three faces a player can see, as corner lists (for drawing on a canvas). */
+export interface BoxFaceCorners {
+  top: Point2[]
+  sideX: Point2[]
+  sideY: Point2[]
+}
+
+const faceCorners = ({ x, y, z, width, depth }: Box): Record<keyof BoxFaces, [number, number, number][]> => ({
+  top: [
     [x, y, z + 1],
     [x + width, y, z + 1],
     [x + width, y + depth, z + 1],
     [x, y + depth, z + 1],
-  ]),
-  sideX: points([
+  ],
+  sideX: [
     [x + width, y, z],
     [x + width, y + depth, z],
     [x + width, y + depth, z + 1],
     [x + width, y, z + 1],
-  ]),
-  sideY: points([
+  ],
+  sideY: [
     [x, y + depth, z],
     [x + width, y + depth, z],
     [x + width, y + depth, z + 1],
     [x, y + depth, z + 1],
-  ]),
+  ],
 })
+
+export const boxFaces = (box: Box): BoxFaces => {
+  const faces = faceCorners(box)
+  return { top: points(faces.top), sideX: points(faces.sideX), sideY: points(faces.sideY) }
+}
+
+export const boxFaceCorners = (box: Box): BoxFaceCorners => {
+  const faces = faceCorners(box)
+  return { top: corners(faces.top), sideX: corners(faces.sideX), sideY: corners(faces.sideY) }
+}
 
 /** True when `front` sits on the camera side of `back` along some axis. */
 const inFrontOf = (front: Box, back: Box): boolean =>
@@ -110,9 +126,13 @@ export function floorLines(): [Point2, Point2][] {
   return lines
 }
 
-export const floorOutline = points([
+const FLOOR: [number, number, number][] = [
   [0, 0, 0],
   [GRID_SIZE, 0, 0],
   [GRID_SIZE, GRID_SIZE, 0],
   [0, GRID_SIZE, 0],
-])
+]
+
+export const floorOutline = points(FLOOR)
+
+export const floorCorners: Point2[] = corners(FLOOR)

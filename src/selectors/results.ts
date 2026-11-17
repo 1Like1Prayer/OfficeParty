@@ -67,6 +67,11 @@ function describeDetail(gameId: string, detail: Record<string, number | string |
     const score = typeof detail['score'] === 'number' ? detail['score'] : 0
     return `${score} ${score === 1 ? 'point' : 'points'}`
   }
+  // Stop the Clock's round: targets won, then the total that splits a level count.
+  if (gameId === 'stop-the-clock' && typeof detail['wins'] === 'number' && typeof detail['totalErrorMs'] === 'number') {
+    const wins = detail['wins']
+    return `${wins} ${wins === 1 ? 'target' : 'targets'} won · off by ${seconds(detail['totalErrorMs'])}s in total`
+  }
   const parts: string[] = []
 
   // Type Racer Roulette: how the race went for this player.

@@ -11,6 +11,12 @@ export interface ScoreboardRowView {
   points: number
   /** e.g. "READY", "WAITING", "DISCONNECTED", "WATCHING". */
   status: string
+  /**
+   * Whether they have said they are ready, while that is being asked for (the
+   * lobby, or a game's ready check); null the rest of the time, and for
+   * anyone not playing.
+   */
+  readiness: 'ready' | 'not-ready' | null
   background: string
   pointsColor: string
   dimmed: boolean

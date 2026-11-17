@@ -25,7 +25,8 @@ const SHIN = 0.5
 const lerp = (from: number, to: number, amount: number): number => from + (to - from) * amount
 
 /**
- * A little person sitting on the board, typing. Their avatar is the face; the
+ * A little person sitting down: typing on Type Racer's boards, or hands in
+ * their lap in Cube Counter's TV circle. Their avatar is the face; the
  * arms are solved to reach whatever the hands are aiming at — the keys while
  * they type, up in the air when they panic or cheer. Everything is built from
  * simple shapes, so a dozen of them cost almost nothing.

@@ -1,70 +1,79 @@
-import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CUBE_COUNTER, MAX_POSSIBLE_BOX_COUNT } from '../../shared/games/cubeCounter/constants.ts'
 import { countBlocks } from '../../shared/games/cubeCounter/sceneValidation.ts'
 import type { Answer, CubeCounterRound } from '../../shared/games/cubeCounter/types.ts'
 import { PushButton } from '../../components/ui/index.ts'
-import { border, color, fluid, font, sharedStyles } from '../../theme/index.ts'
-import { ROUND_CUE_MS } from '../../components/GamePlay/cue.ts'
+import { border, color, fluid, font } from '../../theme/index.ts'
 import type { GameSurfaceProps } from '../types.ts'
-import { useElapsed } from '../StopTheClock/useElapsed.ts'
-import { TitleIntro } from '../ui/TitleIntro.tsx'
-import { useTitleIntro } from '../ui/useTitleIntro.ts'
-import { IsoScene } from './IsoScene.tsx'
-import { SCENE_ASPECT } from './projection.ts'
-
-/**
- * The scene is sized by the screen's height, because height is what the round
- * runs out of: it takes what is left once the play screen's padding, cue and
- * status line and this game's label and answer area have their room. That
- * room grows with the screen's width, like the rest of the theme, which is why
- * it is a `fluid()` too. Capped by the width as well, so it never spills off a
- * phone held upright, and never shrinks past readable.
- */
-const SCENE_MAX_VH = 46
-const SCENE_RESERVED = fluid(330, 470)
-const SCENE_MIN_HEIGHT_PX = 150
-const SCENE_MAX_PX = 520
-const sceneHeight = `max(${SCENE_MIN_HEIGHT_PX}px, min(${SCENE_MAX_VH}vh, 100dvh - ${SCENE_RESERVED}))`
+import { TvIntro } from '../ui/TvIntro.tsx'
+import { cubeCounterShow, type PuzzleStage } from './tvShow.ts'
 
 const isRound = (data: unknown): data is CubeCounterRound =>
   typeof data === 'object' &&
   data !== null &&
   Array.isArray((data as CubeCounterRound).puzzles)
 
-/** flash: scene showing · answer: scene hidden, typing · pause: result of the last answer. */
-type Stage = 'flash' | 'answer' | 'pause'
-
 const MAX_DIGITS = String(MAX_POSSIBLE_BOX_COUNT).length
 
+/** How long each stage of a puzzle lasts, once it has begun; answering ends sooner on an answer. */
+const stageLengthMs = (stage: PuzzleStage, flashMs: number): number | null => {
+  switch (stage) {
+    case 'flash':
+      return flashMs
+    case 'answer':
+      return CUBE_COUNTER.ANSWER_LIMIT_MS
+    case 'reveal':
+      return CUBE_COUNTER.REVEAL_MS
+    case 'next':
+      return CUBE_COUNTER.NEXT_PUZZLE_MS
+    case 'done':
+      return null
+  }
+}
+
 /**
- * Count the blocks. The browser runs the whole round on its own clock, so the
- * flash length and the time to answer are measured here, not by the server.
+ * Count the blocks, eight puzzles running, all on the TV in front of the
+ * player (see tvShow.ts). Each puzzle flashes up, hides while they answer,
+ * comes back with whether they were right, then "next puzzle" counts them into
+ * the next. Only the answer box sits over the picture, while they answer.
+ *
+ * Every player goes at their own pace: the browser runs the whole round on its
+ * own clock, so the flash length and the time to answer are measured here,
+ * not by the server.
  */
 export function CubeCounter({
   phase,
   data,
   timingStartsAtLocalMs,
+  players,
+  selfPlayerId,
+  progress,
+  finalRanking,
   submitted,
   onSubmit,
   onProgress,
 }: GameSurfaceProps) {
-  const puzzles = isRound(data) ? data.puzzles : []
+  const puzzles = useMemo(() => (isRound(data) ? data.puzzles : []), [data])
   const playing = phase === 'playing'
-  // The game's name fills the empty build-up, and pops away as the get-ready count starts.
-  const introStage = useTitleIntro(timingStartsAtLocalMs - ROUND_CUE_MS)
 
   const [index, setIndex] = useState(0)
-  const [stage, setStage] = useState<Stage>('flash')
+  const [stage, setStage] = useState<PuzzleStage>('flash')
+  // The first puzzle flashes up the moment the clock starts.
+  const [stageStartedAtMs, setStageStartedAtMs] = useState(timingStartsAtLocalMs)
   const [typed, setTyped] = useState('')
-  const [hiddenAt, setHiddenAt] = useState(0)
-  const [lastAnswer, setLastAnswer] = useState<number | null | undefined>(undefined)
-  const [finished, setFinished] = useState(false)
+  const [lastAnswer, setLastAnswer] = useState<number | null>(null)
+  const [rightSoFar, setRightSoFar] = useState(0)
 
   const answers = useRef<Answer[]>([])
   const suspect = useRef(false)
 
   const puzzle = puzzles[index]
-  const done = finished || submitted
+  const isDone = stage === 'done' || submitted
+
+  const moveTo = useCallback((next: PuzzleStage) => {
+    setStage(next)
+    setStageStartedAtMs(performance.now())
+  }, [])
 
   useEffect(() => {
     if (!playing) return
@@ -75,242 +84,157 @@ export function CubeCounter({
     return () => { document.removeEventListener('visibilitychange', onVisibility) }
   }, [playing])
 
-  // Flash -> answer, on the scene's own length.
-  useEffect(() => {
-    if (!playing || done || stage !== 'flash' || !puzzle) return
-    const timer = setTimeout(() => {
-      setHiddenAt(performance.now())
-      setStage('answer')
-    }, puzzle.flashMs)
-    return () => { clearTimeout(timer) }
-  }, [playing, done, stage, puzzle])
-
   const record = useCallback(
     (count: number | null) => {
-      if (stage !== 'answer') return
+      if (stage !== 'answer' || puzzle === undefined) return
       const answerMs = Math.min(
         CUBE_COUNTER.ANSWER_LIMIT_MS,
-        Math.max(0, Math.round(performance.now() - hiddenAt)),
+        Math.max(0, Math.round(performance.now() - stageStartedAtMs)),
       )
       answers.current.push({ count, answerMs })
       setLastAnswer(count)
+      if (count === countBlocks(puzzle.boxes)) setRightSoFar((right) => right + 1)
       setTyped('')
-      setStage('pause')
+      moveTo('reveal')
       onProgress({ puzzlesDone: answers.current.length })
       if (answers.current.length === puzzles.length) {
-        setFinished(true)
         onSubmit({ answers: answers.current, timingSuspect: suspect.current })
       }
     },
-    [stage, hiddenAt, puzzles.length, onProgress, onSubmit],
+    [stage, puzzle, stageStartedAtMs, puzzles.length, moveTo, onProgress, onSubmit],
   )
 
-  // Out of time counts as no answer.
+  // Each stage runs its length, then gives way to the next: out of time counts as no answer.
   useEffect(() => {
-    if (stage !== 'answer') return
-    const timer = setTimeout(() => { record(null) }, CUBE_COUNTER.ANSWER_LIMIT_MS)
-    return () => { clearTimeout(timer) }
-  }, [stage, record])
-
-  // Pause -> next puzzle.
-  useEffect(() => {
-    if (stage !== 'pause' || finished) return
-    const timer = setTimeout(() => {
-      setIndex((current) => current + 1)
-      setLastAnswer(undefined)
-      setStage('flash')
-    }, CUBE_COUNTER.PAUSE_BETWEEN_PUZZLES_MS)
-    return () => { clearTimeout(timer) }
-  }, [stage, finished])
+    if (!playing || puzzle === undefined) return
+    const lengthMs = stageLengthMs(stage, puzzle.flashMs)
+    if (lengthMs === null) return
+    const timer = window.setTimeout(() => {
+      if (stage === 'flash') moveTo('answer')
+      else if (stage === 'answer') record(null)
+      else if (stage === 'reveal') moveTo(index + 1 >= puzzles.length ? 'done' : 'next')
+      else {
+        setIndex((current) => current + 1)
+        moveTo('flash')
+      }
+    }, stageStartedAtMs + lengthMs - performance.now())
+    return () => { window.clearTimeout(timer) }
+  }, [playing, stage, stageStartedAtMs, puzzle, index, puzzles.length, moveTo, record])
 
   const submitTyped = () => {
     if (typed !== '') record(Number(typed))
   }
 
-  const msLeft = useElapsed(hiddenAt, playing && stage === 'answer')
-  const timeLeft = Math.max(0, 1 - msLeft / CUBE_COUNTER.ANSWER_LIMIT_MS)
+  // The TV picture, built once per round; it is told how the round stands as that changes.
+  const tvShow = useMemo(() => (isRound(data) ? cubeCounterShow(data) : null), [data])
+  const names = useMemo(
+    () => Object.fromEntries(players.map(({ playerId, name }) => [playerId, name])),
+    [players],
+  )
+  useEffect(() => {
+    tvShow?.setLive({
+      stage: submitted && stage !== 'reveal' ? 'done' : stage,
+      index,
+      stageStartedAtMs,
+      typed,
+      lastAnswer,
+      rightSoFar,
+      answeredById: Object.fromEntries(
+        Object.entries(progress).map(([playerId, report]) => [playerId, report.puzzlesDone ?? 0]),
+      ),
+      ranking: finalRanking,
+      names,
+    })
+  }, [tvShow, stage, submitted, index, stageStartedAtMs, typed, lastAnswer, rightSoFar, progress, finalRanking, names])
 
-  const correct = puzzle ? countBlocks(puzzle.boxes) : 0
-  const showScene = stage === 'flash' || stage === 'pause'
-
-  // Blank until the first puzzle; its box keeps its height so nothing moves.
-  let headline = ''
-  if (playing && !done) headline = `PUZZLE ${Math.min(index + 1, puzzles.length)} / ${puzzles.length}`
-  if (done) headline = 'ALL DONE'
-
-  const message: CSSProperties = {
-    fontFamily: font.display,
-    fontWeight: 700,
-    fontSize: fluid(20, 30),
-    lineHeight: 1.2,
-    textWrap: 'balance',
-    maxWidth: '100%',
-  }
-
+  if (tvShow === null) return null
+  const isAnswering = playing && !isDone && stage === 'answer'
   return (
-    <div
-      style={{
-        position: 'relative',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        gap: fluid(10, 16),
-        width: '100%',
-        maxWidth: 640,
-        textAlign: 'center',
-      }}
-    >
-      <TitleIntro title="Cube Counter" tagline="How many blocks can you see?" prop="cubes" stage={playing ? 'gone' : introStage} />
-      <div
-        style={{
-          ...sharedStyles.microLabel,
-          letterSpacing: '0.22em',
-          fontSize: playing ? fluid(14, 17) : fluid(12, 15),
-          color: playing ? color.ink : color.mutedStrong,
-          // A fixed height, because the type size changes and the scene sits below it.
-          height: fluid(22, 28),
-          whiteSpace: 'nowrap',
-          display: 'flex',
-          alignItems: 'center',
-        }}
-      >
-        {headline}
-      </div>
-
-      {/* Reserved whether or not a scene is showing, so the parts around it
-          never move as the round goes from flash to answer and back. */}
-      <div
-        style={{
-          position: 'relative',
-          width: `min(100%, calc(${sceneHeight} * ${SCENE_ASPECT}), ${SCENE_MAX_PX}px)`,
-          aspectRatio: String(SCENE_ASPECT),
-        }}
-      >
-        {/* The floor is part of the scene: it only exists while a scene is
-            showing, so there is nothing on screen before the round starts or
-            while the player is answering. */}
-        {playing && !done && showScene && puzzle && <IsoScene boxes={puzzle.boxes} />}
-        {playing && !done && stage === 'answer' && (
-          <div
-            style={{
-              position: 'absolute',
-              inset: 0,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontFamily: font.display,
-              fontWeight: 700,
-              // Scaled to the scene box it stands in for.
-              fontSize: `min(${fluid(64, 120)}, calc(${sceneHeight} * 0.35))`,
-              color: color.mutedSoft,
-            }}
-          >
-            ?
-          </div>
-        )}
-      </div>
-
-      {/* Reserved from the start: the answer box appearing must not push the
-          scene up the screen. Sized for the tallest thing it holds, the answer. */}
-      <div
-        style={{
-          minHeight: fluid(112, 136),
-          width: '100%',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: fluid(8, 12),
-        }}
-      >
-        {playing && done && (
-          <div style={{ ...message, color: color.mutedStrong, animation: 'pa-pulse 2s ease-in-out infinite' }}>
-            Locked in. Waiting for everyone else…
-          </div>
-        )}
-
-        {playing && !done && stage === 'flash' && (
-          <div style={{ ...message, color: color.ink }}>Remember them all!</div>
-        )}
-
-        {playing && !done && stage === 'pause' && (
-          <div
-            style={{
-              ...message,
-              color: lastAnswer === correct ? color.mintInk : color.red,
-              animation: 'pa-pop .35s cubic-bezier(.34,1.56,.64,1)',
-            }}
-          >
-            {lastAnswer === correct
-              ? `Yes — ${correct}!`
-              : lastAnswer === null
-                ? `Time’s up — it was ${correct}`
-                : `Nope — it was ${correct}`}
-          </div>
-        )}
-
-        {playing && !done && stage === 'answer' && (
-          <>
+    <TvIntro players={players} selfPlayerId={selfPlayerId} timingStartsAtLocalMs={timingStartsAtLocalMs} show={tvShow}>
+      {(isAnswering || (playing && isDone && finalRanking === null)) && (
+        // Along the bottom, under the screen. Only the controls take clicks; the picture never does.
+        <div
+          style={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            bottom: 'max(22px, env(safe-area-inset-bottom))',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: fluid(6, 8),
+            padding: '0 16px',
+            textAlign: 'center',
+            animation: 'pa-fade-up .3s ease-out both',
+          }}
+        >
+          {isAnswering ? (
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', gap: fluid(8, 12), maxWidth: '100%', pointerEvents: 'auto' }}>
+                <input
+                  // Mounted only while answering, so it takes focus the moment the
+                  // scene hides and the player can type straight away.
+                  autoFocus
+                  value={typed}
+                  inputMode="numeric"
+                  enterKeyHint="done"
+                  autoComplete="off"
+                  aria-label="How many blocks?"
+                  placeholder="?"
+                  onChange={(event) => {
+                    setTyped(event.target.value.replace(/\D/g, '').slice(0, MAX_DIGITS))
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') submitTyped()
+                  }}
+                  style={{
+                    width: fluid(120, 170),
+                    minWidth: 0,
+                    flexShrink: 1,
+                    boxSizing: 'border-box',
+                    textAlign: 'center',
+                    fontFamily: font.display,
+                    fontWeight: 700,
+                    fontSize: fluid(26, 36),
+                    padding: '0.1em 0.3em',
+                    color: color.ink,
+                    background: color.white,
+                    border: border.medium,
+                    borderRadius: 16,
+                    outline: 'none',
+                  }}
+                />
+                {/* A phone's number pad has no Enter key, so the answer needs a
+                    button of its own to be sent from a touch screen. */}
+                <div style={{ flexShrink: 0 }}>
+                  <PushButton size="sm" variant="success" disabled={typed === ''} onClick={submitTyped}>
+                    OK
+                  </PushButton>
+                </div>
+              </div>
+              <div style={{ fontFamily: font.mono, fontSize: fluid(11, 13), color: color.cream, opacity: 0.75 }}>
+                TYPE IT, THEN HIT ENTER OR OK
+              </div>
+            </>
+          ) : (
             <div
               style={{
-                width: fluid(220, 300),
-                maxWidth: '100%',
-                height: 10,
-                borderRadius: 5,
-                border: border.thin,
-                overflow: 'hidden',
-                background: color.white,
+                padding: '10px 20px',
+                borderRadius: 999,
+                background: 'rgba(14, 9, 36, 0.72)',
+                border: `3px solid ${color.ink}`,
+                color: color.cream,
+                fontFamily: font.display,
+                fontWeight: 700,
+                fontSize: fluid(16, 20),
+                animation: 'pa-pulse 2s ease-in-out infinite',
               }}
             >
-              <div style={{ width: `${timeLeft * 100}%`, height: '100%', background: timeLeft < 0.3 ? color.red : color.mint }} />
+              Waiting for everyone else…
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: fluid(8, 12), maxWidth: '100%' }}>
-              <input
-                // Mounted only while answering, so it takes focus the moment the
-                // scene hides and the player can type straight away.
-                autoFocus
-                value={typed}
-                inputMode="numeric"
-                enterKeyHint="done"
-                autoComplete="off"
-                aria-label="How many blocks?"
-                onChange={(event) => {
-                  setTyped(event.target.value.replace(/\D/g, '').slice(0, MAX_DIGITS))
-                }}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter') submitTyped()
-                }}
-                style={{
-                  width: fluid(140, 200),
-                  minWidth: 0,
-                  flexShrink: 1,
-                  boxSizing: 'border-box',
-                  textAlign: 'center',
-                  fontFamily: font.display,
-                  fontWeight: 700,
-                  fontSize: fluid(28, 40),
-                  padding: '0.15em 0.3em',
-                  color: color.ink,
-                  background: color.white,
-                  border: border.medium,
-                  borderRadius: 16,
-                  outline: 'none',
-                }}
-              />
-              {/* A phone's number pad has no Enter key, so the answer needs a
-                  button of its own to be sent from a touch screen. */}
-              <div style={{ flexShrink: 0 }}>
-                <PushButton size="sm" variant="success" disabled={typed === ''} onClick={submitTyped}>
-                  OK
-                </PushButton>
-              </div>
-            </div>
-            <div style={{ fontFamily: font.mono, fontSize: fluid(11, 13), color: color.mutedStrong }}>
-              TYPE IT, THEN HIT ENTER OR OK
-            </div>
-          </>
-        )}
-      </div>
-    </div>
+          )}
+        </div>
+      )}
+    </TvIntro>
   )
 }

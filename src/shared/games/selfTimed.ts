@@ -34,6 +34,15 @@ export interface RoundContext {
     playerIds: readonly string[];
     /** 0 for the opening attempt; later attempts are stages or tiebreakers. */
     attempt: number;
+    /** This attempt is a tiebreaker among the tied players, not a stage. The runner always says; absent means no. */
+    isTiebreak?: boolean;
+    /**
+     * How each earlier stage of this scoring round ranked, oldest first. Empty
+     * for the opening attempt and for games without stages. A game that scores
+     * the whole round at its last stage (Stop the Clock's total) adds it up
+     * from these. The runner always gives it; absent means none.
+     */
+    earlierStages?: readonly (readonly RankedEntry[])[];
 }
 
 /**
