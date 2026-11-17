@@ -13,7 +13,7 @@ import {
   WebGLRenderer,
 } from 'three'
 import type { RoundPlayerView } from '../../../types/index.ts'
-import { labelWidthFor } from '../../three/Nameplate.ts'
+import { crowdedTagScale, labelWidthFor } from '../../three/Nameplate.ts'
 import { CameraRig, type CameraMode } from './CameraRig.ts'
 import { FrontDie } from './FrontDie.ts'
 import { ParticleSystem } from './ParticleSystem.ts'
@@ -342,7 +342,8 @@ export class TypeRacerScene {
       const tag = station.nameplate
       station.root.updateMatrixWorld(true)
       tag.sprite.position.copy(station.root.localToWorld(station.nameTagLocal))
-      tag.setWidth(this.labelWidth)
+      const isSelf = station.player.playerId === this.selfPlayerId
+      tag.setWidth(isSelf ? this.labelWidth : this.labelWidth * crowdedTagScale(this.stations.size))
       const isHiddenSelf = station.player.playerId === this.selfPlayerId && this.rig.mode === 'focus'
       tag.setOpacity(isHiddenSelf ? 0 : 1)
       // A player who has gone into the water takes their name tag with them.

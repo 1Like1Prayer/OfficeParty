@@ -3,6 +3,8 @@ import type { BattleBar as BattleBarState } from '../../../shared/games/mageBatt
 import { MAGE_BATTLE } from '../../../shared/games/mageBattle/constants.ts'
 import { border, color, font } from '../../../theme/index.ts'
 import type { RoundPlayerView } from '../../../types/index.ts'
+import { FoldedBadge } from '../../ui/FoldedBadge.tsx'
+import { reservedLevels, stackMarkers } from '../../ui/stackMarkers.ts'
 
 interface BattleBarProps {
   bar: BattleBarState
@@ -12,31 +14,12 @@ interface BattleBarProps {
   isCompact?: boolean
 }
 
-/** Markers closer than this share of the bar would overlap, so one is raised. */
+/** Markers closer than this share of the bar would overlap, so one is raised (see stackMarkers). */
 const OVERLAP_FRACTION = 0.06
 const SIZES = {
   regular: { LEVEL_HEIGHT: 17, TRACK_HEIGHT: 16, MARKER_SIZE: 26, YOU_MARKER_SIZE: 36 },
   compact: { LEVEL_HEIGHT: 11, TRACK_HEIGHT: 10, MARKER_SIZE: 18, YOU_MARKER_SIZE: 24 },
 } as const
-
-interface Placed {
-  playerId: string
-  fraction: number
-}
-
-/** Raises markers that would sit on top of a neighbour, the fewest levels it takes. */
-function assignLevels(markers: readonly Placed[]): Map<string, number> {
-  const levels = new Map<string, number>()
-  const lastFractionAtLevel: number[] = []
-  // From the leader's end, so the leaders stay down on the track.
-  for (const marker of [...markers].sort((a, b) => b.fraction - a.fraction)) {
-    let level = lastFractionAtLevel.findIndex((last) => last - marker.fraction >= OVERLAP_FRACTION)
-    if (level === -1) level = lastFractionAtLevel.length
-    lastFractionAtLevel[level] = marker.fraction
-    levels.set(marker.playerId, level)
-  }
-  return levels
-}
 
 /** Green while safe, yellow as the line nears, red with a point or two to spare. */
 const dangerColor = (pointsToKnockout: number): string =>
@@ -50,10 +33,14 @@ const dangerColor = (pointsToKnockout: number): string =>
  */
 export function BattleBar({ bar, players, selfPlayerId, isCompact = false }: BattleBarProps) {
   const { LEVEL_HEIGHT, TRACK_HEIGHT, MARKER_SIZE, YOU_MARKER_SIZE } = SIZES[isCompact ? 'compact' : 'regular']
-  const levels = assignLevels(bar.markers.map(({ playerId, fractionOfBar }) => ({ playerId, fraction: fractionOfBar })))
+  // Bunched-up mages stack a few high, then fold into a "+N"; the bar keeps the same height throughout.
+  const { levels, folded } = stackMarkers(
+    bar.markers.map(({ playerId, fractionOfBar }) => ({ id: playerId, fraction: fractionOfBar })),
+    selfPlayerId,
+    OVERLAP_FRACTION,
+  )
   const you = bar.markers.find(({ playerId }) => playerId === selfPlayerId)
-  const tallest = Math.max(0, ...levels.values())
-  const markerAreaHeight = YOU_MARKER_SIZE + tallest * LEVEL_HEIGHT + 14
+  const markerAreaHeight = YOU_MARKER_SIZE + reservedLevels(bar.markers.length) * LEVEL_HEIGHT + 14
   const playerOf = (playerId: string) => players.find((player) => player.playerId === playerId)
 
   return (
@@ -127,15 +114,17 @@ export function BattleBar({ bar, players, selfPlayerId, isCompact = false }: Bat
       <div style={{ position: 'absolute', left: 26, right: 26, bottom: 22, top: 0 }}>
         {bar.markers.map((marker) => {
           const player = playerOf(marker.playerId)
-          if (player === undefined) return null
+          const level = levels.get(marker.playerId)
+          if (player === undefined || level === undefined) return null
           const isYou = marker.playerId === selfPlayerId
           const size = isYou ? YOU_MARKER_SIZE : MARKER_SIZE
-          const level = levels.get(marker.playerId) ?? 0
+          const hidden = folded.get(marker.playerId) ?? []
+          const hiddenNames = hidden.map((id) => playerOf(id)?.name).filter((name) => name !== undefined)
           const isLeader = !marker.out && marker.behindLeader === 0 && marker.margin > 0
           return (
             <div
               key={marker.playerId}
-              title={`${player.name}: ${marker.score}`}
+              title={[`${player.name}: ${marker.score}`, ...hiddenNames].join(', ')}
               style={{
                 position: 'absolute',
                 left: `${marker.fractionOfBar * 100}%`,
@@ -157,6 +146,7 @@ export function BattleBar({ bar, players, selfPlayerId, isCompact = false }: Bat
               >
                 <Avatar initial={player.initial} background={player.color} seed={player.avatar} size={size} outlined />
               </div>
+              {hidden.length > 0 && <FoldedBadge count={hidden.length} isCompact={isCompact} />}
               {(marker.out || isLeader) && (
                 <div style={{ position: 'absolute', right: -6, top: -8, fontSize: 16, lineHeight: 1, filter: 'drop-shadow(0 1px 0 rgba(0,0,0,.6))' }}>
                   {marker.out ? '☠' : '👑'}

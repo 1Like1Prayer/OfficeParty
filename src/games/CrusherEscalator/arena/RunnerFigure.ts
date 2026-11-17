@@ -39,21 +39,16 @@ const HOVER_HEIGHT = 5.5
 const LIFT_SECONDS = 0.45
 const CARRY_SECONDS = 0.9
 const LOWER_SECONDS = 0.5
-/** A runner arriving from nowhere is lowered from this high — out of sight above the screen. */
-const DROP_FROM_HEIGHT = 34
-const DROP_SECONDS = 1
 /** The light fades in as a carry begins and out as it ends, over this long. */
 const BEAM_FADE_IN_SECONDS = 0.25
 const BEAM_FADE_OUT_SECONDS = 0.3
 
-/** A runner's carry: when it starts, where from, and whether it begins in the sky. */
+/** A runner's carry on the beam: when it starts, and where from. */
 interface Carry {
   /** Counts up from minus the delay; the carry begins at zero. */
   clock: number
   /** Where the runner was when lifted, filled in as the carry begins. */
   from: Vector3 | null
-  /** Arrives from above rather than being lifted off a ramp; hidden until then. */
-  fromSky: boolean
 }
 
 const lerp = (from: number, to: number, amount: number): number => from + (to - from) * amount
@@ -225,20 +220,19 @@ export class RunnerFigure {
    * down there, `delaySeconds` from now. They keep running until the lift.
    */
   liftAndCarry(delaySeconds: number): void {
-    this.carry = { clock: -delaySeconds, from: null, fromSky: false }
+    this.carry = { clock: -delaySeconds, from: null }
   }
 
-  /**
-   * Brings a runner in from nowhere: a newcomer to the screen, or one who was
-   * swallowed earlier and is back for the next stage. Hidden until
-   * `delaySeconds` from now, then lowered onto the start of their lane.
-   */
-  dropIn(delaySeconds: number): void {
+  /** Back on their feet at the start of the lane, for a fresh attempt after being swallowed. */
+  restart(): void {
     this.phase = 'running'
     this.slideSpeed = 0
     this.slip = 0
-    this.root.visible = false
-    this.carry = { clock: -delaySeconds, from: null, fromSky: true }
+    this.distanceUp = RUNNER_START_DISTANCE
+    this.celebrationClock = null
+    this.carry = null
+    this.root.visible = true
+    this.placeOnRamp()
   }
 
   /** Still on the escalator, as opposed to sliding off it or already lost. */
@@ -387,7 +381,7 @@ export class RunnerFigure {
     const carry = this.carry!
     carry.clock += deltaSeconds
 
-    if (carry.clock < 0) return carry.fromSky // A runner still waiting to arrive stays hidden.
+    if (carry.clock < 0) return false // Not lifted yet: still running.
 
     const landing = this.ramp.pointAt(RUNNER_START_DISTANCE)
     if (this.phase !== 'carried') {
@@ -395,36 +389,28 @@ export class RunnerFigure {
       this.root.visible = true
       this.root.rotation.set(0, 0, 0)
       this.root.scale.setScalar(this.baseScale)
-      carry.from = carry.fromSky
-        ? landing.clone().add(new Vector3(0, DROP_FROM_HEIGHT, 0))
-        : this.root.position.clone()
+      carry.from = this.root.position.clone()
     }
     const from = carry.from!
     const t = carry.clock
 
-    if (carry.fromSky) {
-      const drop = Math.min(1, t / DROP_SECONDS)
-      this.root.position.lerpVectors(from, landing, drop * drop * (3 - 2 * drop))
-      if (t >= DROP_SECONDS) this.endCarry()
+    const hover = (point: Vector3) => point.clone().add(new Vector3(0, HOVER_HEIGHT, 0))
+    const smooth = (x: number) => x * x * (3 - 2 * x)
+    if (t < LIFT_SECONDS) {
+      this.root.position.lerpVectors(from, hover(from), smooth(t / LIFT_SECONDS))
+    } else if (t < LIFT_SECONDS + CARRY_SECONDS) {
+      const along = smooth((t - LIFT_SECONDS) / CARRY_SECONDS)
+      this.root.position
+        .lerpVectors(hover(from), hover(landing), along)
+        // A gentle arc, so they are carried over rather than slid.
+        .add(new Vector3(0, Math.sin(along * Math.PI) * 1.2, 0))
     } else {
-      const hover = (point: Vector3) => point.clone().add(new Vector3(0, HOVER_HEIGHT, 0))
-      const smooth = (x: number) => x * x * (3 - 2 * x)
-      if (t < LIFT_SECONDS) {
-        this.root.position.lerpVectors(from, hover(from), smooth(t / LIFT_SECONDS))
-      } else if (t < LIFT_SECONDS + CARRY_SECONDS) {
-        const along = smooth((t - LIFT_SECONDS) / CARRY_SECONDS)
-        this.root.position
-          .lerpVectors(hover(from), hover(landing), along)
-          // A gentle arc, so they are carried over rather than slid.
-          .add(new Vector3(0, Math.sin(along * Math.PI) * 1.2, 0))
-      } else {
-        const down = Math.min(1, (t - LIFT_SECONDS - CARRY_SECONDS) / LOWER_SECONDS)
-        this.root.position.lerpVectors(hover(landing), landing, smooth(down))
-        if (down >= 1) this.endCarry()
-      }
+      const down = Math.min(1, (t - LIFT_SECONDS - CARRY_SECONDS) / LOWER_SECONDS)
+      this.root.position.lerpVectors(hover(landing), landing, smooth(down))
+      if (down >= 1) this.endCarry()
     }
 
-    const total = carry.fromSky ? DROP_SECONDS : LIFT_SECONDS + CARRY_SECONDS + LOWER_SECONDS
+    const total = LIFT_SECONDS + CARRY_SECONDS + LOWER_SECONDS
     const strength = Math.min(t / BEAM_FADE_IN_SECONDS, (total - t) / BEAM_FADE_OUT_SECONDS)
     this.beam.update(deltaSeconds)
     this.beam.setStrength(Math.min(1, Math.max(0, strength)))

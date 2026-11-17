@@ -22,13 +22,15 @@ import {
   changeoverArrival,
   type ArrivalScript,
   HOLE_DEPTH,
+  FOCUS_LANES,
   LANE_WIDTH,
-  MAX_VISIBLE_LANES,
   RUNNER_SCALE,
   RUNNER_START_DISTANCE,
+  ZOOM,
   layoutFor,
   type ArenaLayout,
 } from './arenaConfig.ts'
+import { ROOM } from '../../../shared/constants.ts'
 import { BlackHoleMesh } from './BlackHoleMesh.ts'
 import { Starfield } from './Starfield.ts'
 import { EscalatorRamp } from './EscalatorRamp.ts'
@@ -45,31 +47,38 @@ interface Lane {
   badge: CanvasTexture
   /** Where a reflow is sliding this lane to, with its runner riding along; null once there. */
   slideTo: { x: number; scale: number } | null
-  /** A neighbour come into view mid-race, waiting in the dark for the others to close up before rising. */
-  isWaitingToRise: boolean
 }
 
 /**
  * How the line-up changes. A `changeover` (a fresh attempt) lifts every runner
  * on a beam and sets them down in their new places. A `reflow` (mid-race, as
- * runners are swallowed and neighbours come into view) just slides the
- * escalators sideways to close up, with the runners riding along.
+ * runners are swallowed) just slides the escalators sideways to close up the
+ * gap, with the runners riding along.
  */
 export type RosterChange = 'changeover' | 'reflow'
 
 /** How quickly a reflowing escalator eases into its new place, and the fastest it slides, in units a second. */
 const REFLOW_RESPONSE_PER_SECOND = 2.6
 const REFLOW_MAX_SPEED = 9
-/**
- * A neighbour coming into view mid-race rises into their place once the others
- * are nearly settled — within this far of where they are going — so nobody is
- * still standing there. Their runner is lowered on as the escalator lands.
- */
-const REFLOW_SETTLED_DISTANCE = 1.2
-const REFLOW_RISE_SECONDS = 0.8
-const REFLOW_DROP_DELAY = 0.7
-/** Long enough to mean "not until told": a waiting newcomer's runner stays out of sight. */
-const HIDDEN_UNTIL_TOLD = 1e9
+
+/** Where the camera sits and what it looks at, and how big the name tags are drawn from there. */
+interface CameraGoal {
+  position: Vector3
+  target: Vector3
+  labelWidth: number
+  labelRowOffset: number
+}
+
+const easeInOutCubic = (t: number): number => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2)
+
+/** How far the opening swoop has got, 0 (over the whole row) to 1 (on the player), for a time on the round clock. */
+const zoomProgress = (msFromStart: number): number =>
+  easeInOutCubic(Math.min(1, Math.max(0, (msFromStart - ZOOM.START_MS) / (ZOOM.END_MS - ZOOM.START_MS))))
+
+/** The fog starts a little short of the camera's distance, so a far-off overview is never looking through it. */
+const FOG_NEAR_PER_DISTANCE = 0.8
+const FOG_DEPTH = 82
+const FOG_NEAR = 38
 
 /** A lane on its way off the screen: waiting for its runner to go, then sinking. */
 interface LeavingLane {
@@ -97,7 +106,6 @@ const NAMEPLATE_HEIGHT = 3.4
 const CAMERA_ELEVATION = 0.34
 const MIN_CAMERA_DISTANCE = 12
 const MAX_CAMERA_DISTANCE = 240
-const CAMERA_FIT_STEP = 0.5
 const FIT_PASSES = 4
 /** Refits allowed while making room for a second row of tags; each settles closer. */
 const LABEL_FIT_ATTEMPTS = 3
@@ -107,6 +115,10 @@ const FRAMING_LIMIT = 0.92
 const VISIBLE_HOLE_FRACTION = 0.62
 /** How far above the runners' starting spot the framing reaches. */
 const FRAMED_DISTANCE_PAST_START = 3
+/** How far in front of the lanes' lower ends the close-up keeps the hole's glow in frame. */
+const HOLE_GLIMPSE_Z = 3
+/** Fitting the camera is a search for the closest distance that frames everything; this close is close enough. */
+const CAMERA_FIT_PRECISION = 0.25
 
 /**
  * The 3D arena: a row of 30° escalators climbing away from the camera, one
@@ -116,6 +128,10 @@ const FRAMED_DISTANCE_PAST_START = 3
  * escalators with `setRoster` — the first call builds the scene, later calls
  * play the changeover, lifting runners and setting them down in their new
  * places — and feed it the latest lane views with `setLanes`.
+ *
+ * Everyone still in the race has a lane. The camera opens over the whole row,
+ * swoops down to the player and their neighbours as the round counts in, and
+ * rises back over the row once the player is out (or for someone watching).
  */
 export class ArenaScene {
   private readonly renderer: WebGLRenderer
@@ -131,6 +147,14 @@ export class ArenaScene {
   /** Where the camera wants to be; the camera itself eases toward it. */
   private readonly cameraGoal = new Vector3()
   private readonly cameraTargetGoal = new Vector3()
+  /** The whole row, and the player with their neighbours; the camera is somewhere between the two. */
+  private overviewGoal: CameraGoal | null = null
+  private followGoal: CameraGoal | null = null
+  /** 0 over the whole row, 1 on the player. */
+  private cameraBlend = 0
+  private selfPlayerId: string | null = null
+  private timingStartsAtLocalMs: number | null = null
+  private focusLaneCount: number = FOCUS_LANES.FULL
   private readonly cameraRest = new Vector3()
   private readonly cameraTarget = new Vector3()
   private shouldSnapCamera = true
@@ -146,10 +170,6 @@ export class ArenaScene {
    * floats this much higher (world units), so neighbours stack instead of colliding.
    */
   private labelRowOffset = 0
-  /** Extra headroom the framing leaves above the runners, for the score over each tag and any upper row. */
-  private framingLift = 0
-  /** How far a tag (its score above the pill) reaches above where it is anchored, in world units. */
-  private labelHeadroom = 0
 
   constructor(host: HTMLElement) {
     this.renderer = new WebGLRenderer({ antialias: true })
@@ -166,8 +186,8 @@ export class ArenaScene {
     this.starfield = new Starfield()
     this.scene.add(this.starfield.group)
 
-    // Built at the size a full row of lanes needs; scaled down for fewer.
-    const widest = layoutFor(MAX_VISIBLE_LANES).hole
+    // Built at the size a full room's row of lanes needs; scaled down for fewer.
+    const widest = layoutFor(ROOM.MAX_PLAYERS).hole
     this.blackHole = new BlackHoleMesh(widest.radius, widest.radius, widest.centerZ)
     this.scene.add(this.blackHole.group)
 
@@ -181,8 +201,9 @@ export class ArenaScene {
    * Who is on the escalators, in lane order. The first call builds them. After
    * that the changeover plays: runners who stay are lifted on a beam and set
    * down in their new lanes, escalators slide into the new order, new ones
-   * rise out of the dark with their runners lowered onto them, and any
-   * escalator with nobody going on sinks away.
+   * rise out of the dark with their runners aboard, and any escalator with
+   * nobody going on sinks away. Mid-race (a reflow) a swallowed runner's
+   * escalator sinks and the others slide together to close the gap.
    */
   setRoster(players: readonly RoundPlayerView[], change: RosterChange = 'changeover'): void {
     const isFirst = this.lanes.length === 0 && this.leavingLanes.length === 0
@@ -198,15 +219,9 @@ export class ArenaScene {
 
       if (existing === undefined) {
         // On the first roster the lanes are simply there; later ones arrive
-        // as part of the changeover.
-        const lane = this.createLane(player, centerX, layout.laneScale, isFirst || isReflow ? null : changeoverArrival())
-        if (isReflow) {
-          // Down in the dark, out of sight, until the others have made room.
-          lane.ramp.setHeightOffset(-CHANGEOVER.RISE_DEPTH)
-          lane.runner.dropIn(HIDDEN_UNTIL_TOLD)
-          lane.isWaitingToRise = true
-        }
-        next.push(lane)
+        // as part of the changeover. (Mid-race nobody new arrives: everyone
+        // still in already has a lane.)
+        next.push(this.createLane(player, centerX, layout.laneScale, isFirst || isReflow ? null : changeoverArrival()))
       } else if (isReflow) {
         existing.slideTo = { x: centerX, scale: layout.laneScale }
         next.push(existing)
@@ -240,6 +255,12 @@ export class ArenaScene {
     this.isRacing = isRacing
     let mostEndangered = 0
 
+    const self = views.find(({ isYou }) => isYou)?.playerId ?? null
+    if (self !== this.selfPlayerId) {
+      this.selfPlayerId = self
+      this.fitCamera()
+    }
+
     for (const view of views) {
       const lane = this.lanes.find(({ player }) => player.playerId === view.playerId)
       if (!lane) continue
@@ -254,6 +275,17 @@ export class ArenaScene {
       if (!view.isFallen) mostEndangered = Math.max(mostEndangered, view.slip)
     }
     this.blackHole.setHunger(mostEndangered)
+  }
+
+  /**
+   * When the round clock starts (for the opening swoop), and how many lanes
+   * the camera closes in on. Call again when either changes.
+   */
+  setView(timingStartsAtLocalMs: number, focusLaneCount: number): void {
+    const isNewFocus = focusLaneCount !== this.focusLaneCount
+    this.timingStartsAtLocalMs = timingStartsAtLocalMs
+    this.focusLaneCount = focusLaneCount
+    if (isNewFocus) this.fitCamera()
   }
 
   dispose(): void {
@@ -289,6 +321,7 @@ export class ArenaScene {
     this.blackHole.update(deltaSeconds)
     this.starfield.update(this.elapsedSeconds)
 
+    this.blendCamera(deltaSeconds)
     // A slow drift so the arena never looks like a photograph, and a tremor
     // when the hole is thrashing.
     const cameraEase = this.shouldSnapCamera ? 1 : 1 - Math.exp(-2.5 * deltaSeconds)
@@ -302,7 +335,39 @@ export class ArenaScene {
       this.cameraRest.z,
     )
     this.camera.lookAt(this.cameraTarget)
+    if (this.scene.fog instanceof Fog) {
+      this.scene.fog.near = Math.max(FOG_NEAR, this.cameraRest.distanceTo(this.cameraTarget) * FOG_NEAR_PER_DISTANCE)
+      this.scene.fog.far = this.scene.fog.near + FOG_DEPTH
+    }
     this.renderer.render(this.scene, this.camera)
+  }
+
+  /**
+   * Where the camera is heading this frame: over the whole row, on the player
+   * and their neighbours, or between the two. The way in is the opening swoop,
+   * timed on the round clock so a screen that mounts late finds the camera
+   * where it should be; once the player is out (or for someone watching) it
+   * rises back over everyone still racing.
+   */
+  private blendCamera(deltaSeconds: number): void {
+    const overview = this.overviewGoal
+    if (overview === null) return
+    const isFollowing =
+      this.selfPlayerId !== null &&
+      this.timingStartsAtLocalMs !== null &&
+      this.lanes.some(({ player }) => player.playerId === this.selfPlayerId)
+    if (isFollowing) {
+      this.cameraBlend = zoomProgress(performance.now() - this.timingStartsAtLocalMs!)
+    } else {
+      this.cameraBlend += (0 - this.cameraBlend) * (1 - Math.exp(-2.2 * deltaSeconds))
+    }
+    // Once the player's lane is gone, the last close-up is where the camera rises from.
+    const follow = this.followGoal ?? overview
+    const blend = this.cameraBlend
+    this.cameraGoal.lerpVectors(overview.position, follow.position, blend)
+    this.cameraTargetGoal.lerpVectors(overview.target, follow.target, blend)
+    this.labelWidth = lerp(overview.labelWidth, follow.labelWidth, blend)
+    this.labelRowOffset = lerp(overview.labelRowOffset, follow.labelRowOffset, blend)
   }
 
   /** Eases reflowing escalators into their new places; their runners ride along. */
@@ -321,21 +386,6 @@ export class ArenaScene {
       ramp.setLayout(isThere ? slideTo.x : x, isThere ? slideTo.scale : scale)
       runner.setBaseScale((isThere ? slideTo.scale : scale) * RUNNER_SCALE)
       if (isThere) lane.slideTo = null
-    }
-
-    // Once everyone is nearly in place, any newcomer rises into the room made for them.
-    const isSettled = this.lanes.every(
-      ({ slideTo, ramp }) => slideTo === null || Math.abs(slideTo.x - ramp.centerX) < REFLOW_SETTLED_DISTANCE,
-    )
-    if (!isSettled) return
-    for (const lane of this.lanes) {
-      if (!lane.isWaitingToRise) continue
-      lane.isWaitingToRise = false
-      const { ramp } = lane
-      this.tweens.add(0, REFLOW_RISE_SECONDS, (progress) => {
-        ramp.setHeightOffset(lerp(-CHANGEOVER.RISE_DEPTH, 0, progress))
-      })
-      lane.runner.dropIn(REFLOW_DROP_DELAY)
     }
   }
 
@@ -356,26 +406,53 @@ export class ArenaScene {
   }
 
   /**
-   * Places the camera so everything that matters is on screen at once: the
-   * whole black hole, the lower end of every escalator, and the runners with
-   * their name tags. It backs off only as far as that takes, so the scene is
-   * as large as the window allows and nothing — least of all the hole — is
-   * ever cropped, whatever the window's shape. Re-run on every resize.
+   * Works out the two places the camera goes between (see `blendCamera`), for
+   * the layout the scene is heading to. Re-run whenever that changes: a new
+   * roster, a resize, the player becoming known.
+   *
+   * - Over the whole row: everything that matters on screen at once — the
+   *   whole black hole, the lower end of every escalator, and the runners with
+   *   their name tags. It backs off only as far as that takes, so the scene is
+   *   as large as the window allows and nothing is ever cropped.
+   * - On the player: their lane and their neighbours', the player in the middle
+   *   (as near it as the ends of the row allow).
    */
   private fitCamera(): void {
-    // Tags stacked in two rows need headroom for the upper row, but how much
-    // depends on how far back the camera ends up, so fit, measure, and refit.
-    this.framingLift = 0
-    for (let attempt = 0; attempt < LABEL_FIT_ATTEMPTS; attempt++) {
-      this.fitOnce()
-      const needed = this.labelRowOffset + this.labelHeadroom
-      if (needed <= this.framingLift) break
-      this.framingLift = needed
+    const { slotXs } = this.layout
+    if (slotXs.length === 0) return
+    this.overviewGoal = this.fitGoal(slotXs, true)
+    const selfIndex = this.lanes.findIndex(({ player }) => player.playerId === this.selfPlayerId)
+    if (selfIndex !== -1) {
+      const count = Math.min(this.focusLaneCount, slotXs.length)
+      const first = Math.min(slotXs.length - count, Math.max(0, selfIndex - Math.floor(count / 2)))
+      this.followGoal = this.fitGoal(slotXs.slice(first, first + count), false)
     }
+    // A player out of the race keeps their last close-up, for the camera to rise from.
   }
 
-  private fitOnce(): void {
-    const points = this.framingPoints()
+  /**
+   * The closest camera that frames these lanes (and the hole, if asked). Tags
+   * stacked in two rows need headroom for the upper row, but how much depends
+   * on how far back the camera ends up, so fit, measure, and refit.
+   */
+  private fitGoal(slotXs: readonly number[], withHole: boolean): CameraGoal {
+    let lift = 0
+    let goal = this.fitOnce(slotXs, withHole, lift)
+    for (let attempt = 1; attempt < LABEL_FIT_ATTEMPTS; attempt++) {
+      const needed = goal.labelRowOffset + goal.headroom
+      if (needed <= lift) break
+      lift = needed
+      goal = this.fitOnce(slotXs, withHole, lift)
+    }
+    return goal
+  }
+
+  private fitOnce(
+    slotXs: readonly number[],
+    withHole: boolean,
+    lift: number,
+  ): CameraGoal & { headroom: number } {
+    const points = this.framingPoints(slotXs, withHole, lift)
     const center = new Box3().setFromPoints(points).getCenter(new Vector3())
     const viewDirection = new Vector3(0, Math.sin(CAMERA_ELEVATION), Math.cos(CAMERA_ELEVATION))
     const halfTan = Math.tan((this.camera.fov * Math.PI) / 360)
@@ -390,10 +467,8 @@ export class ArenaScene {
       center.addScaledVector(screenUp, ((lowest + highest) / 2) * passDistance * halfTan)
     }
     const distance = this.closestFittingDistance(center, viewDirection, points)
-
-    this.cameraGoal.copy(center).addScaledVector(viewDirection, distance)
-    this.cameraTargetGoal.copy(center)
-    this.sizeLabels(center, viewDirection, distance)
+    const position = center.clone().addScaledVector(viewDirection, distance)
+    return { position, target: center, ...this.sizeLabels(slotXs, center, viewDirection, distance) }
   }
 
   /**
@@ -402,17 +477,22 @@ export class ArenaScene {
    * the farthest point a runner reaches (where the gap is smallest), so tags
    * never touch however the runners are spread up the escalators.
    */
-  private sizeLabels(center: Vector3, viewDirection: Vector3, distance: number): void {
-    const { slotXs } = this.layout
+  private sizeLabels(
+    slotXs: readonly number[],
+    center: Vector3,
+    viewDirection: Vector3,
+    distance: number,
+  ): { labelWidth: number; labelRowOffset: number; headroom: number } {
     const canvasHeight = this.renderer.domElement.clientHeight
-    this.labelRowOffset = 0
     const worldPerPixel = (2 * Math.tan((this.camera.fov * Math.PI) / 360) * distance) / (canvasHeight || 1)
     // The pill is centred on the anchor; above it is half the pill and the whole score row.
     const headroomFor = (pixels: number) => pixels * SCORE_TAG_ASPECT * 0.72 * worldPerPixel
     if (slotXs.length < 2 || canvasHeight === 0) {
-      this.labelWidth = labelWidthFor(MAX_LABEL_PIXELS, canvasHeight || 1, this.camera.fov)
-      this.labelHeadroom = headroomFor(MAX_LABEL_PIXELS)
-      return
+      return {
+        labelWidth: labelWidthFor(MAX_LABEL_PIXELS, canvasHeight || 1, this.camera.fov),
+        labelRowOffset: 0,
+        headroom: headroomFor(MAX_LABEL_PIXELS),
+      }
     }
 
     // Put the camera where it is about to be, to measure the gap as it will look.
@@ -426,6 +506,7 @@ export class ArenaScene {
     const gapPixels = Math.abs(right.x - left.x) * (this.renderer.domElement.clientWidth / 2)
 
     let pixels = Math.min(MAX_LABEL_PIXELS, Math.max(MIN_LABEL_PIXELS, gapPixels * LABEL_SHARE_OF_GAP))
+    let labelRowOffset = 0
     if (gapPixels * LABEL_SHARE_OF_GAP < MIN_LABEL_PIXELS) {
       // Too narrow to sit side by side at a readable size: alternate lanes go up a
       // row, so a tag has two lanes' width to itself.
@@ -434,32 +515,46 @@ export class ArenaScene {
       const runnerSpot = EscalatorRamp.pointOn(slotXs[0]!, farthest, NAMEPLATE_HEIGHT)
       const runnerWorldPerPixel =
         (2 * Math.tan((this.camera.fov * Math.PI) / 360) * this.camera.position.distanceTo(runnerSpot)) / canvasHeight
-      this.labelRowOffset = pixels * SCORE_TAG_ASPECT * runnerWorldPerPixel * 1.15
+      labelRowOffset = pixels * SCORE_TAG_ASPECT * runnerWorldPerPixel * 1.15
     }
-    this.labelWidth = labelWidthFor(pixels, canvasHeight, this.camera.fov)
-    this.labelHeadroom = headroomFor(pixels)
+    return {
+      labelWidth: labelWidthFor(pixels, canvasHeight, this.camera.fov),
+      labelRowOffset,
+      headroom: headroomFor(pixels),
+    }
   }
 
   /** Puts the camera at its goal at once, for the first frame and a resized window. */
   private snapCamera(): void {
-    this.cameraRest.copy(this.cameraGoal)
-    this.cameraTarget.copy(this.cameraTargetGoal)
+    this.shouldSnapCamera = true
   }
 
-  /** Backs the camera off from `center` until every point is comfortably on screen. */
+  /**
+   * The closest the camera can be to `center` with every point comfortably on
+   * screen. Backing off only ever brings more into view, so a binary search
+   * finds it in a few steps, however wide the row.
+   */
   private closestFittingDistance(
     center: Vector3,
     viewDirection: Vector3,
     points: readonly Vector3[],
   ): number {
-    let distance = MIN_CAMERA_DISTANCE
-    for (; distance < MAX_CAMERA_DISTANCE; distance += CAMERA_FIT_STEP) {
+    const fits = (distance: number): boolean => {
       this.camera.position.copy(center).addScaledVector(viewDirection, distance)
       this.camera.lookAt(center)
       this.camera.updateMatrixWorld(true)
-      if (points.every((point) => this.isComfortablyOnScreen(point))) break
+      return points.every((point) => this.isComfortablyOnScreen(point))
     }
-    return distance
+    let near = MIN_CAMERA_DISTANCE
+    let far = MAX_CAMERA_DISTANCE
+    if (fits(near)) return near
+    while (far - near > CAMERA_FIT_PRECISION) {
+      const middle = (near + far) / 2
+      if (fits(middle)) far = middle
+      else near = middle
+    }
+    fits(far) // Leave the camera at the answer, for whoever measures next.
+    return far
   }
 
   /** The lowest and highest screen heights (-1 to 1) the points reach. */
@@ -474,22 +569,30 @@ export class ArenaScene {
   }
 
   /**
-   * The spots that have to stay in view, in world space, for the layout the
-   * scene is heading to — not where things happen to be mid-changeover.
+   * The spots that have to stay in view, in world space, for these lanes as
+   * the layout the scene is heading to has them — not where things happen to
+   * be mid-changeover. `lift` is headroom above the runners for stacked tags.
    */
-  private framingPoints(): Vector3[] {
-    const { hole, slotXs, laneScale } = this.layout
+  private framingPoints(slotXs: readonly number[], withHole: boolean, lift: number): Vector3[] {
+    const { hole, laneScale } = this.layout
     const points: Vector3[] = []
 
-    for (let step = 0; step < 12; step++) {
-      const angle = (step / 12) * Math.PI * 2
-      points.push(
-        new Vector3(
-          Math.cos(angle) * hole.radius * VISIBLE_HOLE_FRACTION,
-          HOLE_DEPTH,
-          hole.centerZ + Math.sin(angle) * hole.radius * VISIBLE_HOLE_FRACTION,
-        ),
-      )
+    if (withHole) {
+      for (let step = 0; step < 12; step++) {
+        const angle = (step / 12) * Math.PI * 2
+        points.push(
+          new Vector3(
+            Math.cos(angle) * hole.radius * VISIBLE_HOLE_FRACTION,
+            HOLE_DEPTH,
+            hole.centerZ + Math.sin(angle) * hole.radius * VISIBLE_HOLE_FRACTION,
+          ),
+        )
+      }
+    } else if (slotXs.length > 0) {
+      // Close up, just the glow under these lanes' lower ends, so the danger stays in view.
+      for (const x of [slotXs[0]!, slotXs[slotXs.length - 1]!]) {
+        points.push(new Vector3(x, HOLE_DEPTH, HOLE_GLIMPSE_Z))
+      }
     }
     const half = laneScale * LANE_WIDTH
     for (const centerX of slotXs) {
@@ -500,7 +603,7 @@ export class ArenaScene {
           EscalatorRamp.pointOn(
             centerX,
             RUNNER_START_DISTANCE + FRAMED_DISTANCE_PAST_START,
-            NAMEPLATE_HEIGHT * laneScale * RUNNER_SCALE + 1 + this.framingLift,
+            NAMEPLATE_HEIGHT * laneScale * RUNNER_SCALE + 1 + lift,
           ).add(edge),
         )
       }
@@ -535,21 +638,20 @@ export class ArenaScene {
     this.scene.add(ramp.group, runner.root, nameplate.sprite)
 
     if (arrival !== null) {
-      // Rises out of the dark, and its runner is lowered onto it once it is up.
+      // Rises out of the dark with its runner already aboard, riding up with it.
       const { RISE_DEPTH } = CHANGEOVER
       ramp.setHeightOffset(-RISE_DEPTH)
       this.tweens.add(arrival.riseDelay, arrival.riseDuration, (progress) => {
         ramp.setHeightOffset(lerp(-RISE_DEPTH, 0, progress))
       })
-      runner.dropIn(arrival.dropDelay)
     }
-    return { player, ramp, runner, nameplate, badge, slideTo: null, isWaitingToRise: false }
+    return { player, ramp, runner, nameplate, badge, slideTo: null }
   }
 
   /** A player who stays: their escalator slides to its new place and they are carried to it. */
   private relocateLane(lane: Lane, centerX: number, laneScale: number, weaveHeight: number): void {
     const { ramp, runner } = lane
-    const { LIFT_DELAY, RAMP_MOVE_DELAY, RAMP_MOVE_DURATION, NEWCOMER_DROP_DELAY } = CHANGEOVER
+    const { LIFT_DELAY, RAMP_MOVE_DELAY, RAMP_MOVE_DURATION } = CHANGEOVER
     const fromX = ramp.centerX
     const fromScale = ramp.laneScale
 
@@ -563,8 +665,8 @@ export class ArenaScene {
     if (runner.isOnRamp) {
       runner.liftAndCarry(LIFT_DELAY)
     } else {
-      // They were swallowed earlier; the new attempt gives them a fresh start.
-      runner.dropIn(NEWCOMER_DROP_DELAY)
+      // They were swallowed earlier; the new attempt puts them back at the start of their lane.
+      runner.restart()
     }
   }
 
@@ -588,15 +690,21 @@ export class ArenaScene {
       lane.nameplate.sprite.visible = false
       leaving.secondsWaited += deltaSeconds
 
-      // A runner still on their feet rides it down; a falling one is waited for.
+      // A runner still on their feet rides it down; a falling one is waited for;
+      // an empty escalator (its runner never lowered on) goes at once.
       const isReadyToSink =
-        lane.runner.isGone || lane.runner.isOnRamp || leaving.secondsWaited > CHANGEOVER.LEAVER_MAX_WAIT
+        lane.runner.isGone ||
+        lane.runner.isOnRamp ||
+        !lane.runner.root.visible ||
+        leaving.secondsWaited > CHANGEOVER.LEAVER_MAX_WAIT
       if (!isReadyToSink || leaving.isSinking) continue
       leaving.isSinking = true
+      // From wherever it is: one still rising must not jump back up first.
+      const fromHeight = lane.ramp.group.position.y
       this.tweens.add(
         0,
         CHANGEOVER.LEAVER_SINK_DURATION,
-        (progress) => { lane.ramp.setHeightOffset(-CHANGEOVER.RISE_DEPTH * progress) },
+        (progress) => { lane.ramp.setHeightOffset(lerp(fromHeight, -CHANGEOVER.RISE_DEPTH, progress)) },
         () => {
           this.removeLane(lane)
           this.leavingLanes = this.leavingLanes.filter((other) => other !== leaving)

@@ -14,6 +14,8 @@ export function ScoreboardRow({ row, onKick }: ScoreboardRowProps) {
       style={{
         display: 'flex',
         alignItems: 'center',
+        // Full height in a scrolling list, never squashed to fit.
+        flexShrink: 0,
         gap: fluid(8, 12),
         padding: `${fluid(8, 10)} ${fluid(10, 14)}`,
         borderRadius: 14,

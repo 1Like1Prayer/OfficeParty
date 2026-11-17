@@ -62,6 +62,19 @@
           transform: translate(-10px, 12px) rotate(-2deg);
         }
       }
+      /* The same drift, half as far, for a full lobby. */
+      @keyframes pa-float-tight {
+        0%,
+        100% {
+          transform: translate(0, 0) rotate(-3deg);
+        }
+        33% {
+          transform: translate(6px, -8px) rotate(4deg);
+        }
+        66% {
+          transform: translate(-5px, 6px) rotate(-2deg);
+        }
+      }
       /*
        * Rise only, no scale: scaling a full-width pane pulls its left and
        * right edges inward while it plays, which reads as the content being
@@ -174,6 +187,98 @@
       @keyframes pa-demo-ripple {
         from { transform: scale(0.4); opacity: 1; }
         to { transform: scale(1.6); opacity: 0; }
+      }
+      /*
+       * The game-title intro (Stop the Clock, Cube Counter): letters drop in
+       * one by one and land with a squash, then keep wobbling until the title
+       * pops away. --tilt is each letter's own resting lean.
+       */
+      @keyframes pa-title-drop {
+        0% {
+          transform: translateY(-160%) rotate(calc(var(--tilt) * 4)) scale(0.3);
+          opacity: 0;
+        }
+        55% {
+          transform: translateY(14%) rotate(calc(var(--tilt) * -1)) scale(1.18, 0.8);
+          opacity: 1;
+        }
+        75% {
+          transform: translateY(-8%) rotate(var(--tilt)) scale(0.94, 1.1);
+        }
+        100% {
+          transform: translateY(0) rotate(var(--tilt)) scale(1);
+        }
+      }
+      @keyframes pa-title-wobble {
+        0%,
+        100% {
+          transform: translateY(0) rotate(0deg);
+        }
+        50% {
+          transform: translateY(-9%) rotate(4deg);
+        }
+      }
+      @keyframes pa-title-exit {
+        0% {
+          transform: scale(1) rotate(0deg);
+          opacity: 1;
+        }
+        30% {
+          transform: scale(1.12) rotate(-4deg);
+          opacity: 1;
+        }
+        100% {
+          transform: scale(0.1) rotate(14deg);
+          opacity: 0;
+        }
+      }
+      @keyframes pa-title-tagline {
+        from {
+          transform: translateY(10px);
+          opacity: 0;
+        }
+        to {
+          transform: translateY(0);
+          opacity: 1;
+        }
+      }
+      /* The stopwatch swings on its chain while its hand races round. */
+      @keyframes pa-title-swing {
+        from {
+          transform: rotate(-16deg);
+        }
+        to {
+          transform: rotate(16deg);
+        }
+      }
+      @keyframes pa-title-hand {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      /* The cubes hop in turn, with a little spin at the top. */
+      @keyframes pa-title-hop {
+        0%,
+        60%,
+        100% {
+          transform: translateY(0) rotate(0deg) scale(1, 1);
+        }
+        10% {
+          transform: translateY(0) scale(1.15, 0.85);
+        }
+        30% {
+          transform: translateY(-55%) rotate(-12deg) scale(0.95, 1.05);
+        }
+        50% {
+          transform: translateY(0) rotate(0deg) scale(1.1, 0.9);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        [style*='pa-title'] {
+          animation-duration: 1ms !important;
+          animation-delay: 0ms !important;
+          animation-iteration-count: 1 !important;
+        }
       }
       @keyframes pa-bob {
         0%,

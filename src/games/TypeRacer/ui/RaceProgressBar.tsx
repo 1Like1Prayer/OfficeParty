@@ -1,6 +1,8 @@
 import { Avatar } from '../../../components/ui/index.ts'
 import { border, color, font } from '../../../theme/index.ts'
 import type { RoundPlayerView } from '../../../types/index.ts'
+import { FoldedBadge } from '../../ui/FoldedBadge.tsx'
+import { reservedLevels, stackMarkers } from '../../ui/stackMarkers.ts'
 
 export interface BarRunner {
   player: RoundPlayerView
@@ -18,28 +20,12 @@ interface RaceProgressBarProps {
   isCompact?: boolean
 }
 
-/** Markers closer than this share of the bar would overlap, so one is raised. */
+/** Markers closer than this share of the bar would overlap, so one is raised (see stackMarkers). */
 const OVERLAP_FRACTION = 0.04
 const SIZES = {
   regular: { LEVEL_HEIGHT: 17, TRACK_HEIGHT: 16, MARKER_SIZE: 26, YOU_MARKER_SIZE: 36 },
   compact: { LEVEL_HEIGHT: 11, TRACK_HEIGHT: 10, MARKER_SIZE: 18, YOU_MARKER_SIZE: 24 },
 } as const
-
-/** Raises markers that would sit on top of a neighbour, the fewest levels it takes. */
-function assignLevels(runners: readonly BarRunner[]): Map<string, number> {
-  const levels = new Map<string, number>()
-  const lastFractionAtLevel: number[] = []
-
-  for (const runner of [...runners].sort((a, b) => a.fraction - b.fraction)) {
-    let level = lastFractionAtLevel.findIndex(
-      (last) => runner.fraction - last >= OVERLAP_FRACTION,
-    )
-    if (level === -1) level = lastFractionAtLevel.length
-    lastFractionAtLevel[level] = runner.fraction
-    levels.set(runner.player.playerId, level)
-  }
-  return levels
-}
 
 const STATUS_BADGE: Record<BarRunner['status'], string | null> = {
   typing: null,
@@ -54,10 +40,15 @@ const STATUS_BADGE: Record<BarRunner['status'], string | null> = {
  */
 export function RaceProgressBar({ runners, checkpoints, isCompact = false }: RaceProgressBarProps) {
   const { LEVEL_HEIGHT, TRACK_HEIGHT, MARKER_SIZE, YOU_MARKER_SIZE } = SIZES[isCompact ? 'compact' : 'regular']
-  const levels = assignLevels(runners)
   const you = runners.find((runner) => runner.isYou)
-  const tallest = Math.max(0, ...levels.values())
-  const markerAreaHeight = YOU_MARKER_SIZE + tallest * LEVEL_HEIGHT + 14
+  // Bunched-up players stack a few high, then fold into a "+N"; the bar keeps the same height throughout.
+  const { levels, folded } = stackMarkers(
+    runners.map(({ player, fraction }) => ({ id: player.playerId, fraction })),
+    you?.player.playerId ?? null,
+    OVERLAP_FRACTION,
+  )
+  const nameOf = (id: string) => runners.find(({ player }) => player.playerId === id)?.player.name
+  const markerAreaHeight = YOU_MARKER_SIZE + reservedLevels(runners.length) * LEVEL_HEIGHT + 14
 
   return (
     <div
@@ -140,13 +131,15 @@ export function RaceProgressBar({ runners, checkpoints, isCompact = false }: Rac
       {/* The players. */}
       <div style={{ position: 'absolute', left: 22, right: 22, bottom: 22, top: 0 }}>
         {runners.map((runner) => {
+          const level = levels.get(runner.player.playerId)
+          if (level === undefined) return null
           const size = runner.isYou ? YOU_MARKER_SIZE : MARKER_SIZE
-          const level = levels.get(runner.player.playerId) ?? 0
           const badge = STATUS_BADGE[runner.status]
+          const hidden = folded.get(runner.player.playerId) ?? []
           return (
             <div
               key={runner.player.playerId}
-              title={runner.player.name}
+              title={[runner.player.name, ...hidden.map(nameOf)].filter((name) => name !== undefined).join(', ')}
               style={{
                 position: 'absolute',
                 left: `${runner.fraction * 100}%`,
@@ -174,6 +167,7 @@ export function RaceProgressBar({ runners, checkpoints, isCompact = false }: Rac
                   outlined
                 />
               </div>
+              {hidden.length > 0 && <FoldedBadge count={hidden.length} isCompact={isCompact} />}
               {badge !== null && (
                 <div
                   style={{

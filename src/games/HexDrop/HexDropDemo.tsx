@@ -38,7 +38,7 @@ const VIEW_H = 200
 const FAR = 2_000
 /** Each floor's top surface, top floor first, and the game's colour for it. */
 const FLOORS = [
-  { y: 58, color: '#FF6FAE' },
+  { y: 58, color: '#FF7A3D' },
   { y: 98, color: '#FFC94A' },
   { y: 138, color: '#55D6A6' },
   { y: 178, color: '#6AA8FF' },

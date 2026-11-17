@@ -26,7 +26,7 @@ import type { MinefieldMap } from '../../../shared/games/minefield/types.ts'
 import type { RoundPlayerView } from '../../../types/index.ts'
 import { createAvatarTexture } from '../../three/avatarTexture.ts'
 import { HeartsTag } from '../../three/HeartsTag.ts'
-import { labelWidthFor } from '../../three/Nameplate.ts'
+import { crowdedTagScale, labelWidthFor } from '../../three/Nameplate.ts'
 import { zoomProgress } from '../../LogDodge/scene/cameraPath.ts'
 import type { Blast, FieldFrame, Racer, ScanPulse } from '../fieldFrame.ts'
 import { RemoteTrack, REMOTE_DELAY_MS } from '../remoteTrack.ts'
@@ -377,7 +377,7 @@ export class MinefieldScene {
         nowMs,
       )
       const { position } = entry.runner.root
-      entry.nameplate.setWidth(this.labelWidth)
+      entry.nameplate.setWidth(racer.isSelf ? this.labelWidth : this.labelWidth * crowdedTagScale(this.entries.length))
       // From far above the tags would pile on top of each other, so rivals' appear as the camera comes down.
       entry.nameplate.setOpacity(racer.isSelf ? 1 : zoomProgress(nowMs))
       entry.nameplate.sprite.position.set(position.x, NAMEPLATE_HEIGHT, position.z)

@@ -4,8 +4,11 @@ import { countBlocks } from '../../shared/games/cubeCounter/sceneValidation.ts'
 import type { Answer, CubeCounterRound } from '../../shared/games/cubeCounter/types.ts'
 import { PushButton } from '../../components/ui/index.ts'
 import { border, color, fluid, font, sharedStyles } from '../../theme/index.ts'
+import { ROUND_CUE_MS } from '../../components/GamePlay/cue.ts'
 import type { GameSurfaceProps } from '../types.ts'
 import { useElapsed } from '../StopTheClock/useElapsed.ts'
+import { TitleIntro } from '../ui/TitleIntro.tsx'
+import { useTitleIntro } from '../ui/useTitleIntro.ts'
 import { IsoScene } from './IsoScene.tsx'
 import { SCENE_ASPECT } from './projection.ts'
 
@@ -40,12 +43,15 @@ const MAX_DIGITS = String(MAX_POSSIBLE_BOX_COUNT).length
 export function CubeCounter({
   phase,
   data,
+  timingStartsAtLocalMs,
   submitted,
   onSubmit,
   onProgress,
 }: GameSurfaceProps) {
   const puzzles = isRound(data) ? data.puzzles : []
   const playing = phase === 'playing'
+  // The game's name fills the empty build-up, and pops away as the get-ready count starts.
+  const introStage = useTitleIntro(timingStartsAtLocalMs - ROUND_CUE_MS)
 
   const [index, setIndex] = useState(0)
   const [stage, setStage] = useState<Stage>('flash')
@@ -144,6 +150,7 @@ export function CubeCounter({
   return (
     <div
       style={{
+        position: 'relative',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
@@ -153,6 +160,7 @@ export function CubeCounter({
         textAlign: 'center',
       }}
     >
+      <TitleIntro title="Cube Counter" tagline="How many blocks can you see?" prop="cubes" stage={playing ? 'gone' : introStage} />
       <div
         style={{
           ...sharedStyles.microLabel,

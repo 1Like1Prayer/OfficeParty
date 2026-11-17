@@ -23,19 +23,30 @@ export const RUNNER_LOWEST_DISTANCE = 4.5
 /** How quickly a runner drifts to the spot their gap puts them at. Low = slow. */
 export const SLIP_RESPONSE_PER_SECOND = 1.1
 
-/** No more lanes than this are ever drawn, so each one stays big enough to read. */
-export const MAX_VISIBLE_LANES = 6
 /**
- * How many lanes a screen shows: the player and their nearest neighbours. A
- * compact screen — upright, or a phone held sideways, too short to frame a
- * wide row big enough — has room for only a few before the tags collide.
+ * Every runner still in the race has a lane. Up to this many, the lanes grow
+ * to fill the row; past it they stay full size and the row just gets wider,
+ * and the camera frames the player and their neighbours once the race is on.
  */
-export const VISIBLE_LANES = { COMPACT: 3, FULL: MAX_VISIBLE_LANES } as const
+export const FULL_ROW_LANES = 6
+/**
+ * How many lanes the camera closes in on once the race starts: the player in
+ * the middle and their neighbours either side. A compact screen — upright, or
+ * a phone held sideways, too short to frame a wide row big enough — takes fewer.
+ */
+export const FOCUS_LANES = { COMPACT: 3, FULL: 5 } as const
 export const COMPACT_SCREEN = '(orientation: portrait), (max-height: 520px)'
 /** With fewer lanes the whole lane — escalator, runner, tag — grows, up to this. */
 const MAX_LANE_SCALE = 1.8
 export const laneScaleFor = (laneCount: number): number =>
-  Math.min(MAX_LANE_SCALE, MAX_VISIBLE_LANES / Math.max(1, laneCount))
+  Math.min(MAX_LANE_SCALE, FULL_ROW_LANES / Math.min(FULL_ROW_LANES, Math.max(1, laneCount)))
+
+/**
+ * The opening swoop, in ms on the round clock (0 is the start): the camera
+ * floats over the whole row, then comes down to the player and their
+ * neighbours, settled before the get-ready count. Log Dodge's timing.
+ */
+export const ZOOM = { START_MS: -6300, END_MS: -3600 } as const
 
 export const HOLE_DEPTH = -4.5
 
@@ -75,12 +86,10 @@ export const CHANGEOVER = {
    * one another instead of through.
    */
   WEAVE_SPACING: 2.2,
-  /** Escalators for players who were not on screen rise out of the dark once the others have passed. */
+  /** Escalators for players who had none (swallowed last attempt) rise out of the dark, runner aboard, once the others have passed. */
   NEWCOMER_RISE_DELAY: 1.5,
   NEWCOMER_RISE_DURATION: 0.9,
   RISE_DEPTH: 32,
-  /** Their runners are lowered onto them just after. */
-  NEWCOMER_DROP_DELAY: 1.85,
   /** Escalators with nobody going on sink away, once their runner is gone or after this long. */
   LEAVER_SINK_DURATION: 0.8,
   LEAVER_MAX_WAIT: 1.4,
@@ -92,19 +101,14 @@ export const CHANGEOVER = {
 export const BACKGROUND_COLOR = 0x0a051c
 export const CAMERA_FIELD_OF_VIEW = 52
 
-/** When one lane arrives: its escalator rises, then its runner is lowered onto it. */
+/** When one lane arrives: its escalator rises out of the dark, its runner already on it. */
 export interface ArrivalScript {
   riseDelay: number
   riseDuration: number
-  dropDelay: number
-  /** Name tags stay hidden until this long after the animation starts. */
-  labelsReturnDelay: number
 }
 
 /** A lane that joins mid-changeover, once the others have passed. */
 export const changeoverArrival = (): ArrivalScript => ({
   riseDelay: CHANGEOVER.NEWCOMER_RISE_DELAY,
   riseDuration: CHANGEOVER.NEWCOMER_RISE_DURATION,
-  dropDelay: CHANGEOVER.NEWCOMER_DROP_DELAY,
-  labelsReturnDelay: CHANGEOVER.LABELS_RETURN_DELAY,
 })
