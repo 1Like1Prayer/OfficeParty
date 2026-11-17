@@ -57,6 +57,7 @@ export function ScoreboardRow({ row, onKick }: ScoreboardRowProps) {
           {row.status}
         </div>
       </div>
+      {row.readiness !== null && <ReadyBadge isReady={row.readiness === 'ready'} />}
       <div
         style={{
           fontFamily: font.display,
@@ -79,5 +80,30 @@ export function ScoreboardRow({ row, onKick }: ScoreboardRowProps) {
         />
       )}
     </div>
+  )
+}
+
+/** A small pill: ready, or not yet. Pops in as it changes, so a fresh ready catches the eye. */
+function ReadyBadge({ isReady }: { isReady: boolean }) {
+  return (
+    <span
+      key={isReady ? 'ready' : 'not-ready'}
+      style={{
+        flexShrink: 0,
+        padding: '3px 8px',
+        borderRadius: 999,
+        border: `2px solid ${color.ink}`,
+        background: isReady ? color.mint : color.pinkSoft,
+        color: isReady ? color.mintInk : color.ink,
+        fontFamily: font.display,
+        fontWeight: 700,
+        fontSize: 11,
+        letterSpacing: '0.06em',
+        whiteSpace: 'nowrap',
+        animation: 'pa-pop .3s cubic-bezier(.34,1.56,.64,1)',
+      }}
+    >
+      {isReady ? '✓ READY' : 'NOT READY'}
+    </span>
   )
 }

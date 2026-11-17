@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { GameSurface } from '../../games/index.tsx'
 import {
   canSpectate,
@@ -89,6 +89,25 @@ export function ArenaPhase({
   // timing COUNTDOWN_MS later. The room counts down to the first of those; the
   // game screen owns everything after it.
   const { timingStartsAtLocalMs } = round
+
+  // Between a game's stages, the next stage's data and start time arrive a
+  // moment after it begins. Until they do, the game's screen keeps the last
+  // ones, so it stays mounted (and keeps its own state) through the set-up
+  // rather than blinking out and starting again.
+  const [lastPlayed, setLastPlayed] = useState<{ roundId: number; data: unknown; timingStartsAtLocalMs: number } | null>(null)
+  if (
+    timingStartsAtLocalMs !== null &&
+    round.data !== null &&
+    (lastPlayed?.roundId !== round.roundId ||
+      lastPlayed.timingStartsAtLocalMs !== timingStartsAtLocalMs ||
+      lastPlayed.data !== round.data)
+  ) {
+    setLastPlayed({ roundId: round.roundId, data: round.data, timingStartsAtLocalMs })
+  }
+  const keepsLastStage = nextStage !== null && lastPlayed !== null && lastPlayed.roundId === round.roundId
+  const surfaceTimingStartsAtLocalMs = timingStartsAtLocalMs ?? (keepsLastStage ? lastPlayed.timingStartsAtLocalMs : null)
+  const surfaceData = round.data ?? (keepsLastStage ? lastPlayed.data : null)
+
   const takesOverAtLocalMs =
     timingStartsAtLocalMs === null
       ? null
@@ -204,7 +223,7 @@ export function ArenaPhase({
       playerId !== null &&
       hasSurface(game.id) &&
       (isParticipant || canSpectate(game.id)) &&
-      timingStartsAtLocalMs !== null
+      surfaceTimingStartsAtLocalMs !== null
 
     return (
       <GamePlay
@@ -227,7 +246,7 @@ export function ArenaPhase({
                   ? 'playing'
                   : 'building'
             }
-            data={round.data}
+            data={surfaceData}
             players={selectRoundPlayers(room, round.participants)}
             selfPlayerId={playerId}
             progress={progress}
@@ -240,7 +259,7 @@ export function ArenaPhase({
             }
             nextStage={isDecided && results.advancing !== null ? nextStage : null}
             finalRanking={isDecided ? results.ranked : null}
-            timingStartsAtLocalMs={timingStartsAtLocalMs}
+            timingStartsAtLocalMs={surfaceTimingStartsAtLocalMs}
             submitted={false}
             onSubmit={onSubmit}
             onProgress={onProgress}

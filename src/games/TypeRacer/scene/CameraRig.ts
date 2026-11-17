@@ -1,7 +1,10 @@
 import { PerspectiveCamera, Vector3 } from 'three'
 import { CAMERA, STATION, ringRadius } from './stageConfig.ts'
 
-export type CameraMode = 'showcase' | 'focus' | 'overview' | 'victory'
+export type CameraMode = 'showcase' | 'focus' | 'overview' | 'victory' | 'spectate'
+
+/** How fast the spectator camera swings round the ring to the next player; higher = snappier. */
+const SPECTATE_SWING_RATE = 2.2
 
 const smoothstep = (x: number): number => {
   const t = Math.min(1, Math.max(0, x))
@@ -14,7 +17,8 @@ const lerp = (from: number, to: number, amount: number): number => from + (to - 
  * ring, from the far side where every face can be seen, ending behind the
  * player's own board. It then floats there, a little closer to the player and
  * their typewriter, drifting gently. If the player falls it rises and circles
- * the ring so they can watch the others.
+ * the ring so they can watch the others, or (spectate) sits over the shoulder of
+ * one of them, swinging round the ring from one to the next.
  *
  * The camera never snaps: it glides toward whichever pose it wants with
  * exponential smoothing, so any change of mode eases. Shake is added on top of
@@ -29,9 +33,13 @@ export class CameraRig {
   private radius = ringRadius(2)
   private showcaseClock = 0
   private clock = 0
+  private lastDelta = 0
   private trauma = 0
   private hasStarted = false
   private onShowcaseDone: (() => void) | null = null
+  /** Spectating: the ring angle of the player being watched, and where the camera has swung to so far. */
+  private spectateAngle = Math.PI / 2
+  private viewAngle = Math.PI / 2
 
   private readonly camera: PerspectiveCamera
 
@@ -54,7 +62,15 @@ export class CameraRig {
 
   setMode(mode: CameraMode): void {
     if (this.mode === 'showcase' && mode !== 'showcase') this.showcaseClock = CAMERA.SHOWCASE_SECONDS
+    // Into spectating, the swing starts from wherever the camera is round the ring.
+    if (mode === 'spectate' && this.mode !== 'spectate') this.viewAngle = Math.atan2(this.position.z, this.position.x)
     this.mode = mode
+  }
+
+  /** Watch the player seated at this ring angle (see stationPose). */
+  spectate(angle: number): void {
+    this.spectateAngle = angle
+    this.setMode('spectate')
   }
 
   /** A kick: 0 to 1, stacking, fading on its own. */
@@ -64,6 +80,7 @@ export class CameraRig {
 
   update(deltaSeconds: number): void {
     this.clock += deltaSeconds
+    this.lastDelta = deltaSeconds
 
     if (this.mode === 'showcase') {
       this.showcaseClock += deltaSeconds
@@ -83,7 +100,7 @@ export class CameraRig {
     this.target.lerp(this.goalTarget, amount)
 
     // Floating: slow, out-of-step drifts, a little more when the camera is at rest.
-    const drift = this.mode === 'focus' ? 1 : 0.6
+    const drift = this.mode === 'focus' || this.mode === 'spectate' ? 1 : 0.6
     this.camera.position.set(
       this.position.x + Math.sin(this.clock * 0.6) * 0.2 * drift,
       this.position.y + Math.sin(this.clock * 0.45) * 0.13 * drift,
@@ -105,6 +122,15 @@ export class CameraRig {
   /* ---------------- poses ---------------- */
 
   private choosePose(): void {
+    if (this.mode === 'spectate') {
+      // Round the ring the short way, so the camera never cuts across the middle.
+      const turn = Math.atan2(Math.sin(this.spectateAngle - this.viewAngle), Math.cos(this.spectateAngle - this.viewAngle))
+      this.viewAngle += turn * (1 - Math.exp(-SPECTATE_SWING_RATE * this.lastDelta))
+      const pose = this.focusPose(this.viewAngle)
+      this.goalPosition.copy(pose.position)
+      this.goalTarget.copy(pose.target)
+      return
+    }
     const focus = this.focusPose()
     if (this.mode === 'focus') {
       this.goalPosition.copy(focus.position)
@@ -142,13 +168,19 @@ export class CameraRig {
     )
   }
 
-  /** Behind the player's board, above it, looking over their shoulder at the typewriter. */
-  private focusPose(): { position: Vector3; target: Vector3; behind: number } {
+  /**
+   * Behind a board, above it, looking over their shoulder at the typewriter.
+   * The player's own is at π/2; any other seat is the same pose turned round the ring.
+   */
+  private focusPose(angle = Math.PI / 2): { position: Vector3; target: Vector3; behind: number } {
     const behind = this.radius + CAMERA.FOCUS_BEHIND
+    const turn = angle - Math.PI / 2
+    const round = (x: number, y: number, z: number) =>
+      new Vector3(x * Math.cos(turn) - z * Math.sin(turn), y, x * Math.sin(turn) + z * Math.cos(turn))
     return {
       behind,
-      position: new Vector3(0.6, STATION.BOARD_TOP_HEIGHT + CAMERA.FOCUS_HEIGHT, behind),
-      target: new Vector3(0, STATION.BOARD_TOP_HEIGHT + 0.6, this.radius - 1.8),
+      position: round(0.6, STATION.BOARD_TOP_HEIGHT + CAMERA.FOCUS_HEIGHT, behind),
+      target: round(0, STATION.BOARD_TOP_HEIGHT + 0.6, this.radius - 1.8),
     }
   }
 }

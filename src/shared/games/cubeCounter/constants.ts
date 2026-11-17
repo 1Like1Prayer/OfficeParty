@@ -12,10 +12,10 @@ export const CUBE_COUNTER = {
     MAX_FOOTPRINT_SIDE: 3,
 
     /**
-     * Two scoring rounds per game, each made of this many consecutive puzzles.
-     * Each round's difficulty ramp starts over, with its own fresh puzzles.
+     * One scoring round per game, made of this many consecutive puzzles, each
+     * player going through them at their own pace on their own TV.
      */
-    ROUNDS_PER_GAME: 2,
+    ROUNDS_PER_GAME: 1,
     PUZZLES_PER_ROUND: 8,
     /**
      * Shapes the difficulty ramp. Below 1 the ramp climbs quickly and then
@@ -23,6 +23,16 @@ export const CUBE_COUNTER = {
      * straight line.
      */
     RAMP_CURVE_EXPONENT: 0.6,
+
+    /**
+     * The opening run-up, before the clock runs (the platform's default is
+     * 7.5 s). Long enough for the intro to show everyone sitting round the TVs,
+     * glide in to the player's own screen and count them in (the TVs' count-in
+     * is 5.1 s, slower than the platform's 3.6 s), without rushing.
+     */
+    INTRO_COUNTDOWN_MS: 13_000,
+    /** The round's final scores, on the TV, before the results screen. */
+    FINISH_ANIMATION_MS: 8_000,
 
     /** How long every scene stays on screen, at every difficulty level. */
     FLASH_MS: 2_000,
@@ -48,8 +58,12 @@ export const CUBE_COUNTER = {
 
     /** Time the player has to type an answer once the scene is hidden. */
     ANSWER_LIMIT_MS: 10_000,
-    /** Breathing room between one puzzle's answer and the next flash. */
-    PAUSE_BETWEEN_PUZZLES_MS: 1_500,
+    /** After an answer, the scene comes back with whether it was right... */
+    REVEAL_MS: 2_000,
+    /** ...then "next puzzle" counts the player in: 3, 2, 1. */
+    NEXT_PUZZLE_MS: 3_000,
+    /** Everything between one puzzle's answer and the next flash: REVEAL_MS + NEXT_PUZZLE_MS. */
+    PAUSE_BETWEEN_PUZZLES_MS: 5_000,
     /** Extra wait for stragglers before the server scores without them. */
     RESULT_GRACE_MS: 5_000,
 

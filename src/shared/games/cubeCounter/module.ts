@@ -7,6 +7,7 @@
  * latency can't change what anyone sees or how long they took.
  */
 
+import { SELF_TIMED } from '../../constants.js';
 import { assignSharedRanks } from '../ranking.js';
 import type { RankedEntry, ResultEntry, SelfTimedGameModule } from '../selfTimed.js';
 import { CUBE_COUNTER } from './constants.js';
@@ -70,9 +71,12 @@ export const cubeCounterModule: SelfTimedGameModule<
     title: 'Cube Counter',
     kind: 'self-timed',
     roundsPerGame: CUBE_COUNTER.ROUNDS_PER_GAME,
+    finishAnimationMs: CUBE_COUNTER.FINISH_ANIMATION_MS,
     createRoundData,
     parseResult: (raw, round) => parseCubeCounterResult(raw, round.puzzles.length),
     parseProgress: (raw, round) => parseCubeCounterProgress(raw, round.puzzles.length),
     resultTimeoutMs,
-    rank
+    rank,
+    // Every round opens with the TV-circle intro, which needs a longer run-up than the default.
+    openingTiming: () => ({ startLeadMs: SELF_TIMED.START_LEAD_MS, countdownMs: CUBE_COUNTER.INTRO_COUNTDOWN_MS })
 };

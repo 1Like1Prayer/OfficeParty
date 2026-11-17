@@ -72,6 +72,10 @@ export class TypeRacerScene {
   private topInsetGoal = 0
   private hasSetInset = false
   private hasFinished = false
+  /** Once the player is out: whom they are watching, if anyone. Null circles the ring. */
+  private watchedId: string | null = null
+  /** The player's own fall has played, so the camera is free to go and watch someone. */
+  private isFreeToWatch = false
 
   private readonly effects: StationEffects = {
     splashParticles: (burst) => { this.splashes.emit(burst) },
@@ -122,6 +126,8 @@ export class TypeRacerScene {
     this.lastViews.clear()
     this.selfPlayerId = selfPlayerId
     this.hasFinished = false
+    this.watchedId = null
+    this.isFreeToWatch = false
 
     const selfIndex = Math.max(0, players.findIndex(({ playerId }) => playerId === selfPlayerId))
     players.forEach((player, index) => {
@@ -199,7 +205,30 @@ export class TypeRacerScene {
   crumble(): void {
     this.self()?.crumble()
     // Let the fall play before the camera lifts away from it.
-    this.tweens.add(1.6, 0.01, () => { this.rig.setMode('overview') })
+    this.tweens.add(1.6, 0.01, () => {
+      this.isFreeToWatch = true
+      this.aimSpectator()
+    })
+  }
+
+  /**
+   * Out of the race, watch this player over their shoulder; the camera swings
+   * round the ring to them. Null rises and circles the whole ring instead.
+   * Asked for before the player's own fall has played, it waits for it.
+   */
+  spectate(playerId: string | null): void {
+    this.watchedId = playerId
+    if (this.isFreeToWatch) this.aimSpectator()
+  }
+
+  private aimSpectator(): void {
+    if (this.rig.mode === 'victory') return
+    const station = this.watchedId === null ? undefined : this.stations.get(this.watchedId)
+    if (station === undefined) {
+      this.rig.setMode('overview')
+      return
+    }
+    this.rig.spectate(Math.atan2(station.root.position.z, station.root.position.x))
   }
 
   /**

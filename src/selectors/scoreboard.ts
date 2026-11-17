@@ -39,12 +39,26 @@ export function selectScoreboardRows(
       avatar: player.avatar,
       points,
       status: statusFor(player, room, round, points),
+      readiness: readinessOf(player, room, round),
       isYou: player.playerId === playerId,
       background: isLeader ? color.leaderBg : color.white,
       pointsColor: isLeader ? color.red : color.ink,
       dimmed: !player.connected || player.isSpectator,
     }
   })
+}
+
+/** Ready or not, while it is being asked: in the lobby, and while a game waits for everyone to be ready. */
+function readinessOf(
+  player: RoomView['players'][number],
+  room: RoomView,
+  round: RoundView,
+): ScoreboardRowView['readiness'] {
+  if (!player.connected || player.isSpectator) return null
+  if (room.phase === 'lobby') return player.ready ? 'ready' : 'not-ready'
+  const isAsking = room.phase === 'competition' && (round.phase === 'ready-check' || round.phase === 'starting')
+  if (!isAsking || !round.participants.includes(player.playerId)) return null
+  return round.ready.includes(player.playerId) ? 'ready' : 'not-ready'
 }
 
 function statusFor(
@@ -57,6 +71,10 @@ function statusFor(
   if (player.isSpectator) return 'WATCHING'
   if (room.phase === 'lobby') return player.ready ? 'READY' : 'NOT READY'
   if (room.phase === 'competition') {
+    // While the ready badge says who is ready, the line under the name only needs to say they are in.
+    if ((round.phase === 'ready-check' || round.phase === 'starting') && round.participants.includes(player.playerId)) {
+      return 'PLAYING'
+    }
     if (round.waitingFor.includes(player.playerId)) return 'WAITING'
     if (round.participants.includes(player.playerId)) return 'IN THIS ROUND'
   }
