@@ -1,5 +1,6 @@
 import { useCopyText, useHover } from '../../hooks/index.ts'
 import { border, color, fluid, font, lift } from '../../theme/index.ts'
+import { sfx, useSoundOnChange } from '../../audio/sfx/index.ts'
 
 interface RoomCodeButtonProps {
   roomCode: string
@@ -9,6 +10,8 @@ interface RoomCodeButtonProps {
 export function RoomCodeButton({ roomCode }: RoomCodeButtonProps) {
   const [hovered, handlers] = useHover()
   const { copied, failed, copy } = useCopyText()
+  useSoundOnChange(copied, (isCopied) => { if (isCopied) sfx.ui.copy() })
+  useSoundOnChange(failed, (hasFailed) => { if (hasFailed) sfx.ui.error() })
 
   const label = copied ? 'COPIED' : failed ? 'COPY IT BY HAND' : 'CODE · CLICK TO COPY'
 

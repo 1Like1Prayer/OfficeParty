@@ -1,5 +1,6 @@
 import { useState, type CSSProperties, type ReactNode } from 'react'
 import { border, color } from '../../theme/index.ts'
+import { sfx, useSoundOnChange } from '../../audio/sfx/index.ts'
 
 interface ScreenTransitionProps {
   /** Identifies the screen. The transition plays whenever it changes. */
@@ -69,6 +70,8 @@ export function ScreenTransition({ screenKey, children }: ScreenTransitionProps)
     if (screenKey !== shown.screenKey) setStage('covering')
     else if (shown.children !== children) setShown({ screenKey, children })
   }
+
+  useSoundOnChange(stage, (next) => { if (next === 'covering') sfx.flow.whoosh() })
 
   const showLive = stage === null || stage === 'revealing'
   const lastPanel = PANELS.length - 1

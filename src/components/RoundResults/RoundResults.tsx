@@ -3,6 +3,8 @@ import { breakpoint, fluid, sharedStyles } from '../../theme/index.ts'
 import type { ResultRowView } from '../../types/index.ts'
 import { PushButton } from '../ui/index.ts'
 import { ResultRow } from './ResultRow.tsx'
+import { useEffect } from 'react'
+import { sfx } from '../../audio/sfx/index.ts'
 
 interface RoundResultsProps {
   eyebrow: string
@@ -22,6 +24,13 @@ export function RoundResults({
   onSkip,
 }: RoundResultsProps) {
   const compact = useMediaQuery(breakpoint.compact)
+  // A drumroll as the rows come in, then a sting: a big one for the player who came first.
+  const youWon = rows.some((row) => row.isYou && row.place === '1.')
+  useEffect(() => {
+    sfx.flow.drumroll()
+    if (youWon) sfx.flow.youWon({ delay: 0.75 })
+    else sfx.flow.resultsSting({ delay: 0.75 })
+  }, [headline, youWon])
 
   return (
     <section style={{ ...sharedStyles.phasePane, gap: fluid(16, 22) }}>

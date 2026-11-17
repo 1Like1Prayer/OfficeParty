@@ -1,16 +1,20 @@
 import { useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { backgroundMusic, TRACK_TITLE } from '../../audio/backgroundMusic.ts'
+import { sfx, sfxEngine, useSfxSettings, type Channel } from '../../audio/sfx/index.ts'
 import { useBackgroundMusic, useMediaQuery } from '../../hooks/index.ts'
 import { border, color, font, lift, sharedStyles } from '../../theme/index.ts'
 
 interface MusicControlProps {
-  /** A game has the whole screen: on a phone its touch controls own the corner, so the button steps aside. */
+  /** A game has the whole screen: on a phone its touch controls own the bottom-left corner, so the button moves to the top-left. */
   isGameUp: boolean
 }
 
 const BUTTON_SIZE = 46
 const EDGE = 'max(14px, env(safe-area-inset-left))'
 const BOTTOM = 'max(14px, env(safe-area-inset-bottom))'
+const TOP = 'max(14px, env(safe-area-inset-top))'
+/** Above everything, the TV intro's overlay included; only the screen-change stripes (1000) pass over it. */
+const LAYER = 950
 
 /**
  * The music button, floating in the bottom-left corner of every screen, and
@@ -39,26 +43,27 @@ export function MusicControl({ isGameUp }: MusicControlProps) {
     }
   }, [isOpen])
 
-  // Stepping aside closes the player, so it is not found still open once the game is over.
-  const isHidden = isGameUp && isTouch
-  const [wasHidden, setWasHidden] = useState(isHidden)
-  if (isHidden !== wasHidden) {
-    setWasHidden(isHidden)
-    if (isHidden) setIsOpen(false)
+  // Always on screen. During a game on a phone the bottom-left belongs to the
+  // touch controls (the action button sits there), so the button moves to the
+  // top-left, and the player opens downward from it. Moving closes the player.
+  const isAtTop = isGameUp && isTouch
+  const [wasAtTop, setWasAtTop] = useState(isAtTop)
+  if (isAtTop !== wasAtTop) {
+    setWasAtTop(isAtTop)
+    setIsOpen(false)
   }
-  if (isHidden) return null
 
   const isOn = music.isPlaying && !music.isMuted && music.volume > 0
 
   return (
     <div
       ref={rootRef}
-      style={{ position: 'fixed', left: EDGE, bottom: BOTTOM, zIndex: 900 }}
+      style={{ position: 'fixed', left: EDGE, ...(isAtTop ? { top: TOP } : { bottom: BOTTOM }), zIndex: LAYER }}
       // Keys pressed in the player (space on a button, arrows on a slider) are not game input.
       onKeyDown={(event) => { event.stopPropagation() }}
       onPointerDown={(event) => { event.stopPropagation() }}
     >
-      {isOpen && <MusicPanel id={panelId} />}
+      {isOpen && <MusicPanel id={panelId} opensDown={isAtTop} />}
       <button
         type="button"
         aria-label={isOpen ? 'Close the music player' : 'Open the music player'}
@@ -78,7 +83,7 @@ export function MusicControl({ isGameUp }: MusicControlProps) {
           cursor: 'pointer',
           padding: 0,
           // Out of the way while a game is on: still there, but quiet.
-          opacity: isGameUp && !isOpen ? 0.55 : 1,
+          opacity: isGameUp && !isOpen ? 0.8 : 1,
           transition: 'opacity .2s, background .2s, transform .1s',
         }}
       >
@@ -88,7 +93,7 @@ export function MusicControl({ isGameUp }: MusicControlProps) {
   )
 }
 
-function MusicPanel({ id }: { id: string }) {
+function MusicPanel({ id, opensDown }: { id: string; opensDown: boolean }) {
   const music = useBackgroundMusic()
   const isOn = music.isPlaying || music.isWaitingForGesture
   const volume = music.isMuted ? 0 : music.volume
@@ -101,7 +106,7 @@ function MusicPanel({ id }: { id: string }) {
       style={{
         position: 'absolute',
         left: 0,
-        bottom: BUTTON_SIZE + 12,
+        ...(opensDown ? { top: BUTTON_SIZE + 12 } : { bottom: BUTTON_SIZE + 12 }),
         width: 'min(300px, calc(100vw - 28px))',
         background: color.white,
         border: border.medium,
@@ -114,7 +119,7 @@ function MusicPanel({ id }: { id: string }) {
         fontFamily: font.body,
         color: color.ink,
         animation: 'pa-pop .25s cubic-bezier(.34,1.56,.64,1)',
-        transformOrigin: 'bottom left',
+        transformOrigin: opensDown ? 'top left' : 'bottom left',
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -188,6 +193,62 @@ function MusicPanel({ id }: { id: string }) {
           step={0.01}
           value={volume}
           onChange={(event) => { backgroundMusic.setVolume(Number(event.target.value)) }}
+          style={{ ...slider(volume), flex: 1 }}
+        />
+        <span style={{ width: 38, textAlign: 'right', fontSize: 12, fontWeight: 800, color: color.mutedStrong }}>
+          {Math.round(volume * 100)}%
+        </span>
+      </div>
+
+      <SoundChannels />
+    </div>
+  )
+}
+
+/** What each sound channel is called, and the sample played on letting go of its slider, so the new level can be heard. */
+const CHANNELS: { channel: Channel; label: string; name: string; sample: () => void }[] = [
+  { channel: 'effects', label: 'SOUND EFFECTS', name: 'sound effects', sample: () => { sfx.ui.click() } },
+  { channel: 'ambience', label: 'AMBIENCE · SEA, WIND, GULLS', name: 'ambient sounds', sample: () => { sfx.ambience.seagulls() } },
+]
+
+/** The sound channels' own volumes and mutes, under the music's. */
+function SoundChannels() {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, paddingTop: 10, borderTop: '2px dashed rgba(46, 42, 69, 0.15)' }}>
+      {CHANNELS.map((entry) => <ChannelVolume key={entry.channel} {...entry} />)}
+    </div>
+  )
+}
+
+function ChannelVolume({ channel, label, name, sample }: (typeof CHANNELS)[number]) {
+  const settings = useSfxSettings()[channel]
+  const volume = settings.isMuted ? 0 : settings.volume
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <div style={{ ...sharedStyles.microLabel, color: color.mutedStrong }}>{label}</div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <button
+          type="button"
+          aria-label={settings.isMuted ? `Unmute ${name}` : `Mute ${name}`}
+          aria-pressed={settings.isMuted}
+          onClick={() => {
+            sfxEngine.toggleMute(channel)
+            sfx.ui.toggle()
+          }}
+          style={{ ...iconButton, color: settings.isMuted ? color.red : color.ink }}
+        >
+          <VolumeIcon level={volume} />
+        </button>
+        <input
+          type="range"
+          aria-label={`${name[0]!.toUpperCase()}${name.slice(1)} volume`}
+          min={0}
+          max={1}
+          step={0.01}
+          value={volume}
+          onChange={(event) => { sfxEngine.setVolume(Number(event.target.value), channel) }}
+          onPointerUp={sample}
           style={{ ...slider(volume), flex: 1 }}
         />
         <span style={{ width: 38, textAlign: 'right', fontSize: 12, fontWeight: 800, color: color.mutedStrong }}>

@@ -7,6 +7,7 @@ import { border, color, fluid, font } from '../../theme/index.ts'
 import type { GameSurfaceProps } from '../types.ts'
 import { TvIntro } from '../ui/TvIntro.tsx'
 import { cubeCounterShow, type PuzzleStage } from './tvShow.ts'
+import { sfx, useSoundOnChange } from '../../audio/sfx/index.ts'
 
 const isRound = (data: unknown): data is CubeCounterRound =>
   typeof data === 'object' &&
@@ -92,6 +93,9 @@ export function CubeCounter({
         Math.max(0, Math.round(performance.now() - stageStartedAtMs)),
       )
       answers.current.push({ count, answerMs })
+      if (count === null) sfx.cubeCounter.timeout()
+      else if (count === countBlocks(puzzle.boxes)) sfx.cubeCounter.correct()
+      else sfx.cubeCounter.wrong()
       setLastAnswer(count)
       if (count === countBlocks(puzzle.boxes)) setRightSoFar((right) => right + 1)
       setTyped('')
@@ -120,6 +124,29 @@ export function CubeCounter({
     }, stageStartedAtMs + lengthMs - performance.now())
     return () => { window.clearTimeout(timer) }
   }, [playing, stage, stageStartedAtMs, puzzle, index, puzzles.length, moveTo, record])
+
+  // The blocks flash up with a shutter and vanish with a whoop; the next-puzzle card blips.
+  useSoundOnChange(playing && !submitted ? `${index}:${stage}` : null, (key) => {
+    if (key === null) return
+    if (stage === 'flash') sfx.cubeCounter.flash()
+    else if (stage === 'answer') sfx.cubeCounter.hide()
+    else if (stage === 'next') sfx.cubeCounter.nextBlip()
+  })
+  // A dial tone for each digit typed.
+  useSoundOnChange(typed, (next, previous) => {
+    if (next.length > previous.length) sfx.cubeCounter.digit(next.slice(-1))
+  })
+  // The last three seconds to answer tick away.
+  useEffect(() => {
+    if (!playing || stage !== 'answer') return
+    const timers = [3, 2, 1].map((secondsLeft) =>
+      window.setTimeout(
+        () => { sfx.cubeCounter.tick({ pitch: 1 + (3 - secondsLeft) * 0.1 }) },
+        stageStartedAtMs + CUBE_COUNTER.ANSWER_LIMIT_MS - secondsLeft * 1000 - performance.now(),
+      ),
+    )
+    return () => { timers.forEach((timer) => { window.clearTimeout(timer) }) }
+  }, [playing, stage, stageStartedAtMs])
 
   const submitTyped = () => {
     if (typed !== '') record(Number(typed))
@@ -207,7 +234,7 @@ export function CubeCounter({
                 {/* A phone's number pad has no Enter key, so the answer needs a
                     button of its own to be sent from a touch screen. */}
                 <div style={{ flexShrink: 0 }}>
-                  <PushButton size="sm" variant="success" disabled={typed === ''} onClick={submitTyped}>
+                  <PushButton size="sm" variant="success" disabled={typed === ''} silent onClick={submitTyped}>
                     OK
                   </PushButton>
                 </div>

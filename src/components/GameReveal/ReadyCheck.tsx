@@ -3,6 +3,7 @@ import { formatList } from '../../selectors/index.ts'
 import { useMediaQuery } from '../../hooks/index.ts'
 import { breakpoint, color, fluid, font } from '../../theme/index.ts'
 import { PushButton } from '../ui/index.ts'
+import { sfx } from '../../audio/sfx/index.ts'
 
 interface ReadyCheckProps {
   waitingFor: string[]
@@ -21,7 +22,17 @@ interface ReadyCheckProps {
 /** This player's ready, as a toggle: "I'm ready", then "I'm ready ✓" to take it back. */
 export function ReadyButton({ isReady, onToggle, fullWidth = false }: { isReady: boolean; onToggle: () => void; fullWidth?: boolean }) {
   return (
-    <PushButton size="md" fullWidth={fullWidth} variant={isReady ? 'success' : 'primary'} onClick={onToggle}>
+    <PushButton
+      size="md"
+      fullWidth={fullWidth}
+      variant={isReady ? 'success' : 'primary'}
+      silent
+      onClick={() => {
+        if (isReady) sfx.ui.unready()
+        else sfx.ui.ready()
+        onToggle()
+      }}
+    >
       {isReady ? 'I’m ready ✓' : 'I’m ready'}
     </PushButton>
   )

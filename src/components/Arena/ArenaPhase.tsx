@@ -6,6 +6,7 @@ import {
   hasSurface,
   hidesTitle,
   isFullBleed,
+  soundsOwnCue,
 } from '../../games/playable.ts'
 import { beatsRemaining, useCountdown } from '../../hooks/index.ts'
 import {
@@ -40,6 +41,7 @@ import { GameReveal } from '../GameReveal/index.ts'
 import { HostControls } from '../HostControls/index.ts'
 import { Lobby } from '../Lobby/index.ts'
 import { RoundResults } from '../RoundResults/index.ts'
+import { sfx, useSoundOnChange } from '../../audio/sfx/index.ts'
 
 interface ArenaPhaseProps {
   room: NonNullable<UseRoomResult['state']>
@@ -133,6 +135,13 @@ export function ArenaPhase({
     [timingStartsAtLocalMs],
   )
   const cueBeats = cueFrom(useCountdown(round.phase === 'countdown' ? msToPlay : null))
+  // GET READY, SET: a beep each; START!: the horn. The TV games sound their own.
+  const cueGameId = round.gameId
+  useSoundOnChange(cueBeats, (beats) => {
+    if (beats === null || (cueGameId !== null && soundsOwnCue(cueGameId))) return
+    if (beats === 1) sfx.flow.go()
+    else sfx.flow.cueBeep(beats)
+  })
 
   const selected = selectSelectedGames(room)
   const playable = room.lobby.playableGames

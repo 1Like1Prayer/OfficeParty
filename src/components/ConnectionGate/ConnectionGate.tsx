@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { color, fluid, font, sharedStyles } from '../../theme/index.ts'
 import type { ConnectionStatus } from '../../network/index.ts'
+import { sfx, useSoundOnChange } from '../../audio/sfx/index.ts'
 
 interface ConnectionGateProps {
   status: ConnectionStatus
@@ -17,6 +18,10 @@ const MESSAGES: Record<ConnectionStatus, { eyebrow: string; line: string }> = {
 
 /** Holds back the arena until there is a server to talk to. */
 export function ConnectionGate({ status, error, children }: ConnectionGateProps) {
+  useSoundOnChange(status, (next, previous) => {
+    if (next === 'reconnecting') sfx.ui.disconnect()
+    else if (next === 'connected' && previous === 'reconnecting') sfx.ui.reconnect()
+  })
   if (status === 'connected' && !error) return <>{children}</>
 
   const message = MESSAGES[status]

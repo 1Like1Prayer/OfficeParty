@@ -1,6 +1,8 @@
 import { useMediaQuery } from '../../hooks/index.ts'
 import { breakpoint, color, fluid, sharedStyles } from '../../theme/index.ts'
 import { PushButton } from '../ui/index.ts'
+import { useEffect } from 'react'
+import { sfx } from '../../audio/sfx/index.ts'
 
 interface FinalStandingsProps {
   championLine: string
@@ -20,6 +22,16 @@ export function FinalStandings({
   onBackToLobby,
 }: FinalStandingsProps) {
   const compact = useMediaQuery(breakpoint.compact)
+  // The night's champion gets the fanfare; a tie or an empty night just the sting.
+  const hasChampion = championName !== null
+  useEffect(() => {
+    if (hasChampion) {
+      sfx.flow.fanfare()
+      sfx.flow.confetti({ delay: 1.4 })
+    } else {
+      sfx.flow.resultsSting()
+    }
+  }, [hasChampion])
 
   return (
     <section style={{ ...sharedStyles.phasePane, gap: fluid(18, 28) }}>

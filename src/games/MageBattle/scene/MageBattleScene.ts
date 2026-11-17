@@ -28,6 +28,7 @@ import { ScoreTag } from '../../three/ScoreTag.ts'
 import { Clash } from './Clash.ts'
 import { Mage, type MagePose } from './Mage.ts'
 import { SpellBeam } from './SpellBeam.ts'
+import { sfx, sfxEngine } from '../../../audio/sfx/index.ts'
 
 const FIELD_OF_VIEW = 42
 const NAMEPLATE_PIXELS = 92
@@ -163,6 +164,9 @@ export class MageBattleScene {
   private readonly resizeObserver: ResizeObserver
   private readonly disposables: { dispose: () => void }[] = []
   private readonly clash: Clash
+  /** The beams' electric hum, swelling with the clash, and the wind round the stones. */
+  private readonly beamHum = sfxEngine.loop(sfx.mageBattle.beamLoop)
+  private readonly wind = sfxEngine.loop(sfx.mageBattle.windLoop)
   private entries: Entry[] = []
   private radius = 6
 
@@ -275,6 +279,7 @@ export class MageBattleScene {
       entry.mage.setCharge(charge < 1 ? charge : 0)
       if (!entry.hasFired && sinceStartMs >= firesAtMs) {
         entry.hasFired = true
+        sfx.mageBattle.beamFire({ volume: view?.isSelf === true ? 1 : 0.4 })
         entry.surge = SURGE_SECONDS
         entry.mage.thrustWand()
       }
@@ -311,10 +316,15 @@ export class MageBattleScene {
     this.updateTags()
     this.updateCamera(frame, deltaSeconds)
     this.clash.update(active, this.feeding, deltaSeconds, this.camera.position)
+    this.beamHum.setLevel(Math.min(1, active / Math.max(1, this.entries.length * 0.7)) * 0.55)
+    this.beamHum.setPitch(1 + Math.min(1, active / Math.max(1, this.entries.length)) * 0.15)
+    this.wind.setLevel(0.5)
     this.renderer.render(this.scene, this.camera)
   }
 
   dispose(): void {
+    this.beamHum.stop()
+    this.wind.stop()
     this.resizeObserver.disconnect()
     for (const entry of this.entries) this.removeEntry(entry)
     this.clash.dispose()

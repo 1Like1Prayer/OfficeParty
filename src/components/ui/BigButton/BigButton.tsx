@@ -1,5 +1,6 @@
 import { useHover } from '../../../hooks/index.ts'
 import { color, fluid, lift, sharedStyles } from '../../../theme/index.ts'
+import { sfx } from '../../../audio/sfx/index.ts'
 
 export type BigButtonVariant = 'pink' | 'yellow'
 
@@ -28,7 +29,10 @@ export function BigButton({
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={() => {
+        sfx.ui.click()
+        onClick()
+      }}
       disabled={disabled}
       {...handlers}
       style={{

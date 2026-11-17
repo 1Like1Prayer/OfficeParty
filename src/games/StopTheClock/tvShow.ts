@@ -45,6 +45,15 @@ const ROLL_MS = LAND_MS - 3_000
 /** Slow enough that each number is legible on its way past. */
 const ROLL_FRAME_MS = 110
 
+/** The roll's timeline, for the sounds that follow it (useClockSounds). */
+export const STOP_THE_CLOCK_TIMELINE = {
+  ROLL_MS,
+  LAND_MS,
+  ROLL_FRAME_MS,
+  /** On a blind target the clock is gone from here on (ms after the start). */
+  blindHidesAtMs: (targetMs: number): number => targetMs / 2 - FADE_LEAD_MS,
+} as const
+
 /** On a blind target the clock starts fading this long before half the target... */
 const FADE_LEAD_MS = 500
 /** ...and takes this long to disappear. */

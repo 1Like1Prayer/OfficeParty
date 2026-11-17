@@ -68,6 +68,14 @@ export function centersInPane(gameId: GameId): boolean {
 }
 
 /**
+ * Games whose TV intro counts the round in on its own clock (see TvCircleScene),
+ * and so sounds its own GET READY / SET / START!, rather than the play screen's.
+ */
+export function soundsOwnCue(gameId: GameId): boolean {
+  return gameId === 'stop-the-clock' || gameId === 'cube-counter'
+}
+
+/**
  * Games that show a looping demo round on the reveal screen instead of the
  * written rules. Must match the cases `GameDemo` in `demos.tsx` renders.
  */

@@ -11,6 +11,10 @@ import { pickVisiblePlayers } from './roster.ts'
 import { collectStatuses, describeStatus, lastStanding, pressReport, survivorsOf } from './standings.ts'
 import { useActionKeys } from './useActionKeys.ts'
 import { useRoundElapsed } from './useRoundElapsed.ts'
+import { sfx, useAmbientCalls, useLoop, useSoundOnChange } from '../../audio/sfx/index.ts'
+
+/** A log is heard rumbling in this long before it reaches the contestants. */
+const LOG_HEARD_LEAD_MS = 700
 
 const isRound = (data: unknown): data is LogDodgeRound =>
   typeof data === 'object' &&
@@ -95,10 +99,35 @@ function LogDodgeRun({
       if (previous !== undefined && atMs - previous.atMs < LOG_DODGE.INPUT_COOLDOWN_MS) return
       setInputs([...inputs, { action, atMs }])
       stageRef.current?.press(action, atMs)
+      if (action === 'jump') sfx.logDodge.jump()
+      else sfx.logDodge.duck()
     },
     [inputs, timingStartsAtLocalMs, round.durationMs],
   )
   const canPress = isPlaying && !isOver && !isSpectating
+
+  // The sea washes round the treadmill; each log is heard rolling in just before it arrives.
+  useLoop(sfx.logDodge.seaLoop, isPlaying && !isRoundOver, 0.6)
+  // Out over the sea, the gulls are about too.
+  useAmbientCalls(sfx.ambience.seagulls, isPlaying && !isRoundOver, 7_000, 16_000)
+  const heardLogs = useRef(new Set<number>())
+  useEffect(() => {
+    if (!isPlaying || isRoundOver) return
+    round.logs.forEach((log, index) => {
+      const untilMs = log.arriveAtMs - elapsedMs
+      if (untilMs > LOG_HEARD_LEAD_MS || untilMs < 0 || heardLogs.current.has(index)) return
+      heardLogs.current.add(index)
+      sfx.logDodge.logRoll(log.height === 'high')
+    })
+  }, [isPlaying, isRoundOver, elapsedMs, round.logs])
+  // Hit: a bonk and a life gone. Out: thrown off the back. Last one standing: the win.
+  useSoundOnChange(outcome.hits, (next, previous) => {
+    if (next <= previous || isSpectating) return
+    sfx.logDodge.hit()
+    sfx.logDodge.lifeLost({ delay: 0.15 })
+  })
+  useSoundOnChange(isOut && !isSpectating, (out) => { if (out) sfx.logDodge.knockedOut({ delay: 0.2 }) })
+  useSoundOnChange(isLastStanding, (won) => { if (won) sfx.logDodge.win() })
   useActionKeys(canPress, recordPress)
 
   // Everyone else sees how many hits this player has taken, and plays each of

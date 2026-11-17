@@ -1,6 +1,7 @@
 import type { CSSProperties } from 'react'
 import { useHover } from '../../../hooks/index.ts'
 import { border, color, fluid, font, lift } from '../../../theme/index.ts'
+import { sfx } from '../../../audio/sfx/index.ts'
 
 export type PushButtonVariant = 'primary' | 'success'
 export type PushButtonSize = 'lg' | 'md' | 'sm'
@@ -13,6 +14,8 @@ interface PushButtonProps {
   disabled?: boolean
   /** Stretch to the width of the container, as on a phone. */
   fullWidth?: boolean
+  /** Skip the click sound, for a button whose action plays a sound of its own. */
+  silent?: boolean
 }
 
 const VARIANTS: Record<PushButtonVariant, CSSProperties> = {
@@ -44,6 +47,7 @@ export function PushButton({
   size = 'md',
   disabled = false,
   fullWidth = false,
+  silent = false,
 }: PushButtonProps) {
   const [hovered, hoverHandlers] = useHover()
   const { depth, ...sizeStyle } = SIZES[size]
@@ -52,7 +56,10 @@ export function PushButton({
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={() => {
+        if (!silent) sfx.ui.click()
+        onClick()
+      }}
       disabled={disabled}
       {...hoverHandlers}
       style={{

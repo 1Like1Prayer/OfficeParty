@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Render sound effects</title>
+    <style>
+      body { font: 14px/1.5 system-ui, sans-serif; margin: 32px; color: #2e2a45; background: #fffaf0; }
+      button { font: inherit; font-weight: 700; padding: 10px 20px; border-radius: 12px; border: 2px solid #2e2a45; background: #ff5c9e; color: white; cursor: pointer; }
+      button:disabled { opacity: 0.5; cursor: wait; }
+      #log { margin-top: 20px; font: 12px/1.6 ui-monospace, monospace; white-space: pre; }
+      .warn { color: #c0392b; font-weight: 700; }
+    </style>
+  </head>
+  <body>
+    <h1>Render sound effects</h1>
+    <p>
+      Renders every recipe in <code>src/audio/sfx/recipes/</code> and saves it under
+      <code>src/assets/audio/sfx/</code> (one-shots as .mp3, loops as .wav), replacing everything there.
+      Needs <code>npm run dev</code>, and <code>ffmpeg</code> installed for the MP3s.
+    </p>
+    <button id="render" type="button">Render all</button>
+    <div id="log"></div>
+    <script type="module">
+      import { renderAll } from '/src/audio/sfx/recipes/render.ts'
+
+      const button = document.getElementById('render')
+      const log = document.getElementById('log')
+      const line = (text, warn = false) => {
+        const row = document.createElement('div')
+        row.textContent = text
+        if (warn) row.className = 'warn'
+        log.append(row)
+      }
+
+      button.addEventListener('click', async () => {
+        button.disabled = true
+        log.textContent = ''
+        try {
+          const cleared = await fetch('/__sfx/clear', { method: 'POST' })
+          if (!cleared.ok) throw new Error(`clear: ${await cleared.text()}`)
+          let bytes = 0
+          const files = await renderAll(async (file) => {
+            const query = `path=${encodeURIComponent(file.path)}${file.isStereo ? '&stereo=1' : ''}`
+            const saved = await fetch(`/__sfx/save?${query}`, { method: 'POST', body: file.wav })
+            const reply = await saved.text()
+            if (!saved.ok) throw new Error(`${file.path}: ${reply}`)
+            const size = Number(reply)
+            bytes += size
+            line(`${file.path.padEnd(48)} ${file.seconds.toFixed(2).padStart(6)}s  peak ${file.peak.toFixed(2)}  ${(size / 1024).toFixed(1).padStart(7)} KB`, file.peak >= 0.99)
+          })
+          line(`\n${files.length} files, ${(bytes / 1024 / 1024).toFixed(2)} MB`)
+          document.title = 'Rendered'
+        } catch (error) {
+          line(String(error), true)
+          document.title = 'Failed'
+        } finally {
+          button.disabled = false
+        }
+      })
+    </script>
+  </body>
+</html>

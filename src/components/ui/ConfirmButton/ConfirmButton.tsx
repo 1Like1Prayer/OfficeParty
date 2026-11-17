@@ -1,6 +1,7 @@
 import { useEffect, useState, type CSSProperties } from 'react'
 import { useHover } from '../../../hooks/index.ts'
 import { border, color, font, lift } from '../../../theme/index.ts'
+import { sfx } from '../../../audio/sfx/index.ts'
 
 export type ConfirmButtonTone = 'light' | 'danger'
 
@@ -65,6 +66,7 @@ export function ConfirmButton({
       aria-label={armed ? confirmLabel : (title ?? label)}
       onClick={(event) => {
         event.stopPropagation()
+        sfx.ui.toggle({ pitch: armed ? 0.7 : 1 })
         if (armed) {
           setArmed(false)
           onConfirm()

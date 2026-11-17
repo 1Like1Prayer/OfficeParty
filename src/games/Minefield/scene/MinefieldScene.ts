@@ -32,6 +32,13 @@ import type { Blast, FieldFrame, Racer, ScanPulse } from '../fieldFrame.ts'
 import { RemoteTrack, REMOTE_DELAY_MS } from '../remoteTrack.ts'
 import { Runner } from './Runner.ts'
 import { World } from './World.ts'
+import { sfx } from '../../../audio/sfx/index.ts'
+
+/** Seconds between the player's own footsteps. */
+const FOOTSTEP_SECONDS = 0.28
+
+/** How loud something is from `distance` tiles away: full at your feet, faint across the field. */
+const loudnessAt = (distance: number): number => Math.max(0.12, Math.min(1, 1 - distance / 28))
 
 const FIELD_OF_VIEW = 50
 const HORIZON = '#f3e2b8'
@@ -148,6 +155,8 @@ export class MinefieldScene {
   private readonly drawn = new Map<string, { x: number; y: number }>()
   private pull = 1
   private shake = 0
+  /** Seconds the player's own runner has been moving since its last footstep. */
+  private stepClock = 0
   private readonly cameraPosition = new Vector3()
   private readonly cameraTarget = new Vector3()
   private readonly overviewPosition: Vector3
@@ -305,6 +314,7 @@ export class MinefieldScene {
     for (const [index, mark] of this.mineMarks.entries()) {
       if (showing.has(index)) {
         const shownAt = this.mineShownAt[index] ?? nowMs
+        if (this.mineShownAt[index] === null || this.mineShownAt[index] === undefined) sfx.minefield.mineRevealed()
         this.mineShownAt[index] = shownAt
         mark.visible = true
         // Pops up out of the sand when a scan finds it.
@@ -331,7 +341,13 @@ export class MinefieldScene {
         effect = this.createBlast(blast)
         this.blastEffects.set(key, effect)
         const self = frame.racers.find((racer) => racer.isSelf)
-        if (self !== undefined && Math.hypot(self.x - blast.x, self.y - blast.y) < 2) this.shake = 1
+        const distance = self === undefined ? Infinity : Math.hypot(self.x - blast.x, self.y - blast.y)
+        if (distance < 2) this.shake = 1
+        // Only a blast going off now is heard, not one the screen is catching up on.
+        if (age < 300) {
+          sfx.minefield.explosion({ volume: loudnessAt(distance), duck: { depth: 0.6 * loudnessAt(distance), holdMs: 900 } })
+          if (distance < 2) sfx.minefield.earRing()
+        }
       }
       this.poseBlast(effect, Math.max(0, age) / MINEFIELD.EXPLOSION_ANIMATION_MS)
     }
@@ -349,6 +365,11 @@ export class MinefieldScene {
       if (effect === undefined) {
         effect = this.createScan(scan)
         this.scanEffects.set(key, effect)
+        if (age < 300) {
+          const self = frame.racers.find((racer) => racer.isSelf)
+          const distance = self === undefined ? Infinity : Math.hypot(self.x - scan.x, self.y - scan.y)
+          sfx.minefield.sonar({ volume: loudnessAt(distance) })
+        }
       }
       this.poseScan(effect, age)
     }
@@ -370,6 +391,7 @@ export class MinefieldScene {
       }
       const { tileScale } = this.setup
       const point = this.placeRacer(entry, racer, nowMs)
+      if (racer.isSelf) this.stepSounds(racer, deltaSeconds)
       this.drawn.set(racer.playerId, point)
       entry.runner.update(
         { ...racer, x: point.x * tileScale, y: point.y * tileScale, vx: point.vx, vy: point.vy },
@@ -388,6 +410,20 @@ export class MinefieldScene {
         isYou: racer.isSelf,
         isOut: racer.state === 'out',
       })
+    }
+  }
+
+  /** Footsteps while the player's own runner is on the move. */
+  private stepSounds(racer: Racer, deltaSeconds: number): void {
+    const isMoving = racer.state === 'racing' && (racer.vx !== 0 || racer.vy !== 0)
+    if (!isMoving) {
+      this.stepClock = 0
+      return
+    }
+    this.stepClock += deltaSeconds
+    if (this.stepClock >= FOOTSTEP_SECONDS) {
+      this.stepClock -= FOOTSTEP_SECONDS
+      sfx.minefield.footstep({ volume: 0.7 })
     }
   }
 

@@ -29,6 +29,7 @@ import type { RoundPlayerView } from '../../types/index.ts'
 import { createAvatarTexture } from './avatarTexture.ts'
 import { labelWidthFor } from './Nameplate.ts'
 import { Typist } from './Typist.ts'
+import { sfx } from '../../audio/sfx/index.ts'
 
 /**
  * A game's opening, shared by the self-timed games: everyone sits on a
@@ -163,6 +164,9 @@ export class TvCircleScene {
    * second trip round the circle.
    */
   private isContinuing = false
+  /** The last word of the count-in sounded, so each is heard once. */
+  private soundedCue: (typeof CUES)[number] | null = null
+  private hasSoundedGlide = false
   private tagWidth = 1
   private elapsed = 0
 
@@ -376,6 +380,7 @@ export class TvCircleScene {
       ? 1
       : smoothstep((sinceStartMs - this.zoomStartMs()) / (TV_TIMELINE.ZOOM_LEAD_MS - TV_TIMELINE.ZOOM_LANDS_MS))
     const cue = this.cueAt(sinceStartMs)
+    this.playSounds(sinceStartMs, cue)
 
     for (const seat of this.seats) {
       // Everyone else throws their arms up as the count lands on START! The
@@ -390,6 +395,18 @@ export class TvCircleScene {
 
     this.placeCamera(sinceStartMs, zoom)
     this.renderer.render(this.scene, this.camera)
+  }
+
+  /** The glide in gets a swoosh, and each word of the count-in its beep, once each. */
+  private playSounds(sinceStartMs: number, cue: (typeof CUES)[number] | null): void {
+    if (!this.isContinuing && !this.hasSoundedGlide && sinceStartMs >= this.zoomStartMs() && sinceStartMs < 0) {
+      this.hasSoundedGlide = true
+      sfx.flow.swoosh()
+    }
+    if (cue === this.soundedCue) return
+    this.soundedCue = cue
+    if (cue === 'START!') sfx.flow.go()
+    else if (cue !== null) sfx.flow.cueBeep(CUES.indexOf(cue) + 1)
   }
 
   /** Which word of the count-in is up, or null outside it. */
