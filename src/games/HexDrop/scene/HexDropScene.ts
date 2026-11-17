@@ -22,10 +22,12 @@ import {
 } from 'three'
 import { LAYER_COUNT, layerHeight, TILES } from '../../../shared/games/hexDrop/arena.ts'
 import { HEX_DROP } from '../../../shared/games/hexDrop/constants.ts'
+import { SELF_TIMED } from '../../../shared/constants.ts'
+import { ROUND_CUE_MS } from '../../../components/GamePlay/cue.ts'
 import type { Tile } from '../../../shared/games/hexDrop/types.ts'
 import type { RoundPlayerView } from '../../../types/index.ts'
 import { createAvatarTexture } from '../../three/avatarTexture.ts'
-import { labelWidthFor } from '../../three/Nameplate.ts'
+import { crowdedTagScale, labelWidthFor } from '../../three/Nameplate.ts'
 import { Ocean } from '../../three/Ocean.ts'
 import { ScoreTag } from '../../three/ScoreTag.ts'
 import { Splashes } from '../../three/Splash.ts'
@@ -46,7 +48,7 @@ const NAMEPLATE_LIFT = 2.6
  * There is no mouse to look around with, so it shows as much as it can.
  */
 /** How steeply it looks down, from the horizon. */
-const CAMERA_ELEVATION = (56 * Math.PI) / 180
+const CAMERA_ELEVATION = (46 * Math.PI) / 180
 const CAMERA_DIRECTION = new Vector3(0, Math.sin(CAMERA_ELEVATION), Math.cos(CAMERA_ELEVATION))
 /** How far the view leans from the middle of the floor toward the player: room to see past them, and the far side too. */
 const PLAYER_BIAS = 0.25
@@ -69,6 +71,25 @@ const REFRAME_PER_SECOND = 2.5
 /** Floors above the player's fade to this, so they never hide the floor being played. */
 const FADED_FLOOR_OPACITY = 0.12
 const FLOOR_FADE_PER_SECOND = 4
+/** A floor every runner has dropped this far below is behind them all, and is cleared from the screen. */
+const PASSED_FLOOR_MARGIN = 1
+
+/*
+ * The intro, timed on the round clock (0 is the start): while the round builds
+ * up, the camera glides down past every floor, top to bottom, turning a little
+ * as it goes; then, as the get-ready count begins, it pulls up and out to the
+ * view the round is played from, settled before START.
+ */
+const INTRO_STARTS_MS = -SELF_TIMED.COUNTDOWN_MS + 300
+const GLIDE_ENDS_MS = -ROUND_CUE_MS - 200
+const INTRO_ENDS_MS = -1_400
+/** The glide looks lower and closer than play, so the stack reads as a stack. */
+const GLIDE_ELEVATION = (38 * Math.PI) / 180
+const GLIDE_CLOSENESS = 0.62
+/** It starts turned this far round, and unwinds to the play view's angle. */
+const GLIDE_YAW = (40 * Math.PI) / 180
+/** How much the glide eases into each floor as it passes (0 is an even glide). */
+const GLIDE_LINGER = 0.55
 
 /** How far each floor reaches from the middle, to the outer corner of its outermost tile. */
 const LAYER_REACH: readonly number[] = Array.from({ length: LAYER_COUNT }, (_, layer) =>
@@ -76,6 +97,9 @@ const LAYER_REACH: readonly number[] = Array.from({ length: LAYER_COUNT }, (_, l
   HEX_DROP.TILE_RADIUS,
 )
 const lerp = (from: number, to: number, amount: number): number => from + (to - from) * amount
+const clamp01 = (value: number): number => Math.min(1, Math.max(0, value))
+const smooth = (t: number): number => t * t * (3 - 2 * t)
+const smoother = (t: number): number => t * t * t * (t * (t * 6 - 15) + 10)
 
 /** Fades every mesh under `root` to `opacity`, switching transparency on only when it is needed. */
 function setOpacity(root: Object3D, opacity: number): void {
@@ -100,7 +124,7 @@ const layerAt = (y: number): number =>
   Math.min(LAYER_COUNT - 1, Math.max(0, Math.round((layerHeight(0) - y) / HEX_DROP.LAYER_GAP)))
 
 /** One colour per layer, top first. */
-const LAYER_COLORS = ['#FF6FAE', '#FFC94A', '#55D6A6', '#6AA8FF'].map((hex) => new Color(hex))
+const LAYER_COLORS = ['#FF7A3D', '#FFC94A', '#55D6A6', '#6AA8FF'].map((hex) => new Color(hex))
 const WARNING_COLOR = new Color('#FFF6E8')
 /** The last stretch before a tile drops, when it shakes and flashes. */
 const WARNING_MS = 1_000
@@ -184,13 +208,17 @@ export class HexDropScene {
   private hasFocus = false
   private readonly lookAt = new Vector3()
   private overview = 0
-  private readonly ocean = new Ocean({ color: '#3A7FD6', level: OCEAN_LEVEL, swell: 0.3 })
+  private readonly ocean = new Ocean({ color: '#E2579F', level: OCEAN_LEVEL, swell: 0.3 })
   private oceanSeconds = 0
   private readonly splashes = new Splashes(this.scene)
   /** How far back the camera sits, easing toward what the current floor needs. */
   private distance = 0
   /** Floors above this one are faded, and so is anyone standing on them. */
   private fadedAbove = 0
+  /** Floors above this one are behind every runner, and hidden altogether. */
+  private hiddenAbove = 0
+  private readonly introLookAt = new Vector3()
+  private readonly introPosition = new Vector3()
 
   // Reused every frame, so drawing makes no garbage.
   private readonly matrix = new Matrix4()
@@ -256,6 +284,7 @@ export class HexDropScene {
     this.splashes.update(deltaSeconds)
     this.updateTiles(frame)
     this.updateRunners(frame, deltaSeconds)
+    this.hiddenAbove = this.passedFloors(frame)
     this.updateCamera(frame, deltaSeconds)
     this.renderer.render(this.scene, this.camera)
   }
@@ -386,7 +415,7 @@ export class HexDropScene {
       entry.runner.root.position.y = pose.y
       // Someone on a floor faded above the player fades with it, rather than looming in front of the camera.
       setOpacity(entry.runner.root, pose.layer < this.fadedAbove ? FADED_FLOOR_OPACITY * 2 : 1)
-      entry.nameplate.setWidth(labelWidth)
+      entry.nameplate.setWidth(pose.isSelf ? labelWidth : labelWidth * crowdedTagScale(this.entries.length))
       entry.nameplate.sprite.position.set(entry.runner.root.position.x, pose.y + NAMEPLATE_LIFT, entry.runner.root.position.z)
       // Only the name; someone out of the round is faded.
       entry.nameplate.update({ name: entry.player.name, score: '', isYou: pose.isSelf, isFaded: pose.isOut })
@@ -435,12 +464,14 @@ export class HexDropScene {
       lerp(followZ, 0, this.overview),
     )
     this.position.copy(this.lookAt).addScaledVector(CAMERA_DIRECTION, this.distance)
-    this.fadedAbove = focus === null ? 0 : floor
+    const playFloor = focus === null ? 0 : floor
+    this.fadedAbove = this.blendIntro(frame.nowMs, playFloor) ?? playFloor
     this.fadeFloorsAbove(this.fadedAbove, deltaSeconds)
     this.camera.position.copy(this.position)
     this.camera.lookAt(this.lookAt)
     if (this.scene.fog instanceof Fog) {
-      this.scene.fog.near = Math.max(FOG_NEAR, this.distance * FOG_NEAR_PER_DISTANCE)
+      const distance = this.position.distanceTo(this.lookAt)
+      this.scene.fog.near = Math.max(FOG_NEAR, distance * FOG_NEAR_PER_DISTANCE)
       this.scene.fog.far = this.scene.fog.near + FOG_DEPTH
     }
 
@@ -450,15 +481,65 @@ export class HexDropScene {
   }
 
   /**
+   * During the intro, moves the camera (this.position, this.lookAt, already
+   * set to the play view) to where the intro has it, and returns the floor
+   * it is looking at, above which the floors fade. Null once the intro is over.
+   */
+  private blendIntro(nowMs: number, playFloor: number): number | null {
+    if (nowMs >= INTRO_ENDS_MS) return null
+    const glide = smoother(clamp01((nowMs - INTRO_STARTS_MS) / (GLIDE_ENDS_MS - INTRO_STARTS_MS)))
+    const toPlay = smoother(clamp01((nowMs - GLIDE_ENDS_MS) / (INTRO_ENDS_MS - GLIDE_ENDS_MS)))
+
+    // Which floor it is at, as a fraction: an even glide that eases a little into each floor it passes.
+    const even = glide * (LAYER_COUNT - 1)
+    const passed = Math.min(LAYER_COUNT - 2, Math.floor(even))
+    const between = even - passed
+    const at = passed + lerp(between, smooth(between), GLIDE_LINGER)
+    const below = Math.min(LAYER_COUNT - 1, passed + 1)
+    const height = lerp(layerHeight(passed), layerHeight(below), at - passed)
+    const reach = lerp(LAYER_REACH[passed]!, LAYER_REACH[below]!, at - passed)
+
+    // Looking at the middle of that floor, from lower and closer than in play, turned a little round.
+    const distance = this.fitDistance(reach, false) * GLIDE_CLOSENESS
+    const yaw = GLIDE_YAW * (1 - glide)
+    this.introLookAt.set(0, height, 0)
+    this.introPosition.set(
+      Math.sin(yaw) * Math.cos(GLIDE_ELEVATION),
+      Math.sin(GLIDE_ELEVATION),
+      Math.cos(yaw) * Math.cos(GLIDE_ELEVATION),
+    ).multiplyScalar(distance).add(this.introLookAt)
+
+    // Then up and out to the play view.
+    this.lookAt.lerpVectors(this.introLookAt, this.lookAt, toPlay)
+    this.position.lerpVectors(this.introPosition, this.position, toPlay)
+    return Math.round(lerp(at, playFloor, toPlay))
+  }
+
+  /**
+   * How many floors, from the top, every runner still in the arena has
+   * dropped below. Nobody can climb back up, so those are cleared away.
+   */
+  private passedFloors(frame: HexDropFrame): number {
+    const runners = frame.runners.filter((pose) => !(pose.isOut && pose.y < OCEAN_LEVEL))
+    if (runners.length === 0) return this.hiddenAbove
+    const highest = Math.max(...runners.map((pose) => pose.y))
+    let passed = 0
+    while (passed < LAYER_COUNT && highest < layerHeight(passed) - PASSED_FLOOR_MARGIN) passed++
+    // Never takes away the floor anyone could still land on, and never brings one back.
+    return Math.max(this.hiddenAbove, Math.min(passed, LAYER_COUNT - 1))
+  }
+
+  /**
    * Looking straight down, the floors above the player would hide theirs, so
    * those fade to a ghost of themselves — still there to see, no longer in the
    * way — and stop casting shadows. Watching the whole arena, none fade.
+   * Floors every runner has dropped below fade out altogether.
    */
   private fadeFloorsAbove(floor: number, deltaSeconds: number): void {
     const ease = 1 - Math.exp(-FLOOR_FADE_PER_SECOND * deltaSeconds)
     this.layers.forEach((mesh, layer) => {
       const material = mesh.material as MeshStandardMaterial
-      const wanted = layer < floor ? FADED_FLOOR_OPACITY : 1
+      const wanted = layer < this.hiddenAbove ? 0 : layer < floor ? FADED_FLOOR_OPACITY : 1
       const opacity = material.opacity + (wanted - material.opacity) * ease
       material.opacity = Math.abs(wanted - opacity) < 0.005 ? wanted : opacity
       const isSolid = material.opacity >= 0.999
@@ -468,6 +549,7 @@ export class HexDropScene {
       }
       material.depthWrite = isSolid
       mesh.castShadow = material.opacity > 0.5
+      mesh.visible = material.opacity > 0
     })
   }
 

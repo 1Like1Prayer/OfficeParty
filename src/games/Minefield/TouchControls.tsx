@@ -25,8 +25,8 @@ interface TouchControlsProps {
 }
 
 /**
- * A phone's controller for Minefield: the stick under the left thumb, the
- * sonar under the right. A runner moves in eight directions, so the stick's
+ * A phone's controller for Minefield: the sonar under the left thumb, the
+ * stick under the right. A runner moves in eight directions, so the stick's
  * exact angle is snapped to the nearest of them, and held there until the
  * thumb clearly means another.
  */
@@ -59,8 +59,8 @@ export function TouchControls({ enabled, onMove, onSonar, sonarCharge }: TouchCo
   return (
     <TouchBar
       enabled={enabled}
-      left={<Joystick enabled={enabled} onChange={steer} />}
-      right={<ActionButton label="Sonar" enabled={enabled} onPress={onSonar} tone={SONAR_COLOR} charge={sonarCharge} />}
+      stick={<Joystick enabled={enabled} onChange={steer} />}
+      action={<ActionButton label="Sonar" enabled={enabled} onPress={onSonar} tone={SONAR_COLOR} charge={sonarCharge} />}
     />
   )
 }

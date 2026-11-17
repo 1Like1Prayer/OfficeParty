@@ -56,8 +56,13 @@ export const HEX_DROP = {
     /* ---- the round ---- */
     /** Positions are shared this often, so the others can be drawn moving smoothly. */
     PROGRESS_HZ: 20,
-    /** The round ends by this time even if more than one runner is still up. */
-    MAX_ROUND_MS: 180_000,
+    /**
+     * There is no time limit: the round goes on until one runner is left. The
+     * tiles run out (each drops once), so it always ends by itself. This is
+     * only a backstop, far past any real round, so a frozen browser that never
+     * reports falling cannot hold the room open for ever.
+     */
+    MAX_ROUND_MS: 600_000,
     RESULT_GRACE_MS: 5_000,
     FINISH_ANIMATION_MS: 4_000
 } as const;

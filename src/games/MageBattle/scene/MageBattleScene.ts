@@ -23,7 +23,7 @@ import {
 } from 'three'
 import type { RoundPlayerView } from '../../../types/index.ts'
 import { createAvatarTexture } from '../../three/avatarTexture.ts'
-import { labelWidthFor } from '../../three/Nameplate.ts'
+import { crowdedTagScale, labelWidthFor } from '../../three/Nameplate.ts'
 import { ScoreTag } from '../../three/ScoreTag.ts'
 import { Clash } from './Clash.ts'
 import { Mage, type MagePose } from './Mage.ts'
@@ -382,7 +382,8 @@ export class MageBattleScene {
     const canvasHeight = this.renderer.domElement.clientHeight || 1
     const pixels = Math.min(NAMEPLATE_PIXELS, Math.max(NAMEPLATE_MIN_PIXELS, canvasHeight * NAMEPLATE_SHARE_OF_HEIGHT))
     const width = labelWidthFor(pixels, canvasHeight, FIELD_OF_VIEW)
-    for (const entry of this.entries) entry.tag.setWidth(width)
+    const crowded = width * crowdedTagScale(this.entries.length)
+    for (const entry of this.entries) entry.tag.setWidth(entry.isSelf ? width : crowded)
   }
 
   private updateCamera(frame: BattleFrame, deltaSeconds: number): void {

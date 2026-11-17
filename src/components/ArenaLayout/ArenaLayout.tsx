@@ -31,7 +31,9 @@ export function ArenaLayout({
     <div
       style={{
         width: '100%',
-        minHeight: '100dvh',
+        // Beside a rail, exactly the window: a long scoreboard scrolls in its
+        // rail and never makes the page taller. Stacked, the page scrolls as usual.
+        ...(stacked ? { minHeight: '100dvh' } : { height: '100dvh', overflow: 'hidden' }),
         background: color.cream,
         color: color.ink,
         fontFamily: font.body,
@@ -48,7 +50,17 @@ export function ArenaLayout({
           minHeight: 0,
         }}
       >
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+        <div
+          style={{
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            minWidth: 0,
+            minHeight: 0,
+            // A phase taller than the window scrolls on its own, beside the rail.
+            overflowY: stacked ? 'visible' : 'auto',
+          }}
+        >
           {notice && <ArenaNotice message={notice} />}
           {children}
         </div>

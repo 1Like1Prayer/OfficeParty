@@ -75,9 +75,16 @@ export const handleTouch = (raw: unknown, world: SharedWorld): TouchReply | null
     return { tile: touch.tile, fallAtMs };
 };
 
-/** Best first: still up, then whoever fell out last. */
-const compareResults = (a: HexDropResult, b: HexDropResult): number =>
-    (b.outAtMs ?? Infinity) - (a.outAtMs ?? Infinity);
+/**
+ * Best first: still up, then whoever fell out last. Two still up are level,
+ * and go to a tiebreaker (Infinity - Infinity would be NaN, never a tie).
+ */
+const compareResults = (a: HexDropResult, b: HexDropResult): number => {
+    if (a.outAtMs === b.outAtMs) return 0;
+    if (a.outAtMs === null) return -1;
+    if (b.outAtMs === null) return 1;
+    return b.outAtMs - a.outAtMs;
+};
 
 const rank = (entries: ResultEntry<HexDropResult>[]): RankedEntry[] => {
     const sorted = [...entries].sort(

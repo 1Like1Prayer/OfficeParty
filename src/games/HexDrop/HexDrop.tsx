@@ -191,8 +191,8 @@ function HexDropRun({
       {isTouch && isRunning && (
         <TouchBar
           enabled={canControl}
-          left={<Joystick enabled={canControl} onChange={({ x, y }) => { gameRef.current?.setStick(x, y) }} />}
-          right={<ActionButton label="Jump" enabled={canControl} onPress={() => { gameRef.current?.pressJump() }} tone={color.pink} />}
+          stick={<Joystick enabled={canControl} onChange={({ x, y }) => { gameRef.current?.setStick(x, y) }} />}
+          action={<ActionButton label="Jump" enabled={canControl} onPress={() => { gameRef.current?.pressJump() }} tone={color.pink} />}
         />
       )}
     </div>

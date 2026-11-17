@@ -144,7 +144,8 @@ export function GamePlay({
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          animation: 'pa-enter 1.1s ease-out 1s both',
+          // After the title when there is one; with none to wait for, the game comes straight in.
+          animation: `pa-enter 1.1s ease-out ${showTitle ? 1 : 0.15}s both`,
         }}
       >
         {children}

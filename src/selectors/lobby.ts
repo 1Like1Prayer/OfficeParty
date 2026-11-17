@@ -8,21 +8,6 @@ import { initialOf, playerColor, selectPlayers } from './players.ts'
  * Spread the avatars over the card on a centred grid, with enough padding for
  * the 82px block and the float animation's swing.
  */
-function spot(index: number, total: number) {
-  const columns = total <= 2 ? total : total <= 6 ? 3 : 4
-  const rows = Math.max(1, Math.ceil(total / columns))
-  const column = index % columns
-  const row = Math.floor(index / columns)
-  const inRow = Math.min(columns, total - row * columns)
-
-  return {
-    left: `${(100 / (inRow + 1)) * (column + 1)}%`,
-    top: `calc(58px + ${row} * (100% - 116px) / ${rows} + (100% - 116px) / ${rows * 2})`,
-    duration: `${(5.5 + (index % 4) * 0.9).toFixed(1)}s`,
-    delay: `-${(index * 0.7).toFixed(1)}s`,
-  }
-}
-
 export function selectFloaters(room: RoomView): Floater[] {
   const players = selectPlayers(room).filter((player) => player.connected)
   return players.map((player, index) => ({
@@ -31,7 +16,8 @@ export function selectFloaters(room: RoomView): Floater[] {
     initial: initialOf(player.name),
     color: playerColor(player.playerId),
     avatar: player.avatar,
-    ...spot(index, players.length),
+    duration: `${(5.5 + (index % 4) * 0.9).toFixed(1)}s`,
+    delay: `-${(index * 0.7).toFixed(1)}s`,
   }))
 }
 

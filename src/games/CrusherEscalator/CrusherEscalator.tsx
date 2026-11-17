@@ -12,7 +12,7 @@ import type { RoundPlayerView } from '../../types/index.ts'
 import type { GameSurfaceProps } from '../types.ts'
 import { ArrowPad } from './ArrowPad.tsx'
 import { ArrowPrompt, type PressFeedback } from './ArrowPrompt.tsx'
-import { COMPACT_SCREEN, VISIBLE_LANES } from './arena/arenaConfig.ts'
+import { COMPACT_SCREEN, FOCUS_LANES } from './arena/arenaConfig.ts'
 import { EscalatorArena } from './arena/EscalatorArena.tsx'
 import type { LaneView } from './arena/types.ts'
 import { selectRoster } from './roster.ts'
@@ -229,12 +229,7 @@ export function CrusherEscalator({
   )
   const hasSoleWinner = winnerIds.size === 1
 
-  const roster = selectRoster({
-    players,
-    selfPlayerId,
-    count: isCompact ? VISIBLE_LANES.COMPACT : VISIBLE_LANES.FULL,
-    isOut: hasFallen,
-  })
+  const roster = selectRoster({ players, isOut: hasFallen })
   const lanes: LaneView[] = players.map(({ playerId }) => {
     return {
       playerId,
@@ -267,7 +262,14 @@ export function CrusherEscalator({
   const hasPad = isTouch && !isSpectating
   const arena = (
     <div style={{ flex: 1, minWidth: 0, minHeight: 0 }}>
-      <EscalatorArena players={roster} lanes={lanes} attemptKey={attemptKey} isRacing={isRacing} />
+      <EscalatorArena
+        players={roster}
+        lanes={lanes}
+        attemptKey={attemptKey}
+        isRacing={isRacing}
+        timingStartsAtLocalMs={timingStartsAtLocalMs}
+        focusLaneCount={isCompact ? FOCUS_LANES.COMPACT : FOCUS_LANES.FULL}
+      />
     </div>
   )
 

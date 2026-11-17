@@ -25,6 +25,8 @@ export function Scoreboard({ rows, playerCountLabel, selfId, onKick }: Scoreboar
         background: color.panel,
         display: 'flex',
         flexDirection: 'column',
+        // As tall as the space beside the phase pane and no taller; the rows scroll inside.
+        minHeight: 0,
         animation: stacked ? 'pa-swoop .65s ease-out' : 'pa-slide-in .65s ease-out',
       }}
     >
@@ -43,7 +45,10 @@ export function Scoreboard({ rows, playerCountLabel, selfId, onKick }: Scoreboar
       <div
         style={{
           flex: 1,
-          overflow: 'hidden',
+          minHeight: 0,
+          // A full room is more rows than fit: they scroll here, not the page.
+          overflowY: stacked ? 'visible' : 'auto',
+          overscrollBehavior: 'contain',
           padding: `0 ${fluid(12, 18)} ${fluid(16, 18)}`,
           display: 'flex',
           flexDirection: 'column',

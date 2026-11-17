@@ -12,14 +12,26 @@ interface EscalatorArenaProps {
   attemptKey: string
   /** The escalators run and the runners climb. */
   isRacing: boolean
+  /** `performance.now()` value the round's clock starts at, for the camera's opening swoop. */
+  timingStartsAtLocalMs: number
+  /** How many lanes the camera closes in on: the player and their neighbours. */
+  focusLaneCount: number
 }
 
 /**
  * Hosts the three.js arena. There is one scene for the life of the component;
  * it is told who is on the escalators when that changes, and handed the newest
- * lanes on every render.
+ * lanes on every render. Everyone still racing has a lane; the camera opens
+ * over them all and closes in on the player and their neighbours.
  */
-export function EscalatorArena({ players, lanes, attemptKey, isRacing }: EscalatorArenaProps) {
+export function EscalatorArena({
+  players,
+  lanes,
+  attemptKey,
+  isRacing,
+  timingStartsAtLocalMs,
+  focusLaneCount,
+}: EscalatorArenaProps) {
   const hostRef = useRef<HTMLDivElement>(null)
   const sceneRef = useRef<ArenaScene | null>(null)
   const rosterAttemptKey = useRef(attemptKey)
@@ -37,6 +49,10 @@ export function EscalatorArena({ players, lanes, attemptKey, isRacing }: Escalat
       sceneRef.current = null
     }
   }, [])
+
+  useEffect(() => {
+    sceneRef.current?.setView(timingStartsAtLocalMs, focusLaneCount)
+  }, [timingStartsAtLocalMs, focusLaneCount])
 
   // Told again only when who is on screen, or their order, changes.
   useEffect(() => {

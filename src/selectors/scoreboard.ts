@@ -21,12 +21,18 @@ export function selectScoreboardRows(
       a.name.localeCompare(b.name),
   )
 
+  const topPoints = ranked.length === 0 ? 0 : pointsOf(ranked[0]!.playerId, ranked[0]!.points)
+  // Level on points is level on the board (1, 1, 3), as the final standings have it.
+  let rank = 0
+  let previous: number | null = null
   return ranked.map((player, index) => {
     const points = pointsOf(player.playerId, player.points)
-    const isLeader = index === 0 && points > 0
+    if (points !== previous) rank = index + 1
+    previous = points
+    const isLeader = points === topPoints && points > 0
     return {
       id: player.playerId,
-      rank: index + 1,
+      rank,
       name: player.name,
       initial: initialOf(player.name),
       color: playerColor(player.playerId),

@@ -113,3 +113,12 @@ export const labelWidthFor = (
   canvasHeight: number,
   fieldOfViewDegrees: number,
 ): number => (pixels * 2 * Math.tan((fieldOfViewDegrees * Math.PI) / 360)) / canvasHeight
+
+/**
+ * How much smaller to draw other players' tags in a big room, so a crowd of
+ * them (a start line of twelve) does not pile up into one unreadable strip.
+ * Up to six players, full size; then smaller with each, to two thirds at
+ * twelve. Your own tag stays full size, so you can always find yourself.
+ */
+export const crowdedTagScale = (playerCount: number): number =>
+  playerCount <= 6 ? 1 : Math.max(0.65, 1 - (playerCount - 6) * 0.06)
