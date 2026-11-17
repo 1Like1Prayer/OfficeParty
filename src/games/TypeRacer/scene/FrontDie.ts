@@ -24,6 +24,7 @@ import {
 } from 'three'
 import { assignFaces, quaternionShowing } from './Die.ts'
 import type { RollView } from './Station.ts'
+import { sfx } from '../../../audio/sfx/index.ts'
 
 const DIE_SIZE = 2
 const HALF = DIE_SIZE / 2
@@ -318,6 +319,7 @@ export class FrontDie {
     if (roll.throwStartedAt === null && roll.view !== null && t >= SHAKE_SECONDS) {
       roll.throwStartedAt = t
       this.planThrow(roll)
+      sfx.typeRacer.diceThrow()
     }
 
     if (roll.throwStartedAt === null) this.shake(roll, t)
@@ -548,6 +550,11 @@ export class FrontDie {
 
   /** It has come to rest: say what it means, and let the world know. */
   private land(roll: Roll): void {
+    sfx.typeRacer.diceLand()
+    if (roll.view !== null) {
+      if (roll.view.isSkull) sfx.typeRacer.skull({ delay: 0.15 })
+      else sfx.typeRacer.safe({ delay: 0.15 })
+    }
     // Only a heart gets words. A skull needs none: the world is about to answer.
     if (roll.view !== null && !roll.view.isSkull) {
       this.caption.sprite.visible = true

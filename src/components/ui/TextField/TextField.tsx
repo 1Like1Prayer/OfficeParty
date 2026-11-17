@@ -1,4 +1,5 @@
 import { border, color, fluid, font } from '../../../theme/index.ts'
+import { sfx } from '../../../audio/sfx/index.ts'
 
 interface TextFieldProps {
   value: string
@@ -25,7 +26,10 @@ export function TextField({
       placeholder={placeholder}
       maxLength={maxLength}
       autoFocus={autoFocus}
-      onChange={(event) => { onChange(event.target.value) }}
+      onChange={(event) => {
+        sfx.ui.key()
+        onChange(event.target.value)
+      }}
       onKeyDown={(event) => {
         if (event.key !== 'Enter') return
         // Releasing focus lets whatever comes next take the keyboard — on the

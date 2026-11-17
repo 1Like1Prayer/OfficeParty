@@ -4,6 +4,7 @@ import { PushButton } from '../ui/index.ts'
 import { ConnectedCard, type Floater } from './ConnectedCard.tsx'
 import { GamePoolCard, type PoolChipView } from './GamePoolCard.tsx'
 import { LobbyHeader } from './LobbyHeader.tsx'
+import { sfx, useSoundOnChange } from '../../audio/sfx/index.ts'
 
 interface LobbyProps {
   roomCode: string
@@ -52,6 +53,13 @@ export function Lobby({
   onKick,
 }: LobbyProps) {
   const compact = useMediaQuery(breakpoint.compact)
+  // A pop for each arrival, a falling one for each departure.
+  useSoundOnChange(floaters.map(({ id }) => id).join(' '), (next, previous) => {
+    const now = new Set(next.split(' ').filter(Boolean))
+    const before = new Set(previous.split(' ').filter(Boolean))
+    if ([...now].some((id) => !before.has(id))) sfx.ui.playerJoin()
+    else if ([...before].some((id) => !now.has(id))) sfx.ui.playerLeave()
+  })
 
   return (
     <section
@@ -88,7 +96,12 @@ export function Lobby({
                 size="lg"
                 fullWidth={compact}
                 variant={isReady ? 'success' : 'primary'}
-                onClick={() => { onSetReady(!isReady) }}
+                silent
+                onClick={() => {
+                  if (isReady) sfx.ui.unready()
+                  else sfx.ui.ready()
+                  onSetReady(!isReady)
+                }}
               >
                 {isReady ? "I'm ready ✓" : "I'm ready"}
               </PushButton>

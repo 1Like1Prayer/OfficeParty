@@ -1,4 +1,6 @@
 import { border, color, fluid } from '../../theme/index.ts'
+import { useEffect } from 'react'
+import { sfx } from '../../audio/sfx/index.ts'
 
 interface ArenaNoticeProps {
   message: string
@@ -6,6 +8,8 @@ interface ArenaNoticeProps {
 
 /** The server refused something. Say so; the room carries on regardless. */
 export function ArenaNotice({ message }: ArenaNoticeProps) {
+  // A buzz as each new refusal appears.
+  useEffect(() => { sfx.ui.error() }, [message])
   return (
     <div
       style={{

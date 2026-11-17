@@ -7,6 +7,7 @@ import type { Dial, MageBattleRound, PressReply } from '../../shared/games/mageB
 import type { RoundPlayerView } from '../../types/index.ts'
 import { MageBattleScene, type MageView } from './scene/MageBattleScene.ts'
 import { BLOCK_COLORS, drawDial, type DialFlash } from './ui/drawDial.ts'
+import { sfx } from '../../audio/sfx/index.ts'
 
 /** A dial flourish lasts this long after a press. */
 const FLASH_MS = 450
@@ -73,6 +74,9 @@ export class MageBattleGame {
   private stage: Stage = 'building'
   private finished = false
   private winners: ReadonlySet<string> = new Set()
+  /** Sounds heard already: mages knocked out, and this mage's own win. */
+  private readonly knockedOut = new Set<string>()
+  private hasCheered = false
   private flash: (DialFlash & { atMs: number }) | null = null
   private readonly seen = new Map<string, Seen>()
 
@@ -127,6 +131,7 @@ export class MageBattleGame {
     const atMs = this.raceMs()
     const { dial, points, counted } = pressDial(this.dial, atMs, this.setup.round.seed, this.setup.selfPlayerId)
     if (!counted) {
+      sfx.mageBattle.spent()
       this.callbacks.spell({ kind: 'spent' })
       return
     }
@@ -197,6 +202,11 @@ export class MageBattleGame {
   }
 
   private showSpell(playerId: string, points: number): void {
+    // This mage's own spells in full; the others' quietly, so a crowd is not a din.
+    const isSelf = playerId === this.setup.selfPlayerId
+    const quiet = { volume: 0.25, gate: `mb.other.${playerId}`, minGapMs: 120 }
+    if (points > 0) sfx.mageBattle.cast(points, isSelf ? {} : quiet)
+    else sfx.mageBattle.fizzle(isSelf ? {} : quiet)
     if (points > 0) this.scene.spellLanded(playerId, points)
     else this.scene.spellFizzled(playerId)
   }
@@ -238,6 +248,7 @@ export class MageBattleGame {
       const dial = dials.get(playerId)!
       if (playerId !== selfPlayerId || !isFighting) this.watchOthers(playerId, dial, Math.min(now, MAGE_BATTLE.ROUND_MS))
       const pose = this.winners.has(playerId) ? 'won' : dial.outAtMs !== null ? 'out' : 'casting'
+      this.poseSounds(playerId, pose)
       return { playerId, pose, might: might.get(playerId) ?? 1, score: dial.score, isSelf: playerId === selfPlayerId }
     })
 
@@ -251,6 +262,19 @@ export class MageBattleGame {
     })
 
     if (isFighting) this.drawDial(now)
+  }
+
+  /** A shatter as a mage is knocked out (the player's own in full), and the win for the last one standing. */
+  private poseSounds(playerId: string, pose: 'won' | 'out' | 'casting'): void {
+    const isSelf = playerId === this.setup.selfPlayerId
+    if (pose === 'out' && !this.knockedOut.has(playerId)) {
+      this.knockedOut.add(playerId)
+      sfx.mageBattle.knockedOut({ volume: isSelf ? 1 : 0.35 })
+    }
+    if (pose === 'won' && isSelf && !this.hasCheered) {
+      this.hasCheered = true
+      sfx.mageBattle.win()
+    }
   }
 
   private drawDial(now: number): void {

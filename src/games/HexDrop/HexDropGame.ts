@@ -5,6 +5,12 @@ import type { Tile, TouchReply } from '../../shared/games/hexDrop/types.ts'
 import type { RoundPlayerView } from '../../types/index.ts'
 import { RemoteTrack } from '../three/remoteTrack.ts'
 import { HexDropScene, type RunnerPose } from './scene/HexDropScene.ts'
+import { sfx } from '../../audio/sfx/index.ts'
+
+/** A tile is heard rattling this long before it drops from under the player. */
+const WARNING_HEARD_MS = 1_000
+/** Falling faster than this (units a second, downward) whistles. */
+const FALL_WHISTLE_SPEED = -7
 
 const STEP_MS = HEX_DROP.STEP_SECONDS * 1000
 const REPORT_INTERVAL_MS = 1000 / HEX_DROP.PROGRESS_HZ
@@ -88,6 +94,13 @@ export class HexDropGame {
 
   private readonly tracks = new Map<string, RemoteTrack>()
   private rivalsOut = new Set<string>()
+
+  /* Sounds: what has been heard already, so each is heard once. */
+  private groundLayer = 0
+  private hasWhistled = false
+  private warnedTile: number | null = null
+  private readonly droppedTiles = new Set<number>()
+  private hasCheered = false
   private readonly backgroundTimer: ReturnType<typeof setInterval>
   private readonly unlisten: () => void
   private frameId = 0
@@ -129,7 +142,10 @@ export class HexDropGame {
         this.tracks.set(playerId, track)
       }
       track.push({ t: report.t, x: (report.x ?? 0) / 100, y: (report.z ?? 0) / 100, z: (report.y ?? 0) / 100 })
-      if (report.out === 1) this.rivalsOut.add(playerId)
+      if (report.out === 1 && !this.rivalsOut.has(playerId)) {
+        this.rivalsOut.add(playerId)
+        sfx.hexDrop.rivalOut()
+      }
     }
   }
 
@@ -156,6 +172,10 @@ export class HexDropGame {
   /** Who won, once the server says. */
   setWinners(playerIds: ReadonlySet<string>): void {
     this.winners = playerIds
+    if (!this.hasCheered && playerIds.has(this.setup.selfPlayerId) && this.setup.isRunning) {
+      this.hasCheered = true
+      sfx.hexDrop.win()
+    }
   }
 
   dispose(): void {
@@ -199,6 +219,7 @@ export class HexDropGame {
       this.previous = this.state
       this.state = stepRunner(this.state, this.controls(), isStanding)
       this.stepsDone += 1
+      this.stepSounds(this.previous, this.state)
 
       if (this.state.tile !== null && !this.touched.has(this.state.tile)) {
         this.reportTouch(this.state.tile, Math.round(stepEndsAtMs))
@@ -214,8 +235,44 @@ export class HexDropGame {
     }
   }
 
+  /** A jump, a landing, and the whistle of falling through a gap. */
+  private stepSounds(before: RunnerState, after: RunnerState): void {
+    if (after.vy > before.vy + 1) sfx.hexDrop.jump()
+    if (after.tile === null && after.vy < FALL_WHISTLE_SPEED && !this.hasWhistled && !after.out) {
+      this.hasWhistled = true
+      sfx.hexDrop.falling()
+    }
+    if (before.tile === null && after.tile !== null) {
+      sfx.hexDrop.land(after.layer > this.groundLayer)
+      this.groundLayer = after.layer
+      this.hasWhistled = false
+    }
+  }
+
+  /** The tile underfoot rattles before it goes, and every tile crumbles as it drops. */
+  private tileSounds(nowMs: number): void {
+    const standingOn = this.state.tile
+    if (standingOn !== null && standingOn !== this.warnedTile && !this.finished) {
+      const tile = TILES[standingOn]
+      const fallAtMs = tile === undefined ? undefined : this.fallAtMs(tile)
+      if (fallAtMs !== undefined && fallAtMs - nowMs < WARNING_HEARD_MS && fallAtMs > nowMs) {
+        this.warnedTile = standingOn
+        sfx.hexDrop.tileWarning()
+      }
+    }
+    for (const tile of TILES) {
+      if (this.droppedTiles.has(tile.id)) continue
+      const fallAtMs = this.fallAtMs(tile)
+      if (fallAtMs === undefined || fallAtMs > nowMs) continue
+      this.droppedTiles.add(tile.id)
+      // Only a drop happening now is heard, not one the screen is catching up on.
+      if (nowMs - fallAtMs < 250) sfx.hexDrop.tileDrop({ volume: this.touched.has(tile.id) ? 0.9 : 0.45 })
+    }
+  }
+
   private reportTouch(tile: number, atMs: number): void {
     this.touched.add(tile)
+    sfx.hexDrop.tileTouch(TILES[tile]?.layer ?? 0)
     this.predicted.set(tile, atMs + HEX_DROP.FALL_DELAY_MS)
     this.callbacks
       .touch(tile, atMs)
@@ -230,6 +287,7 @@ export class HexDropGame {
   private finish(outAtMs: number | null): void {
     if (this.finished || !this.setup.isRunning) return
     this.finished = true
+    if (outAtMs !== null) sfx.hexDrop.out()
     // Everyone sees the final position, and that they are out.
     const { x, y, z } = this.state
     this.callbacks.progress({
@@ -283,6 +341,7 @@ export class HexDropGame {
   private draw(): void {
     const nowMs = performance.now() - this.setup.timingStartsAtLocalMs
     const runners: RunnerPose[] = []
+    if (this.setup.isRunning && nowMs >= 0) this.tileSounds(nowMs)
 
     if (this.setup.isRunning) {
       // Between the last two steps, one step behind, so the runner moves smoothly

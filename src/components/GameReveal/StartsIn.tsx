@@ -1,4 +1,6 @@
 import { color, fluid, font, sharedStyles } from '../../theme/index.ts'
+import { useEffect } from 'react'
+import { sfx } from '../../audio/sfx/index.ts'
 
 /** Three numbers, however long the room's window is. */
 export const START_BEATS = 3
@@ -13,6 +15,7 @@ interface StartsInProps {
  * the screen does not change under anyone mid-sentence.
  */
 export function StartsIn({ beats }: StartsInProps) {
+  useEffect(() => { sfx.flow.startsInTick(beats) }, [beats])
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: fluid(12, 20), flexWrap: 'wrap' }}>
       <div style={{ ...sharedStyles.microLabel, fontSize: fluid(12, 15), letterSpacing: '0.22em' }}>

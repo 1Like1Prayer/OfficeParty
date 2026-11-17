@@ -5,6 +5,8 @@ import { PushButton } from '../../components/ui/index.ts'
 import type { GameSurfaceProps } from '../types.ts'
 import { TvIntro } from '../ui/TvIntro.tsx'
 import { stopTheClockShow } from './tvShow.ts'
+import { useClockSounds } from './useClockSounds.ts'
+import { sfx } from '../../audio/sfx/index.ts'
 
 const isRound = (data: unknown): data is StopTheClockRound =>
   typeof data === 'object' &&
@@ -68,6 +70,19 @@ export function StopTheClock({
     })
   }, [tvShow, phase, stoppedAt, submitted, progress, finalRanking, names])
 
+  const othersLockedIn = Object.entries(progress).filter(
+    ([playerId, report]) => playerId !== selfPlayerId && report.running === 0,
+  ).length
+  useClockSounds({
+    timingStartsAtLocalMs,
+    targetMs: isRound(data) ? data.targetMs : 0,
+    isBlind: isRound(data) && data.blind === true,
+    isRunning: playing && !done,
+    lockedInCount: othersLockedIn,
+    ranking: finalRanking,
+    selfPlayerId,
+  })
+
   useEffect(() => {
     if (!playing) return
     suspect.current = false
@@ -82,6 +97,7 @@ export function StopTheClock({
   const stop = useCallback(() => {
     if (stoppedAt !== null) return
     const stopped = performance.now() - timingStartsAtLocalMs
+    sfx.stopTheClock.stop()
     setLastStop({ attemptKey, atMs: stopped })
     onProgress({ running: false })
     onSubmit({ elapsedMs: stopped, timingSuspect: suspect.current })
@@ -140,7 +156,7 @@ export function StopTheClock({
             <>
               {/* Wide enough to hit without looking, on a phone as much as a desk. */}
               <div style={{ width: fluid(200, 260), maxWidth: '100%', pointerEvents: 'auto' }}>
-                <PushButton size="lg" variant="success" fullWidth onClick={stop}>
+                <PushButton size="lg" variant="success" fullWidth silent onClick={stop}>
                   STOP
                 </PushButton>
               </div>

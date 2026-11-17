@@ -30,6 +30,7 @@ import { useEliminationGap } from './useEliminationGap.ts'
 import { useFallenPlayers } from './useFallenPlayers.ts'
 import { useScoreBroadcast } from './useScoreBroadcast.ts'
 import { useTabWasHidden } from '../../hooks/useTabWasHidden.ts'
+import { sfx, useLoop, useSoundOnChange } from '../../audio/sfx/index.ts'
 
 const NO_PLAYERS: ReadonlySet<string> = new Set()
 /**
@@ -177,10 +178,13 @@ export function CrusherEscalator({
       // The server refuses a result with more presses, or later ones, than this.
       if (atMs < 0 || atMs > MAX_RACE_MS) return
       if (inputs.length >= MAX_INPUTS) return
-      setInputs([...inputs, { direction, atMs }])
+      const input = { direction, atMs }
+      if (arrows !== null && isCorrectPress(input, arrows, inputs.length)) sfx.crusherEscalator.step(countCorrectPresses(inputs, arrows))
+      else sfx.crusherEscalator.wrong()
+      setInputs([...inputs, input])
       setFlashedPressCount(inputs.length + 1)
     },
-    [inputs, timingStartsAtLocalMs],
+    [inputs, timingStartsAtLocalMs, arrows],
   )
   useArrowKeyPresses(acceptsInput, recordPress)
   useScoreBroadcast(score, isRacing && !isSpectating, onProgress)
@@ -228,6 +232,22 @@ export function CrusherEscalator({
       : [],
   )
   const hasSoleWinner = winnerIds.size === 1
+
+  // The black hole hums louder and higher the nearer anyone is to its edge; the
+  // escalator's machinery runs under it while this player is still climbing.
+  const danger = Math.max(0, ...players.filter(({ playerId }) => !hasFallen(playerId)).map(({ playerId }) => slipFraction(gaps[playerId] ?? 0, eliminationGap)))
+  useLoop(sfx.crusherEscalator.blackHoleLoop, isRacing && !isRaceOver, 0.25 + 0.75 * danger, 1 + danger * 0.6)
+  useLoop(sfx.crusherEscalator.escalatorLoop, isRacing && !isRaceOver && !isSpectating, 0.6)
+  useSoundOnChange(eliminationGap, (next, previous) => { if (isRacing && next < previous) sfx.crusherEscalator.gapNarrows() })
+  // Swallowed: the full dive for this player, a short blip for anyone else.
+  const fallenKey = players.filter(({ playerId }) => hasFallen(playerId)).map(({ playerId }) => playerId).join(' ')
+  useSoundOnChange(fallenKey, (next, previous) => {
+    const before = new Set(previous.split(' '))
+    const newly = next.split(' ').filter((playerId) => playerId !== '' && !before.has(playerId))
+    if (newly.includes(selfPlayerId)) sfx.crusherEscalator.swallowed()
+    else if (newly.length > 0) sfx.flow.eliminated({ volume: 0.6 })
+  })
+  useSoundOnChange(hasSoleWinner && winnerIds.has(selfPlayerId), (isWinner) => { if (isWinner) sfx.flow.youWon() })
 
   const roster = selectRoster({ players, isOut: hasFallen })
   const lanes: LaneView[] = players.map(({ playerId }) => {

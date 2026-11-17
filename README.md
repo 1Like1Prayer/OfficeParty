@@ -50,6 +50,8 @@ src/
   selectors/    RoomView -> view models
   games/        the playable surfaces, one folder per game
   hooks/        generic hooks
+  audio/        background music, and sfx/ — how each sound effect is played (see Sound effects)
+  assets/audio/ the music track, and sfx/ — every sound effect as an .mp3 / .wav file
   components/
     ui/         primitives: BigButton, PushButton, TextField, Pill, Avatar, …
     Arena/      container: stage router (title / host / join / room) + phases
@@ -58,6 +60,60 @@ src/
     Lobby/ GameReveal/ GamePlay/ RoundResults/ FinalStandings/
     Scoreboard/ ConnectionGate/
 ```
+
+## Sound effects
+
+Every sound effect is a file under `src/assets/audio/sfx/`, split into
+`shared/` (`ui/`, `flow/`, `ambience/`) and `games/<game>/`:
+
+- **One-shots are `.mp3`**: about a tenth the size of `.wav`, and every browser
+  plays them (Safari only gained `.ogg` support in 18.4, so `.ogg` would leave
+  older Macs and iPhones silent).
+- **Loops are `.wav`** (sea, wind, the black hole, the escalator, the beams). An
+  MP3 encoder pads the start with a few milliseconds of silence, which would be
+  a gap every time a loop came round; `.wav` has none.
+- A sound with several takes is saved as `name.v1.mp3`, `name.v2.mp3`, …, and a
+  take is picked at random each time it plays.
+
+The game plays them through `src/audio/sfx/` (`sfx.ui.click()`,
+`sfx.typeRacer.key()`, …), which loads every file in the background as the page
+opens (about 2.3 MB) and adds pitch, volume, music ducking and the effects /
+ambience volume channels at playback. `src/audio/sfx/SOUNDS.md` maps every
+sound to where it is heard, and lists what is still missing.
+
+### Replacing a sound
+
+Drop the new file in under the same name, e.g.
+`src/assets/audio/sfx/games/typeRacer/key.mp3` (for several takes, `key.v1.mp3`,
+`key.v2.mp3`, … with the old files deleted). `.mp3` or `.wav` both work, at any
+sample rate. No code changes. Keep its loudness close to the file it replaces:
+the volumes in the code were tuned to these.
+
+### Regenerating the files
+
+The files were rendered from synth code — one recipe per sound in
+`src/audio/sfx/recipes/` — and can be rendered again after changing a recipe.
+The recipes are a dev tool: the game never imports them, so they are not in
+the build.
+
+You need **ffmpeg** on your `PATH` to encode the MP3s (macOS:
+`brew install ffmpeg`; Windows: `winget install ffmpeg`; Linux: your package
+manager).
+
+1. `npm run dev`
+2. Open <http://localhost:5173/tools/sfx/render.html> and press **Render all**.
+3. The page lists every file it saved, with its length, peak level and size,
+   and flags anything that clips (peak ≥ 0.99). Commit the changed files.
+
+Rendering **replaces everything** under `src/assets/audio/sfx/`, including
+any recordings you dropped in by hand — re-add those afterwards, or remove
+that sound's recipe first. Files are written by a small dev-server-only
+endpoint (the `sfx-render` plugin in `vite.config.ts`), which can only write
+`.mp3` and `.wav` files inside that folder and does not exist in a build.
+
+To add a new sound: write its recipe (`recipes/shared/…` or
+`recipes/games/<game>.ts`), render, add `name: sound('games/<game>/name')` to
+the matching file in `src/audio/sfx/`, and call it where it should play.
 
 ## Adding a game
 

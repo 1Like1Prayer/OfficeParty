@@ -1,6 +1,7 @@
 import { AVATAR_SEEDS, avatarUrl } from '../../content/avatars.ts'
 import { useHover } from '../../hooks/index.ts'
 import { border, color, sharedStyles } from '../../theme/index.ts'
+import { sfx } from '../../audio/sfx/index.ts'
 
 interface AvatarPickerProps {
   value: string
@@ -44,7 +45,10 @@ function AvatarOption({ seed, selected, onSelect }: AvatarOptionProps) {
   return (
     <button
       type="button"
-      onClick={() => { onSelect(seed) }}
+      onClick={() => {
+        sfx.ui.toggle({ vary: 0.15 })
+        onSelect(seed)
+      }}
       aria-label={`Avatar ${seed}`}
       aria-pressed={selected}
       {...handlers}

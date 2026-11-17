@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { border, color, fluid, lift, sharedStyles } from '../../theme/index.ts'
+import { sfx } from '../../audio/sfx/index.ts'
 
 interface EntryCardProps {
   label: string
@@ -37,7 +38,15 @@ export function EntryCard({ label, onBack, children }: EntryCardProps) {
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
           <div style={sharedStyles.microLabel}>{label}</div>
-          <button type="button" onClick={onBack} style={sharedStyles.inlineAction}>
+          <button
+            type="button"
+            onClick={() => {
+              sfx.ui.click()
+              onBack()
+            }}
+            onPointerEnter={(event) => { if (event.pointerType === 'mouse') sfx.ui.hover() }}
+            style={sharedStyles.inlineAction}
+          >
             BACK
           </button>
         </div>

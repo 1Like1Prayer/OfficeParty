@@ -1,5 +1,6 @@
 import { useHover } from '../../hooks/index.ts'
 import { border, color, fluid, sharedStyles } from '../../theme/index.ts'
+import { sfx } from '../../audio/sfx/index.ts'
 
 export interface PoolChipView {
   id: string
@@ -41,7 +42,10 @@ export function GamePoolCard({
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
         <div style={sharedStyles.microLabel}>GAME POOL</div>
         {!readOnly && (
-          <button type="button" onClick={onToggleAll} style={sharedStyles.inlineAction}>
+          <button type="button" onClick={() => {
+            sfx.ui.toggle()
+            onToggleAll()
+          }} style={sharedStyles.inlineAction}>
             {toggleAllLabel}
           </button>
         )}
@@ -69,7 +73,10 @@ function PoolChip({ chip, readOnly, onToggle }: PoolChipProps) {
     <button
       type="button"
       disabled={locked}
-      onClick={() => { onToggle(chip.id) }}
+      onClick={() => {
+        sfx.ui.toggle()
+        onToggle(chip.id)
+      }}
       {...handlers}
       title={chip.playable ? undefined : 'Not built yet'}
       style={{

@@ -1,6 +1,7 @@
 import { color, fluid, font, sharedStyles } from '../../theme/index.ts'
 import type { ScoreboardRowView } from '../../types/index.ts'
 import { Avatar, ConfirmButton } from '../ui/index.ts'
+import { sfx, useSoundOnChange } from '../../audio/sfx/index.ts'
 
 interface ScoreboardRowProps {
   row: ScoreboardRowView
@@ -9,6 +10,8 @@ interface ScoreboardRowProps {
 }
 
 export function ScoreboardRow({ row, onKick }: ScoreboardRowProps) {
+  // A coin when the player's own points go up.
+  useSoundOnChange(row.points, (next, previous) => { if (row.isYou && next > previous) sfx.flow.scoreTick() })
   return (
     <div
       style={{

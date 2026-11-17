@@ -1,6 +1,7 @@
 import { useHover } from '../../hooks/index.ts'
 import { color, fluid, sharedStyles } from '../../theme/index.ts'
 import { RoomCodeButton } from './RoomCodeButton.tsx'
+import { sfx } from '../../audio/sfx/index.ts'
 
 interface LobbyHeaderProps {
   roomCode: string
@@ -15,7 +16,10 @@ export function LobbyHeader({ roomCode, onBack }: LobbyHeaderProps) {
     <div style={{ display: 'flex', alignItems: 'center', gap: `${fluid(14, 20)} ${fluid(14, 30)}`, flexWrap: 'wrap' }}>
       <button
         type="button"
-        onClick={onBack}
+        onClick={() => {
+          sfx.ui.click()
+          onBack()
+        }}
         {...handlers}
         style={{
           ...sharedStyles.raised(hovered ? 3 : 5),

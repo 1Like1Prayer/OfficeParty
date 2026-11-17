@@ -135,7 +135,7 @@ class BackgroundMusic {
   setVolume(volume: number): void {
     const clamped = Math.min(1, Math.max(0, volume))
     if (this.audio !== null) {
-      this.audio.volume = clamped
+      this.audio.volume = clamped * this.duckLevel
       // Turning it up from silent unmutes it, as a volume knob would.
       if (clamped > 0 && this.audio.muted) this.audio.muted = false
     }
@@ -150,6 +150,35 @@ class BackgroundMusic {
     if (!isMuted && this.state.volume === 0) this.setVolume(DEFAULT_VOLUME)
     this.set({ isMuted })
     this.persist()
+  }
+
+  /**
+   * Dips the music under a big sound effect: down by `depth` (0–1) at once,
+   * held for `holdMs`, then eased back. A second duck while one is running
+   * extends it, and the deeper of the two wins.
+   */
+  duck(depth: number, holdMs: number): void {
+    const now = performance.now()
+    const isRunning = this.duckFrame !== null && now < this.duckUntil
+    this.duckDepth = isRunning ? Math.max(this.duckDepth, depth) : depth
+    this.duckUntil = Math.max(this.duckUntil, now + holdMs)
+    if (this.duckFrame === null) this.duckFrame = requestAnimationFrame(this.stepDuck)
+  }
+
+  private duckLevel = 1
+  private duckDepth = 0
+  private duckUntil = 0
+  private duckFrame: number | null = null
+
+  private readonly stepDuck = (): void => {
+    const now = performance.now()
+    const target = now < this.duckUntil ? 1 - this.duckDepth : 1
+    // Quick to dip, slower to come back.
+    this.duckLevel += (target - this.duckLevel) * (target < this.duckLevel ? 0.35 : 0.06)
+    const isDone = now >= this.duckUntil && Math.abs(1 - this.duckLevel) < 0.01
+    if (isDone) this.duckLevel = 1
+    if (this.audio !== null) this.audio.volume = this.state.volume * this.duckLevel
+    this.duckFrame = isDone ? null : requestAnimationFrame(this.stepDuck)
   }
 
   private tryPlay(): void {

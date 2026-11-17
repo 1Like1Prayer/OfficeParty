@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { border, color, fluid, font } from '../../theme/index.ts'
+import { sfx } from '../../audio/sfx/index.ts'
 
 interface CodeBoxesProps {
   entry: string
@@ -67,7 +68,10 @@ export function CodeBoxes({
         autoComplete="off"
         spellCheck={false}
         aria-label="Room code"
-        onChange={(event) => { onChange(event.target.value) }}
+        onChange={(event) => {
+          sfx.ui.key()
+          onChange(event.target.value)
+        }}
         onKeyDown={(event) => {
           if (event.key === 'Enter') onSubmit()
         }}

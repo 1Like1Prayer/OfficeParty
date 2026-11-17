@@ -13,6 +13,7 @@ import { MinefieldStage } from './MinefieldStage.tsx'
 import { REMOTE_DELAY_MS } from './remoteTrack.ts'
 import { TouchControls } from './TouchControls.tsx'
 import { useHeldKeys } from './useHeldKeys.ts'
+import { sfx, useSoundOnChange } from '../../audio/sfx/index.ts'
 
 const isRound = (data: unknown): data is MinefieldRound =>
   typeof data === 'object' &&
@@ -304,6 +305,11 @@ function MinefieldRun({
     finalRanking,
   })
   const sonarFill = Math.min(1, Math.max(0, 1 - (sonarReadyAtMs - raceMs) / MINEFIELD.SONAR_COOLDOWN_MS))
+
+  // Out on the second blast, a whistle at the finish, and a blip when the sonar is charged again.
+  useSoundOnChange(isOut && !isSpectating, (out) => { if (out) sfx.minefield.out() })
+  useSoundOnChange(isFinished && !isSpectating, (finished) => { if (finished) sfx.minefield.finish() })
+  useSoundOnChange(canControl && sonarFill >= 1 && outcome.scans.length > 0, (ready) => { if (ready) sfx.minefield.sonarReady() })
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%', background: '#7fb069' }}>

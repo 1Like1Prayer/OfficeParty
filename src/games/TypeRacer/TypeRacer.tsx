@@ -20,6 +20,7 @@ import { useParagraphClock } from './ui/useParagraphClock.ts'
 import { useSpectator } from './ui/useSpectator.ts'
 import { watchedRaceState } from './typing/watchedState.ts'
 import { SpectatorHint } from './ui/SpectatorHint.tsx'
+import { sfx, useAmbientCalls, useLoop, useSoundOnChange } from '../../audio/sfx/index.ts'
 
 const NO_PARAGRAPHS: readonly Paragraph[] = []
 
@@ -109,6 +110,14 @@ function TypeRacerSession({
   // During the pause between paragraphs the clock has not started yet: it reads the full allowance.
   const secondsLeft =
     rawSecondsLeft === null ? null : Math.min(rawSecondsLeft, TYPE_RACER.PARAGRAPH_TIME_LIMIT_MS / 1000)
+
+  // The last five seconds of a paragraph tick away; the sea washes round the boards throughout.
+  useSoundOnChange(secondsLeft, (next) => {
+    if (next !== null && next > 0 && next <= 5 && race.state.status === 'typing') sfx.typeRacer.timerTick({ pitch: 1 + (5 - next) * 0.06 })
+  })
+  useLoop(sfx.typeRacer.seaLoop, startedRacing || isRacing, 0.6)
+  // Gulls wheel over the sea now and then.
+  useAmbientCalls(sfx.ambience.seagulls, startedRacing || isRacing, 6_000, 14_000)
 
   // The pause after each paragraph but the last: typing is closed, and the screen says so.
   const paragraphNumber = race.state.paragraphIndex

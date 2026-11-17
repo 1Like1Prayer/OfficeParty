@@ -7,6 +7,8 @@ import { color, fluid, sharedStyles } from '../../theme/index.ts'
 import { ReadyButton, ReadyCheck } from './ReadyCheck.tsx'
 import { StartsIn } from './StartsIn.tsx'
 import { RulesCard } from './RulesCard.tsx'
+import { useEffect } from 'react'
+import { sfx } from '../../audio/sfx/index.ts'
 
 interface GameRevealProps {
   game: GameMeta
@@ -42,6 +44,11 @@ export function GameReveal({
   startsInBeats,
   hostControls,
 }: GameRevealProps) {
+  // The game is announced (and a tiebreak given its own ominous note).
+  useEffect(() => {
+    if (isTiebreak) sfx.flow.tiebreak()
+    else sfx.flow.reveal()
+  }, [game.id, isTiebreak])
   return (
     <section
       style={{

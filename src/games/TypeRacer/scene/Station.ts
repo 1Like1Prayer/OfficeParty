@@ -18,6 +18,7 @@ import { Typewriter } from './Typewriter.ts'
 import { STATION, WATER_LEVEL, type StationPose } from './stageConfig.ts'
 import { WoodBlock } from './WoodBlock.ts'
 import type { Burst } from './ParticleSystem.ts'
+import { sfx } from '../../../audio/sfx/index.ts'
 
 /** What a station needs the scene to do for it: effects, ripples and camera kicks. */
 export interface StationEffects {
@@ -219,7 +220,11 @@ export class Station {
     this.setMood('panic')
 
     const water = WATER_LEVEL - this.root.position.y + STATION.BOARD_THICKNESS
+    // The player's own fall in full; anyone else's further off.
+    const loudness = this.isYours ? 1 : 0.35
+    sfx.typeRacer.crack({ volume: loudness })
     this.block.crumble(water, (local) => {
+      sfx.typeRacer.splash({ volume: loudness, gate: `tr.splash.${this.player.playerId}`, minGapMs: 1500 })
       const world = this.block.group.localToWorld(local.clone())
       this.splashDroplets(world, 10, 4.2, 0.4)
       this.effects.ripple(world.x, world.z, 0.5)
