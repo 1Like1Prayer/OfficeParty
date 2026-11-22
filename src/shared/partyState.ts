@@ -13,6 +13,7 @@
 
 import type { GameId } from './games/catalog.js';
 import type { PlaylistMode, RoomPhase, RoundPhase, StartBlockedReason } from './protocol.js';
+import type { StandaloneGameId } from './standalone/catalog.js';
 
 export interface PlayerStateJson {
     id: string;
@@ -61,6 +62,16 @@ export interface RoundStateJson {
     shared: Record<string, number>;
 }
 
+/**
+ * A standalone game the owner opened for the room. Everyone moves to its own
+ * room (`roomCode`) and keeps their seat here, so they come back to this
+ * lobby when they leave it. Both '' when none is open.
+ */
+export interface StandaloneLinkJson {
+    gameId: StandaloneGameId | '';
+    roomCode: string;
+}
+
 export interface PartyStateJson {
     roomCode: string;
     phase: RoomPhase;
@@ -72,4 +83,5 @@ export interface PartyStateJson {
     round: RoundStateJson;
     minPlayers: number;
     maxPlayers: number;
+    standalone: StandaloneLinkJson;
 }

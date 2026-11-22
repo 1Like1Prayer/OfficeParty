@@ -22,6 +22,7 @@
 
 import type { GameId } from './games/catalog.js';
 import type { RankedEntry } from './games/selfTimed.js';
+import type { StandaloneGameId } from './standalone/catalog.js';
 
 /** The Colyseus room name clients create and join. */
 export const PARTY_ROOM_NAME = 'party';
@@ -53,6 +54,12 @@ export const ClientRequest = {
     SubmitResult: 'round:result',
     /** A mid-round request the game answers (e.g. casting the dice). */
     RoundAction: 'round:action',
+    /**
+     * Owner, in the lobby: open a standalone game (e.g. Skribbl) for the whole
+     * room. The server creates the game's room and publishes its code in
+     * `state.standalone`; every client then joins it. See LaunchStandaloneReply.
+     */
+    LaunchStandalone: 'standalone:launch',
     Ping: 'time:ping'
 } as const;
 
@@ -81,6 +88,12 @@ export interface JoinOptions {
     name?: string;
     /** Avatar seed. See AVATAR in constants. */
     avatar?: string;
+    /**
+     * Standalone rooms only: the token from LaunchStandaloneReply. The player
+     * who launched the game presents it to own the game's room, whoever gets
+     * there first.
+     */
+    ownerToken?: string;
 }
 
 export type ErrorCode =
@@ -94,7 +107,11 @@ export type ErrorCode =
     | 'stale_round'
     | 'duplicate_result'
     | 'competition_in_progress'
-    | 'invalid_target';
+    | 'invalid_target'
+    /* Standalone games (Skribbl). */
+    | 'not_drawer'
+    | 'rate_limited'
+    | 'reveals_word';
 
 /** A refused request's reason: the rejected Error's `reason` property on the client. */
 export interface RequestError {
@@ -121,6 +138,20 @@ export interface SetReadyReply {
 
 export interface StartCompetitionReply {
     playlist: GameId[];
+}
+
+export interface LaunchStandaloneRequest {
+    gameId: StandaloneGameId;
+}
+
+/**
+ * The game's room code (also in `state.standalone.roomCode`, for everyone),
+ * and the token that makes the owner the game room's owner too: join with
+ * `client.joinById(roomCode, { ...joinOptions, ownerToken })`.
+ */
+export interface LaunchStandaloneReply {
+    roomCode: string;
+    ownerToken: string;
 }
 
 export interface PingReply {

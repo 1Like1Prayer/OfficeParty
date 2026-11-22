@@ -10,5 +10,8 @@ export const ROOM_CODE = import.meta.env.VITE_ROOM_CODE ?? ''
  */
 export const SESSION_KEY = 'party-arena/session'
 
+/** This tab's seat in a standalone game opened from the party, kept across reloads. */
+export const GAME_SESSION_KEY = 'party-arena/game-session'
+
 /** How often to re-check a server that could not be reached. */
 export const HEALTH_RETRY_MS = 2_000

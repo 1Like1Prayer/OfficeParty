@@ -8,16 +8,26 @@ import {
   KICKED_CODE,
   PARTY_ROOM_NAME,
   type JoinOptions,
+  type LaunchStandaloneReply,
   type LeaderboardPayload,
   type PlaylistMode,
   type RoundClosingPayload,
   type RoundResultsPayload,
 } from '../shared/protocol.ts'
+import type { StandaloneGameId } from '../shared/standalone/catalog.ts'
 import type { NextStageView } from '../types/index.ts'
 import { describeJoinError, describeRequestError } from './errors.ts'
 import { PartyConnection } from './partyConnection.ts'
 import { toScores, type ProgressByPlayer, type RoomView, type SharedValues } from './roomView.ts'
-import { clearSession, readSession, writeSession } from './session.ts'
+import {
+  clearGameSession,
+  clearSession,
+  readGameSession,
+  readSession,
+  writeGameSession,
+  writeSession,
+} from './session.ts'
+import { SkribblConnection } from './skribblConnection.ts'
 import { useLiveRound, type LiveRound } from './useLiveRound.ts'
 import { useNetwork, usePartySnapshot } from './useNetwork.ts'
 
@@ -49,6 +59,14 @@ export interface RoomActions {
   backToLobby: () => void
   /** Owner only: remove a player from the room. */
   kick: (playerId: string) => void
+
+  /* Standalone games */
+  /** Owner only: open a standalone game; everyone in the lobby moves into it. */
+  launchStandalone: (gameId: StandaloneGameId) => void
+  /** Join the standalone game the room has open (for a latecomer, or after leaving it). */
+  joinStandalone: () => void
+  /** Leave the standalone game and go back to the party lobby. */
+  leaveStandalone: () => void
 
   /* Round */
   /** Acknowledge the ready check for the round on screen. */
@@ -91,6 +109,8 @@ export interface UseRoomResult {
   error: string | null
   /** A create, join or rejoin is in flight. */
   busy: boolean
+  /** The standalone game this tab is playing, or null. */
+  game: SkribblConnection | null
   actions: RoomActions
 }
 
@@ -110,7 +130,7 @@ const NO_SHARED: SharedValues = {}
  * UI renders only what comes back in the synced state and the round messages.
  */
 export function useRoom(): UseRoomResult {
-  const { client, connection, setConnection, setFatalError } = useNetwork()
+  const { client, connection, setConnection, game, setGame, setFatalError } = useNetwork()
   const snapshot = usePartySnapshot()
   const [screen, setScreen] = useState<Exclude<ArenaStage, 'room'>>('title')
   // A stored seat is rejoined on load, so the tab starts busy.
@@ -167,7 +187,79 @@ export function useRoom(): UseRoomResult {
     [client, enter, raise, setFatalError],
   )
 
-  useResumeStoredSeat({ client, enter, attach, setBusy })
+  /* ---------------------------- standalone games ---------------------------- */
+
+  /** Seat this tab in a standalone game's room, opened from party `partyCode`. */
+  const enterGame = useCallback(
+    async (joined: Room, partyCode: string) => {
+      const next = await SkribblConnection.open(joined, (code) => {
+        clearGameSession()
+        setGame(null)
+        raise(code === KICKED_CODE ? 'The Admin removed you from the game.' : 'The game has closed.', null)
+      })
+      writeGameSession({ partyCode, roomCode: joined.roomId, reconnectionToken: joined.reconnectionToken })
+      setGame(next)
+    },
+    [setGame, raise],
+  )
+
+  // One join at a time: the auto-join and a click must not take two seats.
+  const gameJoining = useRef(false)
+  const joinGame = useCallback(
+    async (roomCode: string, ownerToken?: string) => {
+      if (connection === null || gameJoining.current) return
+      const party = connection.getSnapshot().room
+      const me = party.players.find((player) => player.playerId === connection.playerId)
+      gameJoining.current = true
+      try {
+        const options: JoinOptions = {
+          protocolVersion: PROTOCOL_VERSION,
+          name: me?.name,
+          avatar: me?.avatar,
+          ...(ownerToken === undefined ? {} : { ownerToken }),
+        }
+        const joined = await client.joinById(roomCode, options)
+        await enterGame(joined, party.roomCode)
+      } catch (failure) {
+        raise(describeJoinError(failure).message, connection.getSnapshot().room)
+      } finally {
+        gameJoining.current = false
+      }
+    },
+    [client, connection, enterGame, raise],
+  )
+
+  const leaveGame = useCallback(() => {
+    void game?.leave()
+    clearGameSession()
+    setGame(null)
+  }, [game, setGame])
+
+  // No game without its party: leaving or losing the party room leaves the game too.
+  useEffect(() => {
+    if (connection === null && game !== null) leaveGame()
+  }, [connection, game, leaveGame])
+
+  const launching = useRef(false)
+  const seenStandalone = useFollowStandalone({ room, connection, game, launching, joinGame })
+
+  const launchGame = useCallback(
+    (gameId: StandaloneGameId) => {
+      if (connection === null || launching.current) return
+      launching.current = true
+      connection
+        .request<LaunchStandaloneReply>(ClientRequest.LaunchStandalone, { gameId })
+        .then((reply) => {
+          seenStandalone.current = reply.roomCode
+          return joinGame(reply.roomCode, reply.ownerToken)
+        })
+        .catch((failure: unknown) => { raise(describeRequestError(failure), connection.getSnapshot().room) })
+        .finally(() => { launching.current = false })
+    },
+    [connection, joinGame, raise, seenStandalone],
+  )
+
+  useResumeStoredSeat({ client, enter, attach, enterGame, setBusy })
   useKeepSessionFresh(connection, room)
 
   const leave = useCallback(() => {
@@ -177,7 +269,17 @@ export function useRoom(): UseRoomResult {
   }, [connection, setConnection])
   const clearError = useCallback(() => { setRaised(null) }, [])
 
-  const actions = useRoomActions({ connection, round, attach, raise, leave, setScreen, clearError })
+  const roomActions = useRoomActions({ connection, round, attach, raise, leave, setScreen, clearError })
+  const standaloneCode = room?.standalone?.roomCode ?? null
+  const actions = useMemo<RoomActions>(
+    () => ({
+      ...roomActions,
+      launchStandalone: launchGame,
+      joinStandalone: () => { if (standaloneCode !== null) void joinGame(standaloneCode) },
+      leaveStandalone: leaveGame,
+    }),
+    [roomActions, launchGame, joinGame, leaveGame, standaloneCode],
+  )
 
   const scores = useMemo(() => (room === null ? {} : toScores(room)), [room])
   const events = snapshot?.events
@@ -197,8 +299,46 @@ export function useRoom(): UseRoomResult {
     scores,
     error,
     busy,
+    game,
     actions,
   }
+}
+
+/**
+ * Follow the room into a standalone game the owner opens: when a new one
+ * appears while this tab is in the lobby, join it. One that was already open
+ * when this tab arrived is only offered, never joined by itself, and neither
+ * is one this tab just left. Returns the last code seen, which a launch sets
+ * so its own game isn't joined twice.
+ */
+function useFollowStandalone(deps: {
+  room: RoomView | null
+  connection: PartyConnection | null
+  game: SkribblConnection | null
+  launching: { current: boolean }
+  joinGame: (roomCode: string) => Promise<void>
+}): { current: string | null | undefined } {
+  const { room, connection, game, launching, joinGame } = deps
+  const code = room?.standalone?.roomCode ?? null
+  /** undefined until this connection's first state: what was open on arrival isn't news. */
+  const seen = useRef<string | null | undefined>(undefined)
+
+  useEffect(() => {
+    if (connection === null) {
+      seen.current = undefined
+      return
+    }
+    if (seen.current === undefined) {
+      seen.current = code
+      return
+    }
+    if (code === seen.current) return
+    seen.current = code
+    // The owner joins with their token once the launch answers.
+    if (code !== null && game === null && !launching.current) void joinGame(code)
+  }, [connection, code, game, launching, joinGame])
+
+  return seen
 }
 
 /**
@@ -209,9 +349,10 @@ function useResumeStoredSeat(deps: {
   client: ReturnType<typeof useNetwork>['client']
   enter: (room: Room, name: string, avatar: string) => Promise<void>
   attach: (name: string, avatar: string, roomCode: string | null) => Promise<void>
+  enterGame: (room: Room, partyCode: string) => Promise<void>
   setBusy: (busy: boolean) => void
 }): void {
-  const { client, enter, attach, setBusy } = deps
+  const { client, enter, attach, enterGame, setBusy } = deps
   // StrictMode runs effects twice in development; a seat is claimed only once.
   const started = useRef(false)
 
@@ -220,12 +361,29 @@ function useResumeStoredSeat(deps: {
     if (started.current || session === null) return
     started.current = true
 
+    // The standalone game this tab was playing, if it was opened from this party.
+    const gameSession = readGameSession()
+    const resumeGame = async () => {
+      if (gameSession === null) return
+      if (gameSession.partyCode !== session.roomCode) {
+        clearGameSession()
+        return
+      }
+      try {
+        await enterGame(await client.reconnect(gameSession.reconnectionToken), gameSession.partyCode)
+      } catch {
+        // The seat is gone; the lobby offers the game again if it's still open.
+        clearGameSession()
+      }
+    }
+
     client
       .reconnect(session.reconnectionToken)
       .then((room) => enter(room, session.name, session.avatar))
       .catch(() => attach(session.name, session.avatar, session.roomCode))
+      .then(resumeGame)
       .finally(() => { setBusy(false) })
-  }, [client, enter, attach, setBusy])
+  }, [client, enter, attach, enterGame, setBusy])
 }
 
 /** The reconnection token can change after the SDK reconnects; keep the stored copy current. */
@@ -243,6 +401,8 @@ function useKeepSessionFresh(connection: PartyConnection | null, room: RoomView 
   }, [connection, room])
 }
 
+type PartyRoomActions = Omit<RoomActions, 'launchStandalone' | 'joinStandalone' | 'leaveStandalone'>
+
 function useRoomActions(deps: {
   connection: PartyConnection | null
   round: LiveRound
@@ -251,11 +411,11 @@ function useRoomActions(deps: {
   leave: () => void
   setScreen: (screen: Exclude<ArenaStage, 'room'>) => void
   clearError: () => void
-}): RoomActions {
+}): PartyRoomActions {
   const { connection, round, attach, raise, leave, setScreen, clearError } = deps
   const { roundId, attempt } = round
 
-  return useMemo<RoomActions>(() => {
+  return useMemo<PartyRoomActions>(() => {
     /** Send a request; a refusal shows as a notice until the room next changes. */
     const run = (type: string, payload?: unknown) => {
       connection?.request(type, payload).catch((failure: unknown) => {

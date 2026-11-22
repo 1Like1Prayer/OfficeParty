@@ -1,4 +1,4 @@
-import { SESSION_KEY } from './config.ts'
+import { GAME_SESSION_KEY, SESSION_KEY } from './config.ts'
 import type { ArenaSession } from './types.ts'
 
 /**
@@ -37,6 +37,50 @@ export function writeSession(session: ArenaSession): void {
 export function clearSession(): void {
   try {
     sessionStorage.removeItem(SESSION_KEY)
+  } catch {
+    // As above.
+  }
+}
+
+/** This tab's seat in the standalone game it moved into from the party room. */
+export interface GameSession {
+  /** The party room it was opened from: the seat only counts in that party. */
+  partyCode: string
+  roomCode: string
+  reconnectionToken: string
+}
+
+export function readGameSession(): GameSession | null {
+  try {
+    const raw = sessionStorage.getItem(GAME_SESSION_KEY)
+    if (!raw) return null
+    const parsed: unknown = JSON.parse(raw)
+    if (
+      typeof parsed === 'object' &&
+      parsed !== null &&
+      typeof (parsed as GameSession).partyCode === 'string' &&
+      typeof (parsed as GameSession).roomCode === 'string' &&
+      typeof (parsed as GameSession).reconnectionToken === 'string'
+    ) {
+      return parsed as GameSession
+    }
+  } catch {
+    // As for the party seat.
+  }
+  return null
+}
+
+export function writeGameSession(session: GameSession): void {
+  try {
+    sessionStorage.setItem(GAME_SESSION_KEY, JSON.stringify(session))
+  } catch {
+    // A lost seat just means joining the game again from the lobby.
+  }
+}
+
+export function clearGameSession(): void {
+  try {
+    sessionStorage.removeItem(GAME_SESSION_KEY)
   } catch {
     // As above.
   }

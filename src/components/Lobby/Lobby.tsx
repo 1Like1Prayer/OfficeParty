@@ -1,9 +1,12 @@
+import { useState } from 'react'
 import { useMediaQuery } from '../../hooks/index.ts'
-import { breakpoint, color, fluid, font } from '../../theme/index.ts'
+import type { StandaloneGameId, StandaloneGameMeta } from '../../shared/standalone/catalog.ts'
+import { border, breakpoint, color, fluid, font, lift } from '../../theme/index.ts'
 import { PushButton } from '../ui/index.ts'
 import { ConnectedCard, type Floater } from './ConnectedCard.tsx'
 import { GamePoolCard, type PoolChipView } from './GamePoolCard.tsx'
 import { LobbyHeader } from './LobbyHeader.tsx'
+import { StandaloneGamesCard } from './StandaloneGamesCard.tsx'
 import { sfx, useSoundOnChange } from '../../audio/sfx/index.ts'
 
 interface LobbyProps {
@@ -30,7 +33,20 @@ interface LobbyProps {
   selfId: string | null
   /** Set for the owner only: remove a player from the room. */
   onKick: ((playerId: string) => void) | null
+  /** The "Standalone games" section. */
+  standalone: LobbyStandaloneProps
 }
+
+export interface LobbyStandaloneProps {
+  games: StandaloneGameMeta[]
+  /** The game the room has open right now, if any. */
+  open: StandaloneGameMeta | null
+  ownerName: string
+  onLaunch: (gameId: StandaloneGameId) => void
+  onJoin: () => void
+}
+
+type LobbyTab = 'mini' | 'standalone'
 
 /** Waiting room: who is here, what the run looks like, and the start button. */
 export function Lobby({
@@ -51,8 +67,10 @@ export function Lobby({
   onBack,
   selfId,
   onKick,
+  standalone,
 }: LobbyProps) {
   const compact = useMediaQuery(breakpoint.compact)
+  const [tab, setTab] = useState<LobbyTab>('mini')
   // A pop for each arrival, a falling one for each departure.
   useSoundOnChange(floaters.map(({ id }) => id).join(' '), (next, previous) => {
     const now = new Set(next.split(' ').filter(Boolean))
@@ -75,6 +93,21 @@ export function Lobby({
     >
       <LobbyHeader roomCode={roomCode} onBack={onBack} />
 
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+        <div role="tablist" aria-label="Sections" style={{ display: 'flex', gap: 8 }}>
+          <TabButton label="Mini games" active={tab === 'mini'} onClick={() => { setTab('mini') }} />
+          <TabButton label="Standalone games" active={tab === 'standalone'} onClick={() => { setTab('standalone') }} />
+        </div>
+        {standalone.open && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', fontWeight: 800 }}>
+            <span>{standalone.open.title} is being played.</span>
+            <PushButton size="sm" variant="success" onClick={standalone.onJoin}>
+              Join game
+            </PushButton>
+          </div>
+        )}
+      </div>
+
       <div style={{ flex: 1, display: 'flex', gap: fluid(20, 40), minHeight: 0, flexWrap: 'wrap' }}>
         <div
           style={{
@@ -86,6 +119,7 @@ export function Lobby({
           }}
         >
           <ConnectedCard floaters={floaters} emptyLine={emptyLine} selfId={selfId} onKick={onKick} />
+          {tab === 'mini' && (
           <div style={{ display: 'flex', alignItems: 'center', gap: fluid(12, 24), flexWrap: 'wrap' }}>
             {isOwner ? (
               <PushButton size="lg" fullWidth={compact} onClick={onStart} disabled={!canStart}>
@@ -130,6 +164,7 @@ export function Lobby({
               </div>
             </div>
           </div>
+          )}
         </div>
 
         <div
@@ -141,15 +176,54 @@ export function Lobby({
             gap: fluid(16, 24),
           }}
         >
-          <GamePoolCard
-            chips={chips}
-            toggleAllLabel={toggleAllLabel}
-            readOnly={!isOwner}
-            onToggle={onToggleGame}
-            onToggleAll={onToggleAll}
-          />
+          {tab === 'mini' ? (
+            <GamePoolCard
+              chips={chips}
+              toggleAllLabel={toggleAllLabel}
+              readOnly={!isOwner}
+              onToggle={onToggleGame}
+              onToggleAll={onToggleAll}
+            />
+          ) : (
+            <StandaloneGamesCard
+              games={standalone.games}
+              openGameId={standalone.open?.id ?? null}
+              isOwner={isOwner}
+              ownerName={standalone.ownerName}
+              onLaunch={standalone.onLaunch}
+              onJoin={standalone.onJoin}
+            />
+          )}
         </div>
       </div>
     </section>
+  )
+}
+
+function TabButton({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      role="tab"
+      aria-selected={active}
+      onClick={() => {
+        sfx.ui.toggle()
+        onClick()
+      }}
+      style={{
+        padding: `${fluid(8, 10)} ${fluid(14, 20)}`,
+        borderRadius: 999,
+        border: border.medium,
+        background: active ? color.ink : color.white,
+        color: active ? color.white : color.ink,
+        boxShadow: active ? 'none' : lift(3),
+        fontFamily: font.display,
+        fontWeight: 700,
+        fontSize: fluid(15, 17),
+        cursor: 'pointer',
+      }}
+    >
+      {label}
+    </button>
   )
 }

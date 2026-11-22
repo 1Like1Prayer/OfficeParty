@@ -15,6 +15,7 @@ import type {
   RoundPhase,
   StartBlockedReason,
 } from '../shared/protocol.ts'
+import type { StandaloneGameId } from '../shared/standalone/catalog.ts'
 import type { PartyRoom } from './types.ts'
 
 export interface PlayerView {
@@ -78,6 +79,13 @@ export interface RoomView {
   round: RoundView
   minPlayers: number
   maxPlayers: number
+  /** A standalone game the owner opened for the room, while its room is open. */
+  standalone: StandaloneLinkView | null
+}
+
+export interface StandaloneLinkView {
+  gameId: StandaloneGameId
+  roomCode: string
 }
 
 /** Live per-player progress for the running round, keyed by player id. */
@@ -141,6 +149,10 @@ export function toRoomView(state: PartyStateJson): RoomView {
     round: toRoundView(state.round),
     minPlayers: state.minPlayers,
     maxPlayers: state.maxPlayers,
+    standalone:
+      state.standalone.gameId !== '' && state.standalone.roomCode !== ''
+        ? { gameId: state.standalone.gameId, roomCode: state.standalone.roomCode }
+        : null,
   }
 }
 
