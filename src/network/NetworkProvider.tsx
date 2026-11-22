@@ -3,6 +3,7 @@ import { Client } from '@colyseus/sdk'
 import { HEALTH_RETRY_MS, SERVER_URL } from './config.ts'
 import { NetworkContext, type NetworkContextValue } from './networkContext.ts'
 import type { PartyConnection } from './partyConnection.ts'
+import type { SkribblConnection } from './skribblConnection.ts'
 
 interface NetworkProviderProps {
   url?: string
@@ -21,11 +22,12 @@ export function NetworkProvider({ url = SERVER_URL, children }: NetworkProviderP
   const client = useMemo(() => new Client(url), [url])
   const serverReachable = useServerReachable(url)
   const [connection, setConnection] = useState<PartyConnection | null>(null)
+  const [game, setGame] = useState<SkribblConnection | null>(null)
   const [fatalError, setFatalError] = useState<string | null>(null)
 
   const value = useMemo<NetworkContextValue>(
-    () => ({ client, serverReachable, connection, setConnection, fatalError, setFatalError }),
-    [client, serverReachable, connection, fatalError],
+    () => ({ client, serverReachable, connection, setConnection, game, setGame, fatalError, setFatalError }),
+    [client, serverReachable, connection, game, fatalError],
   )
 
   return <NetworkContext value={value}>{children}</NetworkContext>

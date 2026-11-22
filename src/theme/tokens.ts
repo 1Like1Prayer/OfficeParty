@@ -76,4 +76,6 @@ export const breakpoint = {
   narrow: '(max-width: 900px)',
   /** Phone-sized: rows restack and controls go full width. */
   compact: '(max-width: 600px)',
+  /** A phone held sideways: too short to stack panels under a board. */
+  short: '(max-height: 500px) and (orientation: landscape)',
 } as const

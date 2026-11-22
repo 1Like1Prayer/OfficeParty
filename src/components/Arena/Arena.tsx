@@ -18,6 +18,7 @@ import { MusicControl } from '../MusicControl/index.ts'
 import { Scoreboard } from '../Scoreboard/index.ts'
 import { TitleScreen } from '../TitleScreen/index.ts'
 import { ArenaPhase } from './ArenaPhase.tsx'
+import { SkribblScreen } from '../../standalone/skribbl/SkribblScreen.tsx'
 
 /**
  * Top-level screen. One tab is one player: it starts on the title card and
@@ -40,6 +41,7 @@ export function Arena() {
     scores,
     error,
     busy,
+    game,
     actions,
   } = useRoom()
   const [name, setName] = useState('')
@@ -73,6 +75,21 @@ export function Arena() {
     inRoom &&
     !playing &&
     (room.phase === 'leaderboard' || room.phase === 'competition')
+
+  // A standalone game opened from the party takes the whole screen; the party seat waits behind it.
+  if (inRoom && game !== null) {
+    return (
+      <>
+        <ConnectionGate status={status} error={handshakeError}>
+          <ScreenTransition screenKey={`standalone:${game.room.roomId}`}>
+            <SkribblScreen game={game} onLeave={actions.leaveStandalone} />
+          </ScreenTransition>
+        </ConnectionGate>
+        {/* Skribbl has no touch controls in the bottom-left, and its back button owns the top-left, so the button stays put. */}
+        <MusicControl isGameUp={false} />
+      </>
+    )
+  }
 
   return (
     <>

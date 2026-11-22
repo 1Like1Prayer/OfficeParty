@@ -1,6 +1,7 @@
 import { use, useSyncExternalStore } from 'react'
 import { NetworkContext, type NetworkContextValue } from './networkContext.ts'
 import type { PartySnapshot } from './partyConnection.ts'
+import type { SkribblConnection, SkribblSnapshot } from './skribblConnection.ts'
 
 export function useNetwork(): NetworkContextValue {
   const network = use(NetworkContext)
@@ -18,4 +19,9 @@ export function usePartySnapshot(): PartySnapshot | null {
     connection?.subscribe ?? NO_SUBSCRIPTION,
     connection?.getSnapshot ?? NO_SNAPSHOT,
   )
+}
+
+/** A standalone game room's snapshot, re-rendering only when it changes. */
+export function useSkribblSnapshot(game: SkribblConnection): SkribblSnapshot {
+  return useSyncExternalStore(game.subscribe, game.getSnapshot)
 }

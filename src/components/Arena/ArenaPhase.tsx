@@ -42,6 +42,9 @@ import { HostControls } from '../HostControls/index.ts'
 import { Lobby } from '../Lobby/index.ts'
 import { RoundResults } from '../RoundResults/index.ts'
 import { sfx, useSoundOnChange } from '../../audio/sfx/index.ts'
+import { STANDALONE_CATALOG } from '../../shared/standalone/catalog.ts'
+
+const STANDALONE_GAMES = Object.values(STANDALONE_CATALOG)
 
 interface ArenaPhaseProps {
   room: NonNullable<UseRoomResult['state']>
@@ -203,6 +206,13 @@ export function ArenaPhase({
         selfId={playerId}
         onKick={isOwner ? actions.kick : null}
         onBack={actions.goToTitle}
+        standalone={{
+          games: STANDALONE_GAMES,
+          open: room.standalone ? STANDALONE_CATALOG[room.standalone.gameId] : null,
+          ownerName: room.players.find((player) => player.playerId === room.ownerId)?.name ?? 'The host',
+          onLaunch: actions.launchStandalone,
+          onJoin: actions.joinStandalone,
+        }}
       />
     )
   }
